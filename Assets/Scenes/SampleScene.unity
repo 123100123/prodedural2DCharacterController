@@ -3539,6 +3539,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   desiredTarget: {fileID: 219368120}
+  snapToFoundLedge: 0
 --- !u!1 &2036602647
 GameObject:
   m_ObjectHideFlags: 0

@@ -1,6 +1,8 @@
 using UnityEngine;
 
 // Moves one leg's IK solver toward its foot target along a lift-then-settle arc and reports landing to the body.
+// Runs after RaycastTarget has corrected the desired foothold this frame.
+[DefaultExecutionOrder(20)]
 public class MoveTarget : MonoBehaviour {
     private const float LiftPhaseFraction = 0.5f;
     private const float LiftHeightFactor = 1.5f;
