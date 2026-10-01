@@ -1,99 +1,73 @@
-﻿using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
-public class MoveTarget : MonoBehaviour{
-    public GameObject controller;
-    public Transform currentTarget;
-    public Transform desiredTarget;
+// Moves one leg's IK solver toward its foot target along a lift-then-settle arc and reports landing to the body.
+public class MoveTarget : MonoBehaviour {
+    private const float LiftPhaseFraction = 0.5f;
+    private const float LiftHeightFactor = 1.5f;
+    private const float SolverEaseShare = 2f;
+    private const float BodyLiftShare = 2f;
+    private const float ContactToleranceFactor = 0.05f;
 
-    float dist;
-    public float speed = 6.8f;
-    static float reachRange;
-    public float footStartingX = 0;
+    [SerializeField] private BodyControl body;
+    [SerializeField] private Transform footTarget;
+    [SerializeField] private Transform desiredFoothold;
+    [SerializeField] private float speed = 6.8f;
 
-    public bool inContact = true;
-    float easeDiv;
+    private float stepStartX;
+    private bool isGrounded = true;
 
-    Vector2 targetInitialPos;
-    float targetInitialPosX;
-
-    public float xx = 0;
-    public float yy = 0;
-
-    private void Start() {
-        easeDiv = controller.GetComponent<BodyControl>().easeDiv;
-        reachRange = controller.GetComponent<BodyControl>().reachRange;
-        targetInitialPosX = Mathf.Abs(currentTarget.transform.position.x);
-    }
+    public void LiftOff() => isGrounded = false;
 
     private void Update() {
-        SetTargetPosition();
-        SetLegPosition();
-        CheckContact();
+        RetargetWhenFootholdOutOfReach();
+        FollowFootTarget();
+        RegisterLandingWhenFootArrives();
     }
 
-    // change position of the target if controller point is out of range
-    void SetTargetPosition() {
-        dist = Vector2.Distance(currentTarget.transform.position, desiredTarget.position);
+    private void RetargetWhenFootholdOutOfReach() {
+        if (Vector2.Distance(footTarget.position, desiredFoothold.position) <= body.ReachRange) {
+            return;
+        }
 
-        if (dist > reachRange) {
-            currentTarget.position = desiredTarget.position;
-            footStartingX = transform.position.x;
+        footTarget.position = desiredFoothold.position;
+        stepStartX = transform.position.x;
+    }
+
+    private void FollowFootTarget() {
+        float liftHeight = LiftHeightForStepProgress();
+        Vector2 liftedTarget = new Vector2(footTarget.position.x, footTarget.position.y + liftHeight);
+
+        MoveSolverToward(liftedTarget);
+
+        if (!isGrounded) {
+            body.SetStepLift(liftHeight / BodyLiftShare);
         }
     }
 
-    // move the leg towards the point
-    void SetLegPosition() {
-        //xx = Mathf.Abs(transform.position.x - footStartingX);// (Mathf.Abs(transform.position.x) - Mathf.Abs(footStartingX));
-        //xx = Mathf.Clamp(xx, 0, reachRange);
-        //yy = Parabola(xx, -(25/36), 5/3, 0);
+    // Raises the foot during the first part of the step, then lets it settle onto the target.
+    private float LiftHeightForStepProgress() {
+        float stepProgressX = Mathf.Abs(transform.position.x - stepStartX);
 
-        //float targetX = currentTarget.position.x;
-        //float targetY = currentTarget.position.y + yy;
-        //Vector2 targetPointFinal = new Vector2(targetX, targetY);
-
-        //transform.position = Vector2.MoveTowards(transform.position, targetPointFinal, speed * Time.deltaTime);
-
-        xx = Mathf.Abs(transform.position.x - footStartingX);
-        
-        if (xx < reachRange * 0.5) {
-            yy = reachRange * 1.5f;
+        if (stepProgressX < body.ReachRange * LiftPhaseFraction) {
+            return body.ReachRange * LiftHeightFactor;
         }
-        else {
-            yy = yy = (currentTarget.transform.position.y - transform.position.y) / easeDiv / 2;
-        }
-
-        float targetX = currentTarget.position.x;
-        float targetY = currentTarget.position.y + yy;
-        Vector2 targetPointFinal = new Vector2(targetX, targetY);
-
-        float xChange = (currentTarget.transform.position.x - transform.position.x) / easeDiv / 2;
-        float yChange = (currentTarget.transform.position.y - transform.position.y + yy) / easeDiv / 2;
-
-        transform.position = Vector2.MoveTowards(transform.position, targetPointFinal, speed * Time.deltaTime);
-
-        transform.position = new Vector2(transform.position.x + xChange, transform.position.y + yChange);
-
-        // send height increase to the body
-        if (inContact == false) {
-            controller.GetComponent<BodyControl>().heightStepIncrease = yy / 2;
-        }
+        return (footTarget.position.y - transform.position.y) / body.EaseDivisor / SolverEaseShare;
     }
 
-    // calculate parabola
-    float Parabola(float x, float a, float b, float c) {
-        float eq = a * x * x + b * x + c;
-        return eq;
+    // Combines a constant-speed approach with an ease-out step, both measured from the pre-move position.
+    private void MoveSolverToward(Vector2 liftedTarget) {
+        Vector2 easeStep = (liftedTarget - (Vector2)transform.position) / body.EaseDivisor / SolverEaseShare;
+
+        Vector2 approached = Vector2.MoveTowards(transform.position, liftedTarget, speed * Time.deltaTime);
+        transform.position = approached + easeStep;
     }
 
-    // check if leg is in the contact with the ground
-    void CheckContact() {
-        float targetDist = Vector2.Distance(transform.position, currentTarget.transform.position);
+    private void RegisterLandingWhenFootArrives() {
+        float distanceToTarget = Vector2.Distance(transform.position, footTarget.position);
 
-        if (targetDist < reachRange * 0.05 && inContact == false) {
-            controller.GetComponent<BodyControl>().inContact += 1;
-            inContact = true;
+        if (distanceToTarget < body.ReachRange * ContactToleranceFactor && !isGrounded) {
+            body.RegisterLegLanded();
+            isGrounded = true;
         }
     }
 }

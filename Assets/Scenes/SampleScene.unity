@@ -1042,14 +1042,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 49fefb00012b2614c88ae02182c38bfd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  controller: {fileID: 2036602643}
-  currentTarget: {fileID: 590980464}
-  desiredTarget: {fileID: 1611934363}
+  body: {fileID: 2036602644}
+  footTarget: {fileID: 590980464}
+  desiredFoothold: {fileID: 1611934363}
   speed: 8
-  footStartingX: 0
-  inContact: 1
-  xx: 0
-  yy: 0
 --- !u!1 &770779858
 GameObject:
   m_ObjectHideFlags: 0
@@ -1743,14 +1739,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 49fefb00012b2614c88ae02182c38bfd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  controller: {fileID: 2036602643}
-  currentTarget: {fileID: 1118553915}
-  desiredTarget: {fileID: 1545547789}
+  body: {fileID: 2036602644}
+  footTarget: {fileID: 1118553915}
+  desiredFoothold: {fileID: 1545547789}
   speed: 8
-  footStartingX: 0
-  inContact: 1
-  xx: 0
-  yy: 0
 --- !u!1 &1351324845
 GameObject:
   m_ObjectHideFlags: 0
@@ -3505,19 +3497,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a8ec55e3e88aa63419aff1053515998d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  frontLeg: {fileID: 1118553914}
-  backLeg: {fileID: 590980463}
-  legPoint: {fileID: 219368119}
-  solverF: {fileID: 1346135898}
-  solverB: {fileID: 738148323}
-  rayTargetF: {fileID: 1545547788}
-  rayTargetB: {fileID: 1611934362}
-  inContact: 2
-  height: 2.4
-  speed: 12
-  easeDiv: 14
+  frontFootTarget: {fileID: 1118553915}
+  backFootTarget: {fileID: 590980464}
+  strideTarget: {fileID: 219368120}
+  frontLegSolver: {fileID: 1346135902}
+  backLegSolver: {fileID: 738148327}
+  frontDesiredFoothold: {fileID: 1545547789}
+  backDesiredFoothold: {fileID: 1611934363}
+  bodyHeight: 2.4
+  strideSpeed: 12
+  easeDivisor: 14
   reachRange: 1.2
-  heightStepIncrease: 0
 --- !u!1 &2036602645
 GameObject:
   m_ObjectHideFlags: 0

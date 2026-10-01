@@ -1,103 +1,115 @@
-﻿using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-public class BodyControl : MonoBehaviour{
-    public GameObject frontLeg;
-    public GameObject backLeg;
-    public GameObject legPoint;
+// Moves the stride target from input, decides which leg steps next, and keeps the body centred over the feet.
+public class BodyControl : MonoBehaviour {
+    private const int LegCount = 2;
+    private const float StrideClampFactor = 1.8f;
+    private const float BodyAnchorCount = 3f;
 
-    public GameObject solverF;
-    public GameObject solverB;
+    [SerializeField] private Transform frontFootTarget;
+    [SerializeField] private Transform backFootTarget;
+    [SerializeField] private Transform strideTarget;
 
-    public GameObject rayTargetF;
-    public GameObject rayTargetB;
+    [SerializeField] private MoveTarget frontLegSolver;
+    [SerializeField] private MoveTarget backLegSolver;
 
-    public int inContact = 2;
+    [SerializeField] private Transform frontDesiredFoothold;
+    [SerializeField] private Transform backDesiredFoothold;
 
-    public float height = 2.3f;
-    public float speed = 2.0f;
-    public float easeDiv = 3.0f;
-    public float reachRange = 1.2f;
+    [SerializeField] private float bodyHeight = 2.3f;
+    [SerializeField] private float strideSpeed = 2.0f;
+    [SerializeField] private float easeDivisor = 3.0f;
+    [SerializeField] private float reachRange = 1.2f;
 
-    public float heightStepIncrease = 0;
+    private int groundedLegCount = LegCount;
+    private float stepLiftHeight;
 
-    // Update is called once per frame
-    void Update(){
-        MoveLegTarget();
-        CheckRange();
-        MoveBody();
-        AdjustVertically();
+    public float ReachRange => reachRange;
+    public float EaseDivisor => easeDivisor;
+
+    public void SetStepLift(float liftHeight) => stepLiftHeight = liftHeight;
+
+    public void RegisterLegLanded() => groundedLegCount += 1;
+
+    private void Update() {
+        MoveStrideTargetFromInput();
+        StartStepWhenStrideOutOfReach();
+        CenterBodyHorizontally();
+        MatchBodyHeightToFeet();
     }
 
-    // move around target point for the leg
-    void MoveLegTarget() {
-        Vector2 pos = legPoint.transform.position;
+    private void MoveStrideTargetFromInput() {
+        Vector2 position = strideTarget.position;
+        position.x += ReadStrideDirection() * strideSpeed * Time.deltaTime;
+
+        float maxOffset = reachRange * StrideClampFactor;
+        position.x = Mathf.Clamp(position.x, transform.position.x - maxOffset, transform.position.x + maxOffset);
+
+        strideTarget.position = position;
+    }
+
+    private static float ReadStrideDirection() {
         Keyboard keyboard = Keyboard.current;
-
-        if (keyboard != null && keyboard.dKey.isPressed) {
-            pos.x += speed * Time.deltaTime;
-        }
-        if (keyboard != null && keyboard.aKey.isPressed) {
-            pos.x -= speed * Time.deltaTime;
+        if (keyboard == null) {
+            return 0f;
         }
 
-        pos.x = Mathf.Clamp(pos.x, transform.position.x - reachRange * 1.8f, transform.position.x + reachRange * 1.8f);
-
-        legPoint.transform.position = pos;
+        float direction = 0f;
+        if (keyboard.dKey.isPressed) {
+            direction += 1f;
+        }
+        if (keyboard.aKey.isPressed) {
+            direction -= 1f;
+        }
+        return direction;
     }
 
-    // check if should make a step
-    void CheckRange() {
-        float distF = Vector2.Distance(legPoint.transform.position, frontLeg.transform.position);
-        float distB = Vector2.Distance(legPoint.transform.position, backLeg.transform.position);
+    // Only one leg steps at a time: the one whose foot is farther from the stride target.
+    private void StartStepWhenStrideOutOfReach() {
+        if (groundedLegCount != LegCount) {
+            return;
+        }
 
-        // check if both legs are in contact with the ground
-        if (inContact == 2) {
-            // front leg is further away
-            if (distF > distB) {
-                float dist = Vector2.Distance(legPoint.transform.position, rayTargetB.transform.position);
+        float frontDistance = Vector2.Distance(strideTarget.position, frontFootTarget.position);
+        float backDistance = Vector2.Distance(strideTarget.position, backFootTarget.position);
 
-                if (dist > reachRange) {
-                    rayTargetF.transform.position = legPoint.transform.position;
-                    solverF.GetComponent<MoveTarget>().inContact = false;
-                    inContact -= 1;
-                }
-            }
-            // back leg is further away
-            else {
-                float dist = Vector2.Distance(legPoint.transform.position, rayTargetF.transform.position);
-
-                if (dist > reachRange) {
-                    rayTargetB.transform.position = legPoint.transform.position;
-                    solverB.GetComponent<MoveTarget>().inContact = false;
-                    inContact -= 1;
-                }
-            }
+        if (frontDistance > backDistance) {
+            StartStepIfBeyondPlantedFoot((frontLegSolver, frontDesiredFoothold), backDesiredFoothold);
+        }
+        else {
+            StartStepIfBeyondPlantedFoot((backLegSolver, backDesiredFoothold), frontDesiredFoothold);
         }
     }
 
-    // moves body horizontally so it's in the middle of the three points
-    void MoveBody() {
-        Vector2 pos = transform.position;
-        float targetX = (((
-            rayTargetF.transform.position.x +
-            rayTargetB.transform.position.x +
-            legPoint.transform.position.x) 
-            / 3) - transform.position.x) 
-            / easeDiv;
+    private void StartStepIfBeyondPlantedFoot(
+        (MoveTarget solver, Transform desiredFoothold) steppingLeg,
+        Transform plantedFoothold) {
+        if (Vector2.Distance(strideTarget.position, plantedFoothold.position) <= reachRange) {
+            return;
+        }
 
-        pos.x += targetX;
-        transform.position = pos;
+        steppingLeg.desiredFoothold.position = strideTarget.position;
+        steppingLeg.solver.LiftOff();
+        groundedLegCount -= 1;
     }
 
-    // adjust vertical position depending if one of the legs is higher
-    void AdjustVertically() {
-        Vector2 pos = transform.position;
+    // Eases the body toward the mean x of both desired footholds and the stride target.
+    private void CenterBodyHorizontally() {
+        Vector2 position = transform.position;
+        float anchorMeanX = (frontDesiredFoothold.position.x + backDesiredFoothold.position.x + strideTarget.position.x) / BodyAnchorCount;
 
-        pos.y += ((((frontLeg.transform.position.y + backLeg.transform.position.y) / 2) + height + heightStepIncrease) - transform.position.y) / easeDiv;
+        position.x += (anchorMeanX - position.x) / easeDivisor;
+        transform.position = position;
+    }
 
-        transform.position = pos;
+    // Eases the body toward the average foot height plus standing height and the current step lift.
+    private void MatchBodyHeightToFeet() {
+        Vector2 position = transform.position;
+        float averageFootY = (frontFootTarget.position.y + backFootTarget.position.y) / 2;
+        float targetY = averageFootY + bodyHeight + stepLiftHeight;
+
+        position.y += (targetY - position.y) / easeDivisor;
+        transform.position = position;
     }
 }

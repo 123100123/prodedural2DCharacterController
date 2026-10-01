@@ -1,23 +1,21 @@
-﻿using UnityEngine;
+using UnityEngine;
 
+// Snaps the desired target's height onto the ground directly below it.
 public class RaycastTarget : MonoBehaviour {
-    float desiredYPosition;
-    public Transform desiredTarget;
+    private const float RayStartHeightAboveBody = 5f;
+    private const float RayLength = 12f;
 
-    void Update() {
-        RaycastCollider();
-        desiredTarget.position = new Vector2(desiredTarget.position.x, desiredYPosition);
+    [SerializeField] private Transform desiredTarget;
+
+    private void Update() {
+        desiredTarget.position = new Vector2(desiredTarget.position.x, GroundHeightBelowTarget());
     }
 
-    // create raycast poiting downwards
-    void RaycastCollider() {
-        RaycastHit2D hit = Physics2D.Raycast(new Vector2(desiredTarget.position.x, transform.position.y + 5), -Vector2.up, 12f);
+    // Falls back to this transform's height when no ground is found.
+    private float GroundHeightBelowTarget() {
+        Vector2 rayOrigin = new Vector2(desiredTarget.position.x, transform.position.y + RayStartHeightAboveBody);
+        RaycastHit2D hit = Physics2D.Raycast(rayOrigin, Vector2.down, RayLength);
 
-        if (hit.collider != null) {
-            desiredYPosition = hit.point.y;
-        }
-        else {
-            desiredYPosition = transform.position.y;
-        }
+        return hit.collider != null ? hit.point.y : transform.position.y;
     }
 }
