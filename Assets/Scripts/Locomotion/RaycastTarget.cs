@@ -1,7 +1,7 @@
 using UnityEngine;
 
 // Keeps the desired target on reachable ground below this transform, holding the last valid foothold when none is found.
-// Runs after BodyControl places targets and before MoveTarget follows them.
+// Runs after StrideController places targets and before LegStepper follows them.
 [DefaultExecutionOrder(10)]
 public class RaycastTarget : MonoBehaviour {
     [SerializeField] private Transform desiredTarget;

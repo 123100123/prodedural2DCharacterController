@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 
 // Moves the stride target from input, decides which leg steps next, and keeps the body centred over the feet.
-public class BodyControl : MonoBehaviour {
+public class StrideController : MonoBehaviour {
     private const int LegCount = 2;
     private const float StrideClampFactor = 1.8f;
     private const float BodyAnchorCount = 3f;
@@ -11,8 +11,8 @@ public class BodyControl : MonoBehaviour {
     [SerializeField] private Transform backFootTarget;
     [SerializeField] private Transform strideTarget;
 
-    [SerializeField] private MoveTarget frontLegSolver;
-    [SerializeField] private MoveTarget backLegSolver;
+    [SerializeField] private LegStepper frontLegSolver;
+    [SerializeField] private LegStepper backLegSolver;
 
     [SerializeField] private Transform frontDesiredFoothold;
     [SerializeField] private Transform backDesiredFoothold;
@@ -83,7 +83,7 @@ public class BodyControl : MonoBehaviour {
     }
 
     private void StartStepIfBeyondPlantedFoot(
-        (MoveTarget solver, Transform desiredFoothold) steppingLeg,
+        (LegStepper solver, Transform desiredFoothold) steppingLeg,
         Transform plantedFoothold) {
         if (Vector2.Distance(strideTarget.position, plantedFoothold.position) <= reachRange) {
             return;
