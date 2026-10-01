@@ -58,7 +58,8 @@ public class MoveTarget : MonoBehaviour {
 
     // Combines a constant-speed approach with an ease-out step, both measured from the pre-move position.
     private void MoveSolverToward(Vector2 liftedTarget) {
-        Vector2 easeStep = (liftedTarget - (Vector2)transform.position) / body.EaseDivisor / SolverEaseShare;
+        float easeFraction = FrameRateEase.FractionForFrame(1f / body.EaseDivisor / SolverEaseShare, Time.deltaTime);
+        Vector2 easeStep = (liftedTarget - (Vector2)transform.position) * easeFraction;
 
         Vector2 approached = Vector2.MoveTowards(transform.position, liftedTarget, speed * Time.deltaTime);
         transform.position = approached + easeStep;

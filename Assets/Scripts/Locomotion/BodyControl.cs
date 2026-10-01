@@ -99,7 +99,7 @@ public class BodyControl : MonoBehaviour {
         Vector2 position = transform.position;
         float anchorMeanX = (frontDesiredFoothold.position.x + backDesiredFoothold.position.x + strideTarget.position.x) / BodyAnchorCount;
 
-        position.x += (anchorMeanX - position.x) / easeDivisor;
+        position.x += (anchorMeanX - position.x) * BodyEaseFraction();
         transform.position = position;
     }
 
@@ -109,7 +109,9 @@ public class BodyControl : MonoBehaviour {
         float averageFootY = (frontFootTarget.position.y + backFootTarget.position.y) / 2;
         float targetY = averageFootY + bodyHeight + stepLiftHeight;
 
-        position.y += (targetY - position.y) / easeDivisor;
+        position.y += (targetY - position.y) * BodyEaseFraction();
         transform.position = position;
     }
+
+    private float BodyEaseFraction() => FrameRateEase.FractionForFrame(1f / easeDivisor, Time.deltaTime);
 }
