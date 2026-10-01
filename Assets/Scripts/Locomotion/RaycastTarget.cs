@@ -1,32 +1,17 @@
 using UnityEngine;
 
-// Keeps the desired target on reachable ground below this transform, holding the last valid foothold when none is found.
-// Runs after StrideController places targets and before LegStepper follows them.
-[DefaultExecutionOrder(10)]
+// Legacy debug marker: drops the target onto the ground below it. Locomotion no longer reads these markers
+// (footholds are planned by FootholdPlanner), so the component and its marker objects can be removed from the scene.
 public class RaycastTarget : MonoBehaviour {
+    private const float RayStartHeight = 1f;
+    private const float RayLength = 6f;
+
     [SerializeField] private Transform desiredTarget;
-    [Tooltip("Move the target sideways onto the found ledge. Disable for input-driven targets, which only take its height.")]
-    [SerializeField] private bool snapToFoundLedge = true;
-    [SerializeField] private FootholdLimits limits = FootholdLimits.Default;
 
-    private Vector2 lastValidFoothold;
-
-    private void Awake() {
-        lastValidFoothold = desiredTarget.position;
-    }
-
-    private void Update() {
-        Vector2 foothold = FindReachableFoothold();
-        desiredTarget.position = snapToFoundLedge ? foothold : new Vector2(desiredTarget.position.x, foothold.y);
-    }
-
-    private Vector2 FindReachableFoothold() {
-        float probeX = desiredTarget.position.x;
-        float forwardSign = Mathf.Sign(probeX - transform.position.x);
-
-        if (FootholdProbe.TryFindFoothold((probeX, transform.position.y, forwardSign), limits, out Vector2 foothold)) {
-            lastValidFoothold = foothold;
+    private void LateUpdate() {
+        Vector2 origin = new Vector2(desiredTarget.position.x, transform.position.y + RayStartHeight);
+        if (FootholdProbe.TryFindGroundBelow((origin, RayLength), Physics2D.DefaultRaycastLayers, out Vector2 ground)) {
+            desiredTarget.position = new Vector2(desiredTarget.position.x, ground.y);
         }
-        return lastValidFoothold;
     }
 }

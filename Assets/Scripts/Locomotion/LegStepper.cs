@@ -1,8 +1,8 @@
 using UnityEngine;
+using UnityEngine.U2D.IK;
 
-// Moves one leg's IK solver toward its foot target along a lift-then-settle arc and reports landing to the body.
-// Runs after RaycastTarget has corrected the desired foothold this frame.
-[DefaultExecutionOrder(20)]
+// Moves one leg's IK solver toward its foot target, lifting the foot during the first part of a step.
+[RequireComponent(typeof(LimbSolver2D))]
 public class LegStepper : MonoBehaviour {
     private const float LiftPhaseFraction = 0.5f;
     private const float LiftHeightFactor = 1.5f;
@@ -10,66 +10,65 @@ public class LegStepper : MonoBehaviour {
     private const float BodyLiftShare = 2f;
     private const float ContactToleranceFactor = 0.05f;
 
-    [SerializeField] private StrideController body;
     [SerializeField] private Transform footTarget;
-    [SerializeField] private Transform desiredFoothold;
     [SerializeField] private float speed = 6.8f;
 
+    private Transform hip;
     private float stepStartX;
+    private float stepLength;
     private bool isGrounded = true;
 
-    public void LiftOff() => isGrounded = false;
+    public bool IsGrounded => isGrounded;
+    public Vector2 FootTarget => footTarget.position;
+    public Vector2 HipPosition => hip.position;
+    public float LegLength { get; private set; }
+    public float BodyLift { get; private set; }
 
-    private void Update() {
-        RetargetWhenFootholdOutOfReach();
-        FollowFootTarget();
-        RegisterLandingWhenFootArrives();
+    private void Awake() {
+        Transform[] chain = GetComponent<LimbSolver2D>().GetChain(0).transforms;
+        hip = chain[0];
+        LegLength = Vector2.Distance(chain[0].position, chain[1].position) + Vector2.Distance(chain[1].position, chain[2].position);
     }
 
-    private void RetargetWhenFootholdOutOfReach() {
-        if (Vector2.Distance(footTarget.position, desiredFoothold.position) <= body.ReachRange) {
-            return;
-        }
-
-        footTarget.position = desiredFoothold.position;
+    public void BeginStep(Vector2 foothold) {
         stepStartX = transform.position.x;
+        stepLength = Mathf.Abs(foothold.x - stepStartX);
+        footTarget.position = foothold;
+        isGrounded = false;
     }
 
-    private void FollowFootTarget() {
-        float liftHeight = LiftHeightForStepProgress();
-        Vector2 liftedTarget = new Vector2(footTarget.position.x, footTarget.position.y + liftHeight);
+    public void TickStep(float deltaTime, (float reachRange, float easeDivisor) gait) {
+        float liftHeight = isGrounded ? 0f : LiftHeightForStepProgress(gait);
+        MoveSolverToward(new Vector2(footTarget.position.x, footTarget.position.y + liftHeight), (deltaTime, gait.easeDivisor));
 
-        MoveSolverToward(liftedTarget);
-
-        if (!isGrounded) {
-            body.SetStepLift(liftHeight / BodyLiftShare);
-        }
+        BodyLift = isGrounded ? 0f : liftHeight / BodyLiftShare;
+        RegisterLandingWhenFootArrives(gait.reachRange);
     }
 
     // Raises the foot during the first part of the step, then lets it settle onto the target.
-    private float LiftHeightForStepProgress() {
+    private float LiftHeightForStepProgress((float reachRange, float easeDivisor) gait) {
         float stepProgressX = Mathf.Abs(transform.position.x - stepStartX);
+        float liftPhaseLength = Mathf.Min(gait.reachRange, stepLength) * LiftPhaseFraction;
 
-        if (stepProgressX < body.ReachRange * LiftPhaseFraction) {
-            return body.ReachRange * LiftHeightFactor;
+        if (stepProgressX < liftPhaseLength) {
+            return gait.reachRange * LiftHeightFactor;
         }
-        return (footTarget.position.y - transform.position.y) / body.EaseDivisor / SolverEaseShare;
+        return (footTarget.position.y - transform.position.y) / gait.easeDivisor / SolverEaseShare;
     }
 
     // Combines a constant-speed approach with an ease-out step, both measured from the pre-move position.
-    private void MoveSolverToward(Vector2 liftedTarget) {
-        float easeFraction = FrameRateEase.FractionForFrame(1f / body.EaseDivisor / SolverEaseShare, Time.deltaTime);
+    private void MoveSolverToward(Vector2 liftedTarget, (float deltaTime, float easeDivisor) motion) {
+        float easeFraction = FrameRateEase.FractionForFrame(1f / motion.easeDivisor / SolverEaseShare, motion.deltaTime);
         Vector2 easeStep = (liftedTarget - (Vector2)transform.position) * easeFraction;
 
-        Vector2 approached = Vector2.MoveTowards(transform.position, liftedTarget, speed * Time.deltaTime);
+        Vector2 approached = Vector2.MoveTowards(transform.position, liftedTarget, speed * motion.deltaTime);
         transform.position = approached + easeStep;
     }
 
-    private void RegisterLandingWhenFootArrives() {
+    private void RegisterLandingWhenFootArrives(float reachRange) {
         float distanceToTarget = Vector2.Distance(transform.position, footTarget.position);
 
-        if (distanceToTarget < body.ReachRange * ContactToleranceFactor && !isGrounded) {
-            body.RegisterLegLanded();
+        if (!isGrounded && distanceToTarget < reachRange * ContactToleranceFactor) {
             isGrounded = true;
         }
     }

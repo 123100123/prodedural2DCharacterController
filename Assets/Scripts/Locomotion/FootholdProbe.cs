@@ -1,66 +1,91 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
-// Vertical window around the probe origin in which ground counts as reachable, plus the sideways search extent.
+// Tunables for choosing where a stepping foot may land, measured from the planted foot.
 [Serializable]
 public struct FootholdLimits {
-    [Tooltip("Highest accepted surface above the probe origin.")]
-    public float maxRise;
-    [Tooltip("Lowest accepted surface below the probe origin. Anything deeper (e.g. the floor under a gap) is ignored.")]
-    public float maxDrop;
-    [Tooltip("How far sideways to look for a ledge when nothing is reachable directly below.")]
+    [Tooltip("Highest accepted foothold above the planted foot.")]
+    public float maxStepUp;
+    [Tooltip("Lowest accepted foothold below the planted foot. Anything deeper (e.g. the floor under a gap) is ignored.")]
+    public float maxStepDown;
+    [Tooltip("Accepted hip-to-foothold distance as a multiple of leg length, after the body settles.")]
+    public float maxReachStretch;
+    [Tooltip("How far sideways from the desired spot to look for ground.")]
     public float searchRadius;
     public float searchStep;
+    [Tooltip("Cost of one unit of height change relative to one unit of sideways shift.")]
+    public float heightWeight;
+    [Tooltip("Steps shorter than this are skipped instead of shuffling in place.")]
+    public float minStepLength;
     public LayerMask groundMask;
 
     public static FootholdLimits Default => new FootholdLimits {
-        maxRise = 1.0f,
-        maxDrop = 3.2f,
+        maxStepUp = 1.0f,
+        maxStepDown = 1.3f,
+        maxReachStretch = 1.2f,
         searchRadius = 0.8f,
         searchStep = 0.05f,
+        heightWeight = 0.5f,
+        minStepLength = 0.15f,
         groundMask = Physics2D.DefaultRaycastLayers,
     };
 }
 
-// Finds reachable ground for a foot: directly below the probe, otherwise the nearest ledge, searching forward first.
+// Physics queries for footholds: samples ground tops inside the step window around a desired x
+// that the foot can swing to without passing through terrain.
 public static class FootholdProbe {
-    public static bool TryFindFoothold(
-        (float probeX, float originY, float forwardSign) request,
-        FootholdLimits limits,
-        out Vector2 foothold) {
-        if (TryFindGroundBelow((request.probeX, request.originY), limits, out foothold)) {
-            return true;
-        }
-        if (TrySearchSideways((request.probeX, request.originY, request.forwardSign), limits, out foothold)) {
-            return true;
-        }
-        return TrySearchSideways((request.probeX, request.originY, -request.forwardSign), limits, out foothold);
-    }
+    private const float RayHeadroom = 0.05f;
+    private const float SwingClearance = 0.1f;
 
-    private static bool TrySearchSideways(
-        (float probeX, float originY, float direction) search,
-        FootholdLimits limits,
-        out Vector2 foothold) {
-        int stepCount = Mathf.FloorToInt(limits.searchRadius / limits.searchStep);
+    // Samples run from the desired spot back to the swinging foot (so a shorter step onto an obstacle is found)
+    // and searchRadius beyond it (so a gap's far edge is found). Nearest samples come first.
+    public static void CollectCandidates((float desiredX, float stanceY, Vector2 swingFrom) query, FootholdLimits limits, List<Vector2> candidates) {
+        candidates.Clear();
+        float towardSwingSign = Mathf.Sign(query.swingFrom.x - query.desiredX);
+        int towardSwingCount = Mathf.FloorToInt(Mathf.Abs(query.swingFrom.x - query.desiredX) / limits.searchStep);
+        int beyondCount = Mathf.FloorToInt(limits.searchRadius / limits.searchStep);
 
-        for (int step = 1; step <= stepCount; step++) {
-            float x = search.probeX + search.direction * step * limits.searchStep;
-            if (TryFindGroundBelow((x, search.originY), limits, out foothold)) {
-                return true;
+        for (int sample = 0; sample <= Mathf.Max(towardSwingCount, beyondCount); sample++) {
+            float offset = sample * limits.searchStep;
+            if (sample <= towardSwingCount) {
+                AddReachableCandidate((query.desiredX + towardSwingSign * offset, query.stanceY, query.swingFrom), limits, candidates);
+            }
+            if (sample > 0 && sample <= beyondCount) {
+                AddReachableCandidate((query.desiredX - towardSwingSign * offset, query.stanceY, query.swingFrom), limits, candidates);
             }
         }
-
-        foothold = default;
-        return false;
     }
 
-    // A ray that starts inside a collider (distance 0) is rejected: that surface is overhead, not underfoot.
-    private static bool TryFindGroundBelow((float x, float originY) probe, FootholdLimits limits, out Vector2 foothold) {
-        Vector2 rayOrigin = new Vector2(probe.x, probe.originY + limits.maxRise);
-        RaycastHit2D hit = Physics2D.Raycast(rayOrigin, Vector2.down, limits.maxRise + limits.maxDrop, limits.groundMask);
+    private static void AddReachableCandidate((float x, float stanceY, Vector2 swingFrom) column, FootholdLimits limits, List<Vector2> candidates) {
+        if (TryFindGroundInStepWindow((column.x, column.stanceY), limits, out Vector2 groundPoint)
+            && IsSwingPathClear((column.swingFrom, groundPoint), limits.groundMask)) {
+            candidates.Add(groundPoint);
+        }
+    }
 
-        bool isReachable = hit.collider != null && hit.distance > 0f;
-        foothold = isReachable ? hit.point : default;
-        return isReachable;
+    // A swing is blocked when terrain rises above both ends between them, e.g. a stair block in front of the floor beyond it.
+    public static bool IsSwingPathClear((Vector2 from, Vector2 to) swing, LayerMask groundMask) {
+        float swingHeight = Mathf.Max(swing.from.y, swing.to.y) + SwingClearance;
+        Vector2 start = new Vector2(swing.from.x, swingHeight);
+        Vector2 end = new Vector2(swing.to.x, swingHeight);
+
+        return Physics2D.Linecast(start, end, groundMask).collider == null;
+    }
+
+    public static bool TryFindGroundBelow((Vector2 origin, float maxDistance) ray, LayerMask groundMask, out Vector2 groundPoint) {
+        RaycastHit2D hit = Physics2D.Raycast(ray.origin, Vector2.down, ray.maxDistance, groundMask);
+        bool isGroundHit = hit.collider != null && hit.distance > 0f;
+
+        groundPoint = isGroundHit ? hit.point : default;
+        return isGroundHit;
+    }
+
+    // A ray that starts inside a collider is rejected: that column is blocked above the step window.
+    private static bool TryFindGroundInStepWindow((float x, float stanceY) column, FootholdLimits limits, out Vector2 groundPoint) {
+        Vector2 origin = new Vector2(column.x, column.stanceY + limits.maxStepUp + RayHeadroom);
+        float windowHeight = limits.maxStepUp + limits.maxStepDown + 2f * RayHeadroom;
+
+        return TryFindGroundBelow((origin, windowHeight), limits.groundMask, out groundPoint);
     }
 }
