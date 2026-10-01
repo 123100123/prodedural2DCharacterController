@@ -1,197 +1,88 @@
 ## Procedural animation showcase
-_Unity 2D humanoid procedural animation_
+_Unity 2D humanoid procedural animation (Unity 6000.3, 2D Animation IK, Input System)_
 
 ## 1. Overview
   This is the general explanation of the idea of simple 2D procedural leg animation for bipedal character. Project uses inverse kinematics (IK) to calculate position of the leg, which adapts to the terrain.
-  
+
   ![Alt Text](https://media.giphy.com/media/Y3S9FdlkHIynsJgPaj/giphy.gif)
 
 _Results_
 
+Open `Assets/Scenes/SampleScene.unity`, press Play and walk with **A** / **D**.
+
+## Project layout
+```
+Assets/
+  Art/Characters/      inverseRobo.psb (rigged PSB character)
+  Art/Sprites/         debug icons and the ground tile
+  Scenes/              SampleScene
+  Scripts/Locomotion/  BodyControl, MoveTarget, RaycastTarget, FootholdProbe, FrameRateEase
+```
+
+| Script | Responsibility |
+|---|---|
+| [BodyControl](Assets/Scripts/Locomotion/BodyControl.cs) | Moves the stride target from input, decides which leg steps next, keeps the body centred over the feet. |
+| [MoveTarget](Assets/Scripts/Locomotion/MoveTarget.cs) | Moves one leg's IK solver toward its foot target along a lift-then-settle arc and reports landing. |
+| [RaycastTarget](Assets/Scripts/Locomotion/RaycastTarget.cs) | Keeps a desired target on reachable ground, holding the last valid foothold when none is found. |
+| [FootholdProbe](Assets/Scripts/Locomotion/FootholdProbe.cs) | Finds reachable ground in a vertical window; searches sideways for the nearest ledge over gaps. |
+| [FrameRateEase](Assets/Scripts/Locomotion/FrameRateEase.cs) | Makes the ease-out motion independent of frame rate. |
+
+Update order is fixed: `BodyControl` → `RaycastTarget` → `MoveTarget`.
+
 ## 2. Idea
   Legs of the rigged character are chain of the two bones, end of which (feet) are always trying to reach for the raycasted target after it reaches certain range. To prevent unnatural, direct movement from point to point of both legs, there is added logic, which controls and syncs leg and body movement depending on the environment and current placement of the feet.
-  
+
 ## 3. Character rig
-  Bone rig for legs is simplified to make later calculations easier and each bone affects one sprite assigned to it. Top of the body could have no bones, but those will be important in further developement for arms and head animations. 
-  
-  ![Alt Text](https://github.com/Re50N4NC3/proceduralAnimation2D/blob/master/ikCharacterRig.PNG)
+  Bone rig for legs is simplified to make later calculations easier and each bone affects one sprite assigned to it. Top of the body could have no bones, but those will be important in further developement for arms and head animations.
+
+  ![Alt Text](ikCharacterRig.PNG)
 
 ## 4. Raycasting desired position
-  There is an raycaster attached to the body which adjusts y coordinate of the desired position, represented here by the diamond icon, depending on the distance from the ground collider. It shows where leg will be placed if controller will be in certain range from current leg position.
+  A raycaster on the body and on each thigh keeps its desired target (circle icon) on the ground. Only ground inside a reach window counts: from `maxRise` above the probing bone down to `maxDrop` below it. The floor deep beneath a gap and platforms overhead are therefore ignored. When nothing reachable is directly below, the probe searches sideways (forward first, up to `searchRadius`) for the nearest ledge, so feet step onto the far side of a gap instead of dropping into it. If no ledge exists, the last valid foothold is kept.
 
-```C#
-using UnityEngine;
+| `FootholdLimits` field | Default | Meaning |
+|---|---|---|
+| `maxRise` | 1.0 | Highest accepted surface above the probing bone |
+| `maxDrop` | 3.2 | Lowest accepted surface below the probing bone |
+| `searchRadius` | 0.8 | Sideways search extent over gaps |
+| `searchStep` | 0.05 | Sideways search resolution |
+| `groundMask` | Default raycast layers | Layers treated as ground |
 
-public class RaycastTarget : MonoBehaviour {
-  float desiredYPosition;
-  public Transform desiredTarget;
-
-  void Update() {
-    RaycastCollider();
-    desiredTarget.position = new Vector2(desiredTarget.position.x, desiredYPosition);
-  }
-
-  void RaycastCollider() {
-    RaycastHit2D hit = Physics2D.Raycast(new Vector2(desiredTarget.position.x, transform.position.y + 5), -Vector2.up, 12f);
-
-    if (hit.collider != null) {
-        desiredYPosition = hit.point.y;
-    }
-    else {
-        desiredYPosition = transform.position.y;
-    }
-  }
-}
-```
+The stride target's raycaster (on `bone_abs`) has `snapToFoundLedge` disabled. It takes only the ledge height, so input can keep pushing it across a gap.
 
 ![Alt Text](https://media.giphy.com/media/Q7ds6FdBQB03IzmXaO/giphy.gif)
 
 ## 5. Inverse kinematics
   It makes possible for us to calculate possible rotations of the bones, that will allow feet to reach desired point.
-  
-  ![Alt Text](https://github.com/Re50N4NC3/proceduralAnimation2D/blob/master/ikFeet.gif)
-  
+
+  ![Alt Text](ikFeet.gif)
+
   Nearly all complicated calculations are diminished thanks to the simplified bone structure and reduction of the problem to the two dimensions. It allows us to use basic trigonometry instead of the iterating over matrix operations.
-  
-  ![Alt Text](https://github.com/Re50N4NC3/proceduralAnimation2D/blob/master/ikTrig.png)
-  
+
+  ![Alt Text](ikTrig.png)
+
   _We know lengths and positions of all the bones and all line segments, so it allows us to easily calculate what angle should be between red and blue bone, to reach designated point_
-  
-  ## 6. Controlling and syncing the body
-  Body is controlled by another raycasted target, which moves around and rest of the body tries to be in middle of both leg points and followed target. 
 
-```C#
-// moves body horizontally so it's in the middle of the three points
-void MoveBody() {
-  Vector2 pos = transform.position;
-  float targetX = (((
-    rayTargetF.transform.position.x +
-    rayTargetB.transform.position.x +
-    legPoint.transform.position.x) / 3) - 
-    transform.position.x) / 
-    easeDiv;
+## 6. Controlling and syncing the body
+  The body follows a stride target that A/D input moves around, clamped near the body. Each frame the body eases horizontally toward the mean of both desired footholds and the stride target.
 
-  pos.x += targetX;
-  transform.position = pos;
-}
-```
-  
-  Then we make check if both legs are in contact with the ground, if so, we can calculate distance from followed point, to leg targets. We are doing this to check which distance is greater, to determine which leg should be moved now. 
-  
-```C#
-// check if should make a step
-void CheckRange() {
-  // calculate distance from followed point to leg targets
-  float distF = Vector2.Distance(legPoint.transform.position, frontLeg.transform.position);
-  float distB = Vector2.Distance(legPoint.transform.position, backLeg.transform.position);
+  When both legs are grounded, the leg whose foot is farther from the stride target is chosen. If the stride target is also out of `reachRange` from the other (planted) foothold, that leg starts a step: its desired foothold jumps to the stride target and the leg is marked airborne. A leg counts as landed again once its solver is within 5% of `reachRange` of its foot target.
 
-  // check if both legs are in contact with the ground
-  if (inContact == 2) {
-    // front leg is further away
-    if (distF > distB) {
-      float dist = Vector2.Distance(legPoint.transform.position, rayTargetB.transform.position);
-
-      if (dist > reachRange) {
-        rayTargetF.transform.position = legPoint.transform.position;
-        solverF.GetComponent<MoveTarget>().inContact = false;
-        inContact -= 1;
-      }
-    }
-    // back leg is further away
-    else {
-      float dist = Vector2.Distance(legPoint.transform.position, rayTargetF.transform.position);
-
-      if (dist > reachRange) {
-        rayTargetB.transform.position = legPoint.transform.position;
-        solverB.GetComponent<MoveTarget>().inContact = false;
-        inContact -= 1;
-      }
-    }
-  }
-}
-```
-
-To check if the character is grounded, we calculate how many legs are close enough to their target which is always on the ground.
-
-```C#
-void CheckContact() {
-  float targetDist = Vector2.Distance(transform.position, currentTarget.transform.position);
-
-  if (targetDist < reachRange * 0.05 && inContact == false) {
-    controller.GetComponent<BodyControl>().inContact += 1;
-    inContact = true;
-  }
-}
-```
-  
   ![Alt Text](https://media.giphy.com/media/UWcRcLwcw8LyuvL7qL/giphy.gif)
-  
-  After all those checks we can move our leg effector towards the desired position. It's done using simple ```Vector2.MoveTowards()``` function combined with adjustable easing out function, to make movement more natural.
-  
-  ```C#
-  float targetX = currentTarget.position.x;
-  float targetY = currentTarget.position.y;
 
-  Vector2 targetPointFinal = new Vector2(targetX, targetY);
+  The leg solver moves toward its target with `Vector2.MoveTowards()` combined with a frame-rate-independent ease-out.
 
-  float xChange = (currentTarget.transform.position.x - transform.position.x) / easeDiv / 2;
+## 7. Body and leg height adjustments
+  During the first half of a step the foot is lifted by `1.5 × reachRange`; in the second half it settles onto the target. Half of the current lift is passed to the body, which eases toward the average foot height plus `bodyHeight`. This raises the body slightly during each step and when one leg stands higher than the other, for example on stairs.
 
-  // two movement functions
-  transform.position = Vector2.MoveTowards(transform.position, targetPointFinal, speed * Time.deltaTime);
-  transform.position = new Vector2(transform.position.x + xChange, transform.position.y + yChange);
-  ```
-  
-  ## 7. Body and leg height adjustments
-  To improve the feel of the movement furthermore, body and leg height adjustments are made during steps and when one leg is higher than another, for example when going upstairs. 
-  Leg movement here is adjusted by checking during the step where beggining and end points are, and then moving leg upwards for the first half of the step, and moving it downwards for second. Better looking and more universal solution could be using curve like parabola or spring damper model.
-  
-```C#
-// move the leg towards the point
-void SetLegPosition() {
-  xx = Mathf.Abs(transform.position.x - footStartingX);  // starting position
-
-  // check at which half the leg is
-  if (xx < reachRange * 0.5) {
-    yy = reachRange * 1.5f;
-  }
-  else {
-    yy = yy = (currentTarget.transform.position.y - transform.position.y) / easeDiv / 2;
-  }
-
-  // calculate vector to move to
-  float targetX = currentTarget.position.x;
-  float targetY = currentTarget.position.y + yy;
-  Vector2 targetPointFinal = new Vector2(targetX, targetY);
-
-  // ease out
-  float xChange = (currentTarget.transform.position.x - transform.position.x) / easeDiv / 2;
-  float yChange = (currentTarget.transform.position.y - transform.position.y + yy) / easeDiv / 2;
-
-  // move to targeted position
-  transform.position = Vector2.MoveTowards(transform.position, targetPointFinal, speed * Time.deltaTime);
-  transform.position = new Vector2(transform.position.x + xChange, transform.position.y + yChange);
-}
-```
-  Height of the whole body is adjusted to the specific height which can be changed on the go depending on the situation, and it's changed by fraction of the leg's height during every step.
-  
-```C#
-// send height increase to the body
-if (inContact == false) {
-  controller.GetComponent<BodyControl>().heightStepIncrease = yy / 2;
-}
-```
   ![Alt Text](https://media.giphy.com/media/H62vdwLXLRo3sMCKaL/giphy.gif)
-  
-  ## 8. Todo
+
+## 8. Todo
   - [ ] Add head animation
   - [ ] Add mouse controls
   - [ ] Allow character to fall when losing balance
   - [ ] Upgrade animation tween and curves
   - [ ] Add upper body animations
   - [ ] Add grabbing and physics interactions
-  
-  
-  
-  
-  
-  
+  - [ ] Character and ground prefabs
+  - [ ] EditMode tests for `FootholdProbe`
