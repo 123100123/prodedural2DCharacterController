@@ -33,6 +33,7 @@ public class StrideController : MonoBehaviour {
     public float MaxStrideOffset => reachRange * StrideClampFactor;
     public float StanceHalfWidth => stanceHalfWidth;
     public float MaxStepUp => footholdLimits.maxStepUp;
+    public float MaxStepDown => footholdLimits.maxStepDown;
     public float StanceHeight => (frontLeg.FootTarget.y + backLeg.FootTarget.y) / 2f;
     public LayerMask GroundMask => footholdLimits.groundMask;
 

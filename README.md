@@ -111,11 +111,13 @@ The full-body states switch through `CharacterStateMachine`. Each state receives
     - In the air, the character can steer, and the legs tuck while rising and reach while falling.
     - Coyote time and a jump buffer make timing forgiving.
     - Landing is swept over the whole frame's fall, so a long frame cannot tunnel through the ground.
-  - **Roll:**
-    - A crouch, then a hop toward the facing direction.
-    - The body spins 360° around the pelvis with the chest curled and the limbs tucked in body space.
-    - The roll follows steps, stops at walls, and becomes a fall when it rolls off a ledge.
-    - It ends standing in the walking stance. The upright pose is always restored.
+  - **Roll** (a dive roll in four procedural phases, each easing from where the previous one left off):
+    1. **Dive:** forward momentum, the torso pitches forward and drops, both arms stretch ahead and the trailing leg pushes back.
+    2. **Hand contact:** the hands reach for ground probed ahead of the shoulders. The phase ends when the hand actually reaches it (with a timeout).
+    3. **Roll:** the hands stay planted briefly, then tuck. The body turns the rest of the way to 360° while its lowest point (head, shoulders, back or hips) stays on the ground, so it rolls like a ball over uneven steps. The chest curls and the chin tucks only while the body is inverted, which swings the head up and away from the ground.
+    4. **Recovery:** the feet reach for ground within a step of where the robot rolled, sliding toward the body near edges. The body rises into a slight crouch that the walking gait stands out of.
+
+    The roll stops at walls and turns into a fall if it leaves a ledge.
   - **Climb:**
     - **Trigger:** pressing jump next to a ledge too high to step onto (up to `maxGrabRise`) starts a climb. So does reaching a ledge corner in the air.
     - **Sequence:** the character reaches the corner, hangs, pulls up while the feet scramble on the wall face, mounts a foot on top and stands.

@@ -3786,6 +3786,7 @@ MonoBehaviour:
     followShare: 0.6
     maxTilt: 30
     poseEase: 0.25
+    crownDistance: 0.63
   chest: {fileID: 2036566789}
   airborne:
     airSpeed: 6
@@ -3805,79 +3806,42 @@ MonoBehaviour:
     windupDuration: 0.12
     crouchDepth: 0.45
   roll:
-    duration: 0.7
-    distance: 3.2
     cooldown: 0.3
-    bodyHeight:
-      serializedVersion: 2
-      m_Curve:
-      - serializedVersion: 3
-        time: 0
-        value: 2.4
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 0
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      - serializedVersion: 3
-        time: 0.1
-        value: 1.95
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 0
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      - serializedVersion: 3
-        time: 0.32
-        value: 2.5
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 0
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      - serializedVersion: 3
-        time: 0.55
-        value: 1.5
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 0
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      - serializedVersion: 3
-        time: 0.8
-        value: 1.5
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 0
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      - serializedVersion: 3
-        time: 1
-        value: 2.4
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 0
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      m_PreInfinity: 2
-      m_PostInfinity: 2
-      m_RotationOrder: 4
-    travelWindow: {x: 0.1, y: 0.9}
-    spinWindow: {x: 0.12, y: 0.85}
-    curlWindow: {x: 0.08, y: 0.22, z: 0.8, w: 0.95}
-    chestCurlAngle: 70
+    speedEase: 0.15
+    groundFollowEase: 0.35
+    rollContactEase: 0.7
+    limbPoseEase: 0.4
+    maxGroundDrop: 3.5
+    groundClearance: 0.05
+    diveDuration: 0.22
+    diveSpeed: 6.5
+    diveLean: 55
+    diveBodyHeight: 1.8
+    diveArmAngle: 20
+    diveArmExtension: 0.95
+    pushOffShare: 0.5
+    handReachAhead: 0.7
+    contactLean: 100
+    contactBodyHeight: 1.5
+    contactSpeed: 5
+    contactTolerance: 0.15
+    maxContactTime: 0.3
+    backHandSpacing: 0.15
+    leadFootExtended: {x: -0.2, y: -2}
+    trailFootExtended: {x: -0.7, y: -1.8}
+    rollDuration: 0.42
+    rollSpeed: 4.5
+    chestCurlAngle: 45
+    invertedPitchWindow: {x: 90, y: 300}
+    hipRadius: 0.4
+    chinTuckAngle: 60
+    handPinShare: 0.3
     leadFootTucked: {x: 0.6, y: -1}
     trailFootTucked: {x: 0.3, y: -1.15}
     handsTucked: {x: 0.75, y: -0.55}
-    limbPoseEase: 0.5
-    groundFollowEase: 0.5
-    maxGroundDrop: 3.5
+    recoverDuration: 0.3
+    recoverSpeed: 1.5
+    recoverCrouch: 0.35
   climb:
     maxGrabRise: 4.5
     searchDistance: 1.6

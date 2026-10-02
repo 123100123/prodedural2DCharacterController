@@ -9,6 +9,8 @@ public class HeadLook {
     [SerializeField] private float followShare = 0.6f;
     [SerializeField] private float maxTilt = 30f;
     [SerializeField] private float poseEase = 0.25f;
+    [Tooltip("Distance from the head bone pivot to the top of the head along the bone.")]
+    [SerializeField] private float crownDistance = 0.63f;
 
     private Transform root;
     private int authoredFacingSign;
@@ -22,8 +24,13 @@ public class HeadLook {
         restAngle = head.localEulerAngles.z;
     }
 
+    public Vector2 CrownPosition => head.TransformPoint(new Vector3(crownDistance, 0f, 0f));
+
     // Valid for the current frame only.
     public void LookToward(Vector2 worldDirection) => requestedTilt = TiltFor(worldDirection);
+
+    // Bends the head forward, chin toward the chest, by the given angle (e.g. to roll over the shoulders). Valid for the current frame only.
+    public void TuckChin(float degrees) => requestedTilt = -degrees * authoredFacingSign;
 
     public void ApplyPose(float deltaTime) {
         tilt = Mathf.Lerp(tilt, requestedTilt ?? 0f, FrameRateEase.FractionForFrame(poseEase, deltaTime));
