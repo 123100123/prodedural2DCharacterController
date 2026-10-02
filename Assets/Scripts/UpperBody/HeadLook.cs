@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-// Tilts the head toward a per-frame look direction (chin up or down), returning to rest when nothing asks for it.
+// Tilts the head per frame: toward a look direction, tucked toward the chest, or held level; returns to rest when nothing asks.
 [Serializable]
 public class HeadLook {
     [SerializeField] private Transform head;
@@ -9,6 +9,8 @@ public class HeadLook {
     [SerializeField] private float followShare = 0.6f;
     [SerializeField] private float maxTilt = 30f;
     [SerializeField] private float poseEase = 0.25f;
+    [Tooltip("Largest correction applied to keep the head level when the torso leans.")]
+    [SerializeField] private float maxLevelCorrection = 40f;
     [Tooltip("Distance from the head bone pivot to the top of the head along the bone.")]
     [SerializeField] private float crownDistance = 0.63f;
 
@@ -29,6 +31,9 @@ public class HeadLook {
     // Valid for the current frame only.
     public void LookToward(Vector2 worldDirection) => requestedTilt = TiltFor(worldDirection);
 
+    // Keeps the head upright and level whatever the torso lean, looking straight ahead. Valid for the current frame only.
+    public void HoldLevel() => requestedTilt = Mathf.Clamp(TiltToUpright(), -maxLevelCorrection, maxLevelCorrection);
+
     // Bends the head forward, chin toward the chest, by the given angle (e.g. to roll over the shoulders). Valid for the current frame only.
     public void TuckChin(float degrees) => requestedTilt = -degrees * authoredFacingSign;
 
@@ -36,6 +41,15 @@ public class HeadLook {
         tilt = Mathf.Lerp(tilt, requestedTilt ?? 0f, FrameRateEase.FractionForFrame(poseEase, deltaTime));
         requestedTilt = null;
         head.localRotation = Quaternion.Euler(0f, 0f, restAngle + tilt);
+    }
+
+    // How far the head must turn from its rest angle for its bone (neck to crown) to point straight up,
+    // measured in the authored rig; the head's parent space has the same handedness.
+    private float TiltToUpright() {
+        float restRadians = restAngle * Mathf.Deg2Rad;
+        Vector2 restDirection = head.parent.TransformVector(new Vector2(Mathf.Cos(restRadians), Mathf.Sin(restRadians)));
+        Vector2 authored = root.InverseTransformVector(restDirection);
+        return Mathf.DeltaAngle(Mathf.Atan2(authored.y, authored.x) * Mathf.Rad2Deg, 90f);
     }
 
     // Elevation is measured in the authored rig, so mirroring the root needs no special case.

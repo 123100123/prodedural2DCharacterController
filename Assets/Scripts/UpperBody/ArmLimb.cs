@@ -11,13 +11,12 @@ public class ArmLimb {
     [SerializeField] private Transform forearm;
     [Tooltip("Forearm bone length; the bone has no end joint to measure it from.")]
     [SerializeField] private float forearmLength = 0.9f;
-    [Tooltip("Elbow bend direction relative to the character: x forward, y up.")]
-    [SerializeField] private Vector2 elbowHint = new Vector2(-1f, -1f);
+    [Tooltip("+1 bends the elbow below/behind the shoulder-to-hand line (natural arm), -1 above/in front of it.")]
+    [SerializeField] private int elbowBendSide = 1;
     [Tooltip("Fraction of the remaining pose change covered per 60 Hz frame.")]
     [SerializeField] private float poseEase = 0.35f;
 
-    private Transform root;
-    private Vector2 authoredElbowHint;
+    private int authoredFacingSign;
     private float upperLength;
     private (float upper, float forearm) restAngles;
     private Vector2 easedTarget;
@@ -28,9 +27,8 @@ public class ArmLimb {
     public float Reach => upperLength + forearmLength;
     public Vector2 HandPosition => forearm.TransformPoint(new Vector3(forearmLength, 0f, 0f));
 
-    public void Initialize((Transform characterRoot, int authoredFacingSign) rig) {
-        root = rig.characterRoot;
-        authoredElbowHint = new Vector2(elbowHint.x * rig.authoredFacingSign, elbowHint.y);
+    public void Initialize(int rigAuthoredFacingSign) {
+        authoredFacingSign = rigAuthoredFacingSign;
         upperLength = forearm.localPosition.magnitude;
         restAngles = (shoulder.localEulerAngles.z, forearm.localEulerAngles.z);
         easedTarget = HandPosition;
@@ -65,16 +63,23 @@ public class ArmLimb {
             Mathf.LerpAngle(restAngles.forearm, reachAngles.forearm, weight)));
     }
 
-    // Solved in the shoulder's parent space, which already contains any facing mirror of the root.
+    // Solved in the shoulder's parent space, which already contains any facing mirror of the rig root.
     private (float upper, float forearm) SolveLocalAngles(Vector2 worldTarget) {
         Transform parent = shoulder.parent;
         Vector2 shoulderPoint = shoulder.localPosition;
         Vector2 target = parent.InverseTransformPoint(worldTarget);
-        Vector2 elbowHint = parent.InverseTransformVector(root.TransformVector(authoredElbowHint));
 
-        (Vector2 elbow, Vector2 hand) = TwoBoneIk.Solve((shoulderPoint, target, elbowHint), (upperLength, forearmLength));
+        (Vector2 elbow, Vector2 hand) = TwoBoneIk.Solve((shoulderPoint, target, ElbowHintFor(target - shoulderPoint)), (upperLength, forearmLength));
         float upperAngle = AngleOf(elbow - shoulderPoint);
         return (upperAngle, AngleOf(hand - elbow) - upperAngle);
+    }
+
+    // The elbow always bends to the same side of the shoulder-to-target line (below it when reaching forward,
+    // behind it when hanging), so it never flips sides as the target sweeps around the shoulder.
+    // The parent space has the authored rig's handedness, so the authored facing picks the side.
+    private Vector2 ElbowHintFor(Vector2 reach) {
+        Vector2 clockwisePerpendicular = new Vector2(reach.y, -reach.x);
+        return clockwisePerpendicular * (elbowBendSide * authoredFacingSign);
     }
 
     private void SetLocalAngles((float upper, float forearm) angles) {

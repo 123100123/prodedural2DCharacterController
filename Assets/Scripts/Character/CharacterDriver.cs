@@ -59,16 +59,25 @@ public class CharacterDriver : MonoBehaviour {
         machine.Tick(Time.deltaTime, commands);
 
         if (machine.Current.AllowsUpperBodyActions) {
-            shootingStance.Tick(commands, Time.time);
+            PoseUpperBody(commands);
         }
+    }
+
+    // Aiming drives the arms and head; otherwise the head stays level and the arms hang at rest.
+    private void PoseUpperBody(PlayerCommands commands) {
+        if (commands.IsAiming) {
+            shootingStance.Tick(commands, Time.time);
+            return;
+        }
+        rig.Head.HoldLevel();
     }
 
     private void LateUpdate() => rig.ApplyUpperBodyPose(Time.deltaTime);
 
     private CharacterRig BuildRig() {
         motor.Bind(stride.transform);
-        frontArm.Initialize((transform, authoredFacingSign));
-        backArm.Initialize((transform, authoredFacingSign));
+        frontArm.Initialize(authoredFacingSign);
+        backArm.Initialize(authoredFacingSign);
         head.Initialize((transform, authoredFacingSign));
 
         CharacterFacing facing = new CharacterFacing((transform, authoredFacingSign));
