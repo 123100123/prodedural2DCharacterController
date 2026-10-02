@@ -3553,8 +3553,12 @@ MonoBehaviour:
     pitchOscillation: 3
     armSwing: 45
     armBend: 0.6
-  runBlendRate: 2.5
-  idleSpeed: 0.2
+  transitions:
+    startSpeed: 0.35
+    stopSpeed: 0.15
+    runBlendStart: 0.1
+    runBlendEnd: 0.8
+    runBlendRate: 4
   idleFootTolerance: 0.18
   stepArc:
     walk:

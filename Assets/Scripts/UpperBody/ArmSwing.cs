@@ -52,11 +52,11 @@ public class ArmSwing {
         StrideController stride = rig.Stride;
         GaitProfile gait = stride.CurrentGait;
         float contact = GaitWaves.FrontLegContact(gait.dutyFactor);
-        float wave = GaitWaves.OppositeArmSwing((stride.GaitPhase, contact, swingLag)) * gait.armSwing * stride.SpeedShare;
+        float wave = GaitWaves.OppositeArmSwing((stride.GaitPhase, contact, swingLag)) * gait.armSwing * stride.Pace.Moving;
         float windup = stride.HeldCrouch > 0f ? -windupSwing : 0f;
 
         (float front, float back) angles = (windup - wave, windup + wave);
-        float baseBend = gait.armBend * stride.SpeedShare;
+        float baseBend = gait.armBend * stride.Pace.Moving;
         return (angles, (ElbowBendFor((angles.front, baseBend)), ElbowBendFor((angles.back, baseBend))));
     }
 

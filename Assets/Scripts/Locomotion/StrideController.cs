@@ -41,10 +41,7 @@ public class StrideController : MonoBehaviour {
     [Header("Gait")]
     [SerializeField] private GaitProfile walk = GaitProfile.Walk;
     [SerializeField] private GaitProfile run = GaitProfile.Run;
-    [Tooltip("How quickly the gait blends between walking and running (share per second).")]
-    [SerializeField] private float runBlendRate = 2.5f;
-    [Tooltip("Below this ground speed the character is idle and settles its feet into a stance.")]
-    [SerializeField] private float idleSpeed = 0.2f;
+    [SerializeField] private GaitTransitionSettings transitions = GaitTransitionSettings.Default;
     [Tooltip("An idle foot further than this from its stance spot takes a settling step.")]
     [SerializeField] private float idleFootTolerance = 0.18f;
     [SerializeField] private StepArcShape stepArc = new StepArcShape();
@@ -60,14 +57,13 @@ public class StrideController : MonoBehaviour {
 
     private readonly List<Vector2> footholdCandidates = new List<Vector2>();
     private readonly GaitCycle cycle = new GaitCycle();
+    private readonly MotionLatch motion = new MotionLatch();
     private (bool front, bool back) pendingLift;
-    private bool wasMoving;
     private bool lastStepFoundNoFoothold;
     private int lastGaitFrame = -10;
     private BodyCarriage carriage;
     private float groundSpeed;
     private float intendedSpeed;
-    private float runShare;
     private float anchorX;
     private CharacterEvents events;
     private CharacterFacing facing;
@@ -84,10 +80,10 @@ public class StrideController : MonoBehaviour {
     public LayerMask GroundMask => footholdLimits.groundMask;
     public Vector2 BodyVelocity => Carriage.Velocity;
 
-    // The blend of the walk and run profiles currently in use.
+    // The blend of the walk and run profiles currently in use, by Pace.Running.
     public GaitProfile CurrentGait { get; private set; } = GaitProfile.Walk;
-    // Ground speed as a share of the current gait's full speed: 0 idle, 1 at full walk or run speed.
-    public float SpeedShare => Mathf.Clamp01(Mathf.Abs(groundSpeed) / Mathf.Max(0.01f, CurrentGait.speed));
+    // How far the gait is from standing toward walking and from walking toward running, from the ground speed alone.
+    public LocomotionPace Pace { get; private set; } = LocomotionPace.Standing;
     // Signed ground speed the gait is carrying the body at (positive toward world right).
     public float GroundSpeed => groundSpeed;
     // Where the legs are in their shared cycle; the torso and arms move in step with it.
@@ -116,6 +112,7 @@ public class StrideController : MonoBehaviour {
     public void BeginGroundedMotion(Vector2 velocity) {
         Carriage.Restart(velocity);
         groundSpeed = Mathf.Clamp(velocity.x, -run.speed, run.speed);
+        BlendGaitWithSpeed(float.PositiveInfinity);
         anchorX = transform.position.x;
     }
 
@@ -129,9 +126,9 @@ public class StrideController : MonoBehaviour {
     }
 
     private void TickGaitStep(float deltaTime, (float direction, bool running, (float min, float max) feetSpan, (float min, float max) bodySpan) intent) {
-        BlendGait((intent.running, deltaTime));
-        AccelerateGround((intent.direction, deltaTime));
+        AccelerateGround((intent.direction, intent.running, deltaTime));
         AdvanceAnchor((deltaTime, AnchorSpan(intent)));
+        BlendGaitWithSpeed(deltaTime);
         AdvanceGaitCycle(deltaTime);
         CueBalanceSteps();
         LiftFeetOnCue(intent.feetSpan);
@@ -184,18 +181,18 @@ public class StrideController : MonoBehaviour {
 
     // ---- Speed -----------------------------------------------------------------------------------------------
 
-    private void BlendGait((bool running, float deltaTime) input) {
-        runShare = Mathf.MoveTowards(runShare, input.running ? 1f : 0f, runBlendRate * input.deltaTime);
-        CurrentGait = GaitProfile.Blend((walk, run), runShare);
+    // The run input only picks the target speed; the gait itself follows the speed the body reaches.
+    private void AccelerateGround((float direction, bool running, float deltaTime) input) {
+        intendedSpeed = input.direction * (input.running ? run.speed : walk.speed);
+        groundSpeed = GroundSpeedRamp.Step((groundSpeed, intendedSpeed, CurrentGait), input.deltaTime);
     }
 
-    // Speeds up gradually and brakes harder than it accelerates, so starts and stops carry momentum.
-    private void AccelerateGround((float direction, float deltaTime) input) {
-        float targetSpeed = input.direction * CurrentGait.speed;
-        intendedSpeed = targetSpeed;
-        bool isSpeedingUp = Mathf.Abs(targetSpeed) > Mathf.Abs(groundSpeed) && targetSpeed * groundSpeed >= 0f;
-        float rate = isSpeedingUp ? CurrentGait.acceleration : CurrentGait.deceleration;
-        groundSpeed = Mathf.MoveTowards(groundSpeed, targetSpeed, rate * input.deltaTime);
+    // The walk/run blend follows the ground speed, rate-limited so a sudden stop at a wall does not snap the gait.
+    private void BlendGaitWithSpeed(float deltaTime) {
+        float runningTarget = LocomotionPace.RunningAt(groundSpeed, (walk, run, transitions));
+        float running = Mathf.MoveTowards(Pace.Running, runningTarget, transitions.runBlendRate * deltaTime);
+        Pace = new LocomotionPace((LocomotionPace.MovingAt(groundSpeed, walk), running));
+        CurrentGait = GaitProfile.Blend((walk, run), running);
     }
 
     // Walls always bound the body; without movement input, so does the stopping margin past the feet.
@@ -219,18 +216,16 @@ public class StrideController : MonoBehaviour {
 
     // ---- Steps -----------------------------------------------------------------------------------------------
 
-    private bool IsMoving => Mathf.Abs(groundSpeed) >= idleSpeed;
+    private bool IsMoving => motion.IsMoving;
 
     // The cycle advances by distance over the stride. When motion starts it is primed so the trailing foot steps first.
     private void AdvanceGaitCycle(float deltaTime) {
-        if (!IsMoving) {
-            wasMoving = false;
-            return;
-        }
-        if (!wasMoving) {
+        if (motion.Track(groundSpeed, transitions) == MotionLatch.Change.Started) {
             (LegStepper lead, LegStepper trail) legs = LegsOrderedByFacing((int)Mathf.Sign(groundSpeed));
             cycle.PrimeToLift(legs.trail == frontLeg);
-            wasMoving = true;
+        }
+        if (!IsMoving) {
+            return;
         }
 
         float strides = Mathf.Abs(groundSpeed) * deltaTime / GaitTiming.StrideLength(groundSpeed, CurrentGait);
@@ -293,21 +288,21 @@ public class StrideController : MonoBehaviour {
         float swing = GaitTiming.SwingDuration(planningSpeed, CurrentGait);
         float landingHipX = transform.position.x + direction * planningSpeed * swing;
         float desiredX = Mathf.Clamp(transform.position.x + direction * GaitTiming.LandingReach(planningSpeed, CurrentGait), feetSpan.min, feetSpan.max);
-        lastStepFoundNoFoothold = !TryStepToward((legs.stepping, legs.other, desiredX, direction), (landingHipX, swing, CurrentGait.liftHeight, runShare));
+        lastStepFoundNoFoothold = !TryStepToward((legs.stepping, legs.other, desiredX, direction), (landingHipX, swing, CurrentGait.liftHeight, Pace.Running));
         if (!lastStepFoundNoFoothold) {
-            Carriage.Push(CurrentGait.pushOffImpulse * SpeedShare);
+            Carriage.Push(CurrentGait.pushOffImpulse * Pace.Moving);
         }
         return true;
     }
 
     private bool MayLiftWhile(LegStepper otherLeg) {
-        float requiredProgress = Mathf.Lerp(WalkingLiftOverlap, RunningLiftOverlap, runShare);
+        float requiredProgress = Mathf.Lerp(WalkingLiftOverlap, RunningLiftOverlap, Pace.Running);
         return otherLeg.IsGrounded || otherLeg.StepProgress >= requiredProgress;
     }
 
     // Standing still, each foot steps toward its spot under the torso, the furthest first, finishing in a stance.
     private void SettleFeetWhenIdle() {
-        bool isIdle = Mathf.Abs(groundSpeed) < idleSpeed && frontLeg.IsGrounded && backLeg.IsGrounded;
+        bool isIdle = !IsMoving && frontLeg.IsGrounded && backLeg.IsGrounded;
         if (!isIdle) {
             return;
         }
@@ -367,7 +362,7 @@ public class StrideController : MonoBehaviour {
     // Measured in the direction of motion only: a running body is often behind feet that are landing ahead of it,
     // which is not an edge. An idle body is held over its feet by the stopping margin, so it has no overhang.
     private float SupportOverhang() {
-        if (Mathf.Abs(groundSpeed) < idleSpeed) {
+        if (!IsMoving) {
             return 0f;
         }
         float bodyPositionX = transform.position.x;
@@ -407,7 +402,7 @@ public class StrideController : MonoBehaviour {
 
     // The moving anchor plus the step's surge: the body runs slightly ahead coming through each low point.
     private float BodyTargetX() {
-        float surge = GaitWaves.Surge((cycle.Phase, LowestPhase)) * CurrentGait.surge * SpeedShare;
+        float surge = GaitWaves.Surge((cycle.Phase, LowestPhase)) * CurrentGait.surge * Pace.Moving;
         return anchorX + Mathf.Sign(groundSpeed) * surge;
     }
 
@@ -423,8 +418,8 @@ public class StrideController : MonoBehaviour {
 
     // Standing height over the feet with the step's bob, sunk lower the faster the gait moves and by any held crouch.
     private float GaitHeight() {
-        float bob = GaitWaves.BodyBob((cycle.Phase, LowestPhase)) * CurrentGait.bobAmplitude * SpeedShare;
-        return StanceHeight + bodyHeight + bob - CurrentGait.pelvisDrop * SpeedShare - HeldCrouch;
+        float bob = GaitWaves.BodyBob((cycle.Phase, LowestPhase)) * CurrentGait.bobAmplitude * Pace.Moving;
+        return StanceHeight + bodyHeight + bob - CurrentGait.pelvisDrop * Pace.Moving - HeldCrouch;
     }
 
     private float LowestPhase => GaitWaves.LowestPhase((CurrentGait.dutyFactor, CurrentGait.lowAfterContact));

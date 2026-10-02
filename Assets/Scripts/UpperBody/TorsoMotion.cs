@@ -72,7 +72,7 @@ public class TorsoMotion {
         GaitProfile gait = stride.CurrentGait;
         float lowestPhase = GaitWaves.LowestPhase((gait.dutyFactor, gait.lowAfterContact));
         float stepPitch = GaitWaves.TorsoPitch((stride.GaitPhase, lowestPhase)) * gait.pitchOscillation;
-        return (gait.lean + stepPitch) * stride.SpeedShare;
+        return (gait.lean + stepPitch) * stride.Pace.Moving;
     }
 
     // Uses the gait's ground speed rather than the body position, so the step's own surge and bob do not read as starts.
@@ -86,7 +86,7 @@ public class TorsoMotion {
     // How full the lungs are (0 to 1) while standing still; breathing fades out as the character moves off.
     private float BreathDepth(float deltaTime) {
         breathTime += deltaTime;
-        float stillness = rig.Stride.IsDrivingGait ? 1f - rig.Stride.SpeedShare : 0f;
+        float stillness = rig.Stride.IsDrivingGait ? 1f - rig.Stride.Pace.Moving : 0f;
         return breath.Update((stillness * Breathing.Fullness(breathTime / breathPeriod), deltaTime), BreathFade);
     }
 }

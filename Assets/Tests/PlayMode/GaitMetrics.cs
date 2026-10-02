@@ -6,6 +6,8 @@ using UnityEngine;
 public sealed class GaitMetrics {
     // A frame-to-frame phase change this far from what the distance travelled explains is a jump (a resync or prime).
     private const float PhaseJumpTolerance = 0.06f;
+    // Below this speed the gait may be starting: priming the phase for the first step is not a jump.
+    private const float MovingSpeed = 0.6f;
 
     private readonly List<GaitRecorder.Sample> samples;
     private readonly List<GaitRecorder.FootEvent> events;
@@ -58,7 +60,7 @@ public sealed class GaitMetrics {
             for (int index = 1; index < samples.Count; index++) {
                 GaitRecorder.Sample previous = samples[index - 1];
                 GaitRecorder.Sample current = samples[index];
-                if (!previous.IsDrivingGait || !current.IsDrivingGait || Mathf.Abs(previous.GroundSpeed) < 0.3f) {
+                if (!previous.IsDrivingGait || !current.IsDrivingGait || Mathf.Abs(previous.GroundSpeed) < MovingSpeed) {
                     continue;
                 }
                 float advance = Mathf.Repeat(current.Phase - previous.Phase + 0.5f, 1f) - 0.5f;
