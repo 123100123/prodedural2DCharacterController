@@ -42,13 +42,13 @@ public sealed class RollState : ICharacterState {
         float t = Mathf.Clamp01(elapsed / settings.duration);
 
         TravelForward((t, deltaTime));
-        if (!TryFollowGround((t, deltaTime), out groundY)) {
+        if (!TryFollowGround((t, deltaTime))) {
             context.States.Airborne.Fall(context.Rig.Motor.Velocity);
             return;
         }
 
         CurlAndSpin(t);
-        PoseLimbs((t, deltaTime), groundY);
+        PoseLimbs((t, deltaTime));
         context.Rig.Stride.PlaceStrideTargetUnderBody();
 
         if (t >= 1f) {
@@ -80,20 +80,21 @@ public sealed class RollState : ICharacterState {
         motor.MoveWithCollisions(frame.deltaTime);
     }
 
-    private bool TryFollowGround((float t, float deltaTime) frame, out float groundY) {
+    // Keeps the body at the roll height above the ground below it; no ground within reach means the roll left a ledge.
+    private bool TryFollowGround((float t, float deltaTime) frame) {
         Transform body = context.Rig.Body;
         float rollHeight = settings.bodyHeight.Evaluate(frame.t);
         Vector2 origin = (Vector2)body.position + Vector2.up * GroundProbeHeadroom;
         float depth = GroundProbeHeadroom + rollHeight + settings.maxGroundDrop;
 
-        bool hasGround = FootholdProbe.TryFindGroundBelow((origin, depth), context.Rig.Stride.GroundMask, out Vector2 ground);
-        groundY = ground.y;
-        if (hasGround) {
-            float ease = FrameRateEase.FractionForFrame(settings.groundFollowEase, frame.deltaTime);
-            float bodyY = Mathf.Lerp(body.position.y, groundY + rollHeight, ease);
-            body.position = new Vector3(body.position.x, bodyY, body.position.z);
+        if (!FootholdProbe.TryFindGroundBelow((origin, depth), context.Rig.Stride.GroundMask, out Vector2 ground)) {
+            return false;
         }
-        return hasGround;
+
+        groundY = ground.y;
+        float ease = FrameRateEase.FractionForFrame(settings.groundFollowEase, frame.deltaTime);
+        body.position = new Vector3(body.position.x, Mathf.Lerp(body.position.y, groundY + rollHeight, ease), body.position.z);
+        return true;
     }
 
     // Rotations are in the rig's authored space; mirroring the root turns them into a forward roll for either facing.
@@ -106,17 +107,22 @@ public sealed class RollState : ICharacterState {
         context.Rig.Chest.localRotation = Quaternion.Euler(0f, 0f, curl) * uprightPose.chest;
     }
 
-    private void PoseLimbs((float t, float deltaTime) frame, float groundY) {
+    // Feet stay planted through the crouch, tuck during the hop and spin, then reach for the ground to stand.
+    private void PoseLimbs((float t, float deltaTime) frame) {
         if (frame.t < settings.travelWindow.x) {
             return;
         }
 
         float ease = FrameRateEase.FractionForFrame(settings.limbPoseEase, frame.deltaTime);
         if (frame.t >= StandingPhaseStart) {
-            ReachFeetForGround((groundY, ease));
-            return;
+            ReachFeetForGround(ease);
         }
+        else {
+            HoldTuck(ease);
+        }
+    }
 
+    private void HoldTuck(float ease) {
         Transform body = context.Rig.Body;
         legs.lead.SwingFreelyToward(body.TransformPoint(tuckInBodySpace.leadFoot), ease);
         legs.trail.SwingFreelyToward(body.TransformPoint(tuckInBodySpace.trailFoot), ease);
@@ -124,11 +130,11 @@ public sealed class RollState : ICharacterState {
         context.Rig.BackArm.ReachToward(body.TransformPoint(tuckInBodySpace.hands));
     }
 
-    private void ReachFeetForGround((float groundY, float ease) reach) {
+    private void ReachFeetForGround(float ease) {
         float bodyX = context.Rig.Body.position.x;
         float halfWidth = context.Rig.Stride.StanceHalfWidth;
-        legs.lead.SwingFreelyToward(new Vector2(bodyX + direction * halfWidth, reach.groundY), reach.ease);
-        legs.trail.SwingFreelyToward(new Vector2(bodyX - direction * halfWidth, reach.groundY), reach.ease);
+        legs.lead.SwingFreelyToward(new Vector2(bodyX + direction * halfWidth, groundY), ease);
+        legs.trail.SwingFreelyToward(new Vector2(bodyX - direction * halfWidth, groundY), ease);
     }
 
     private void StandUp() {

@@ -1,0 +1,17 @@
+{
+    "name": "ProceduralCharacter.Runtime",
+    "rootNamespace": "",
+    "references": [
+        "Unity.InputSystem",
+        "Unity.2D.IK.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

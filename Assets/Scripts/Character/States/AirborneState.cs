@@ -89,12 +89,12 @@ public sealed class AirborneState : ICharacterState {
 
         Vector2 leadOffset = Vector2.Lerp(settings.air.leadFootTucked, settings.air.leadFootReaching, reaching);
         Vector2 trailOffset = Vector2.Lerp(settings.air.trailFootTucked, settings.air.trailFootReaching, reaching);
-        legs.lead.SwingFreelyToward(BodyPointFacingForward(leadOffset), ease);
-        legs.trail.SwingFreelyToward(BodyPointFacingForward(trailOffset), ease);
+        legs.lead.SwingFreelyToward(FootTargetAboveGround(leadOffset), ease);
+        legs.trail.SwingFreelyToward(FootTargetAboveGround(trailOffset), ease);
     }
 
     // Feet never aim below the ground they are reaching for.
-    private Vector2 BodyPointFacingForward(Vector2 offset) {
+    private Vector2 FootTargetAboveGround(Vector2 offset) {
         Vector2 body = context.Rig.Body.position;
         Vector2 poseTarget = body + new Vector2(offset.x * context.Rig.Facing.Sign, offset.y);
         Vector2 rayOrigin = new Vector2(poseTarget.x, body.y);
