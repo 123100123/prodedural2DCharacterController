@@ -34,7 +34,7 @@ public sealed class RollState : ICharacterState {
 
     public bool AllowsUpperBodyActions => false;
 
-    public bool IsReady => Time.time >= readyTime;
+    public bool CanStart => settings.enabled && Time.time >= readyTime;
 
     public void Begin() => context.Machine.ChangeTo(this);
 

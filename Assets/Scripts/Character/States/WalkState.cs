@@ -29,7 +29,7 @@ public sealed class WalkState : ICharacterState {
             }
             return;
         }
-        if (commands.RollPressed && context.States.Roll.IsReady) {
+        if (commands.RollPressed && context.States.Roll.CanStart) {
             context.States.Roll.Begin();
             return;
         }
