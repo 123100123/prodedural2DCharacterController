@@ -3,12 +3,16 @@ using UnityEngine.InputSystem;
 
 // Owns the player's input actions (keyboard/mouse and gamepad) and samples them into PlayerCommands.
 public sealed class PlayerInputReader : IDisposable {
+    // Presses shorter than this toggle aiming instead of holding it (touchpad right-clicks are instant).
+    private const float AimTapMaxDuration = 0.25f;
+
     private readonly InputAction move = new InputAction("Move", InputActionType.Value, expectedControlType: "Axis");
     private readonly InputAction jump = new InputAction("Jump", InputActionType.Button);
     private readonly InputAction roll = new InputAction("Roll", InputActionType.Button);
     private readonly InputAction aim = new InputAction("Aim", InputActionType.Button);
     private readonly InputAction fire = new InputAction("Fire", InputActionType.Button);
     private readonly InputAction pointer = new InputAction("Pointer", InputActionType.Value, expectedControlType: "Vector2");
+    private readonly HoldOrTapToggle aimMode = new HoldOrTapToggle(AimTapMaxDuration);
 
     public PlayerInputReader() {
         BindMovement();
@@ -26,10 +30,15 @@ public sealed class PlayerInputReader : IDisposable {
             MoveAxis = move.ReadValue<float>(),
             JumpPressed = jump.WasPressedThisFrame(),
             RollPressed = roll.WasPressedThisFrame(),
-            AimHeld = aim.IsPressed(),
+            IsAiming = ReadAimMode(),
             FirePressed = fire.WasPressedThisFrame(),
             PointerScreenPosition = pointer.ReadValue<UnityEngine.Vector2>(),
         };
+    }
+
+    private bool ReadAimMode() {
+        (bool wentDown, bool wentUp, bool isHeld) button = (aim.WasPressedThisFrame(), aim.WasReleasedThisFrame(), aim.IsPressed());
+        return aimMode.Update(button, UnityEngine.Time.unscaledTime);
     }
 
     private void BindMovement() {

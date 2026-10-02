@@ -42,7 +42,7 @@ public sealed class AirborneState : ICharacterState {
         timeInAir += deltaTime;
         jumpBufferLeft -= deltaTime;
 
-        if (!commands.AimHeld) {
+        if (!commands.IsAiming) {
             context.Rig.Facing.FaceToward(commands.MoveAxis);
         }
         if (commands.JumpPressed) {

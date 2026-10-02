@@ -1,6 +1,6 @@
 using UnityEngine;
 
-// Shooting mode while aim is held: faces the pointer, points the pistol arm at it, follows it with the head, fires on click.
+// Shooting mode while aiming (aim held or tap-latched): faces the pointer, points the pistol arm at it, follows it with the head, fires on click.
 public sealed class ShootingStance {
     private readonly CharacterRig rig;
     private readonly Pistol pistol;
@@ -13,7 +13,7 @@ public sealed class ShootingStance {
     }
 
     public void Tick(PlayerCommands commands, float now) {
-        if (!commands.AimHeld) {
+        if (!commands.IsAiming) {
             return;
         }
 

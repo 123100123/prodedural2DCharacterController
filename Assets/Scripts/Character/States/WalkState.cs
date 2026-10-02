@@ -20,7 +20,7 @@ public sealed class WalkState : ICharacterState {
     }
 
     public void Tick(float deltaTime, PlayerCommands commands) {
-        if (!commands.AimHeld) {
+        if (!commands.IsAiming) {
             context.Rig.Facing.FaceToward(commands.MoveAxis);
         }
         if (commands.JumpPressed) {

@@ -22,7 +22,7 @@ public sealed class JumpWindupState : ICharacterState {
 
     public void Tick(float deltaTime, PlayerCommands commands) {
         elapsed += deltaTime;
-        if (!commands.AimHeld) {
+        if (!commands.IsAiming) {
             context.Rig.Facing.FaceToward(commands.MoveAxis);
         }
         context.Rig.Stride.TickWalk(deltaTime, (0f, float.NegativeInfinity, float.PositiveInfinity));
