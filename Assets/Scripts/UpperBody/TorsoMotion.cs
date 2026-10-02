@@ -13,13 +13,7 @@ public class TorsoMotion {
     [Tooltip("How the chest follows its flex and absorbs recoil kicks.")]
     [SerializeField] private SpringSettings spring = new SpringSettings(3f, 0.8f, 0f);
 
-    [Header("Breathing when standing still")]
-    [Tooltip("Seconds per breath.")]
-    [SerializeField] private float breathPeriod = 4f;
-    [Tooltip("Chest extension in degrees with full lungs.")]
-    [SerializeField] private float breathPitch = 3.5f;
-    [Tooltip("How far the chest rises along the spine with full lungs, lifting the shoulders, arms and head.")]
-    [SerializeField] private float breathRise = 0.07f;
+    [SerializeField] private BreathingSettings breathing = BreathingSettings.Default;
 
     private CharacterRig rig;
     private Quaternion restChest;
@@ -29,6 +23,7 @@ public class TorsoMotion {
     private float breathTime;
 
     public SpringSettings Spring { get => spring; set => spring = value; }
+    public BreathingSettings Breath { get => breathing; set => breathing = value; }
     // Degrees the chest is flexed forward on top of the posture right now.
     public float CurrentPitch => pitch?.Value ?? 0f;
 
@@ -49,7 +44,7 @@ public class TorsoMotion {
         }
 
         float lungs = BreathDepth(deltaTime);
-        float forwardPitch = pitch.Update((GaitFlex() - breathPitch * lungs, deltaTime), spring);
+        float forwardPitch = pitch.Update((GaitFlex() - breathing.pitch * lungs, deltaTime), spring);
         PoseChest((forwardPitch, lungs));
     }
 
@@ -57,7 +52,7 @@ public class TorsoMotion {
     private void PoseChest((float forwardPitch, float lungs) pose) {
         float forwardTurnSign = -rig.Facing.AuthoredSign;
         rig.Chest.localRotation = Quaternion.Euler(0f, 0f, pose.forwardPitch * forwardTurnSign) * restChest;
-        rig.Chest.localPosition = restChestPosition + restChestPosition.normalized * (breathRise * pose.lungs);
+        rig.Chest.localPosition = restChestPosition + restChestPosition.normalized * (breathing.rise * pose.lungs);
     }
 
     // The per-step flex and extension, fading out as the character slows to a stop.
@@ -76,6 +71,6 @@ public class TorsoMotion {
     private float BreathDepth(float deltaTime) {
         breathTime += deltaTime;
         float stillness = rig.Stride.IsDrivingGait ? 1f - rig.Stride.Pace.Moving : 0f;
-        return breath.Update((stillness * Breathing.Fullness(breathTime / breathPeriod), deltaTime), BreathFade);
+        return breath.Update((stillness * Breathing.Fullness(breathTime / breathing.period), deltaTime), BreathFade);
     }
 }

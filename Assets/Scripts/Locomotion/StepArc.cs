@@ -29,9 +29,6 @@ public class StepCurves {
 public class StepArcShape {
     public StepCurves walk = StepCurves.Walk;
     public StepCurves run = StepCurves.Run;
-    [Header("Settling steps (small steps into a standing stance)")]
-    public float settleLiftHeight = 0.25f;
-    public float settleStepDuration = 0.22f;
 
     // Shares of the distance covered and of the lift height at a step progress.
     public (float travel, float lift) Evaluate((float progress, float runShare) at) {

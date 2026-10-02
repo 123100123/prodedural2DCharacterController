@@ -3541,8 +3541,12 @@ MonoBehaviour:
       m_Bits: 4294967291
   edgeOverhang: 0.7
   stoppingOverhang: 0.3
-  stanceHalfWidth: 0.22
-  stanceLead: 0.1
+  idle:
+    stanceHalfWidth: 0.22
+    stanceLead: 0.1
+    footTolerance: 0.18
+    settleStepDuration: 0.22
+    settleLiftHeight: 0.25
   walk:
     speed: 3.5
     acceleration: 10
@@ -3600,7 +3604,6 @@ MonoBehaviour:
     maxCatchUp: 1.6
     emergencyMargin: 0.7
     emergencyCooldown: 0.4
-  idleFootTolerance: 0.18
   stepArc:
     walk:
       travel:
@@ -3727,8 +3730,6 @@ MonoBehaviour:
         m_PreInfinity: 2
         m_PostInfinity: 2
         m_RotationOrder: 4
-    settleLiftHeight: 0.25
-    settleStepDuration: 0.22
   body:
     horizontalSpring:
       frequency: 3
@@ -4014,12 +4015,13 @@ MonoBehaviour:
     head: {fileID: 2036566799}
     followShare: 0.6
     maxTilt: 30
-    poseSpring:
-      frequency: 4
-      damping: 0.9
-      response: 0
-    stabilization: 0.8
-    stabilizationFade: 0.2
+    motion:
+      poseSpring:
+        frequency: 4
+        damping: 0.9
+        response: 0
+      stabilization: 0.8
+      stabilizationFade: 0.2
     maxLevelCorrection: 40
     crownDistance: 0.63
   chest: {fileID: 2036566789}
@@ -4039,18 +4041,20 @@ MonoBehaviour:
       frequency: 3
       damping: 0.8
       response: 0
-    breathPeriod: 4
-    breathPitch: 3.5
-    breathRise: 0.07
+    breathing:
+      period: 4
+      pitch: 3.5
+      rise: 0.07
   armSwing:
-    spring:
-      frequency: 3
-      damping: 0.5
-      response: 0
-    swingLag: 0.06
-    forwardElbowFlex: 0.35
-    bentArmShortening: 0.45
-    bentArmForwardAngle: 35
+    settings:
+      spring:
+        frequency: 3
+        damping: 0.5
+        response: 0
+      swingLag: 0.06
+      forwardElbowFlex: 0.35
+      bentArmShortening: 0.45
+      bentArmForwardAngle: 35
     windupSwing: 40
     airborneRaise: {x: 80, y: 45}
     airborneElbowBend: 0.3

@@ -26,20 +26,25 @@ public sealed class PlayerInputReader : IDisposable {
 
     public void Dispose() => ForEachAction(action => action.Dispose());
 
+    // Input an on-screen UI has captured (typing into a field, clicking over it) does not reach gameplay.
     public PlayerCommands ReadCommands() {
+        bool isTyping = UiInputCapture.IsKeyboardCaptured;
+        bool isPointerOverUi = UiInputCapture.IsPointerCaptured;
         return new PlayerCommands {
-            MoveAxis = move.ReadValue<float>(),
-            JumpPressed = jump.WasPressedThisFrame(),
-            RollPressed = roll.WasPressedThisFrame(),
-            RunHeld = run.IsPressed(),
-            IsAiming = ReadAimMode(),
-            FirePressed = fire.WasPressedThisFrame(),
+            MoveAxis = isTyping ? 0f : move.ReadValue<float>(),
+            JumpPressed = !isTyping && jump.WasPressedThisFrame(),
+            RollPressed = !isTyping && roll.WasPressedThisFrame(),
+            RunHeld = !isTyping && run.IsPressed(),
+            IsAiming = ReadAimMode(isPointerOverUi),
+            FirePressed = !isPointerOverUi && fire.WasPressedThisFrame(),
             PointerScreenPosition = pointer.ReadValue<UnityEngine.Vector2>(),
         };
     }
 
-    private bool ReadAimMode() {
-        (bool wentDown, bool wentUp, bool isHeld) button = (aim.WasPressedThisFrame(), aim.WasReleasedThisFrame(), aim.IsPressed());
+    private bool ReadAimMode(bool isPointerOverUi) {
+        (bool wentDown, bool wentUp, bool isHeld) button = isPointerOverUi
+            ? (false, false, false)
+            : (aim.WasPressedThisFrame(), aim.WasReleasedThisFrame(), aim.IsPressed());
         return aimMode.Update(button, UnityEngine.Time.unscaledTime);
     }
 

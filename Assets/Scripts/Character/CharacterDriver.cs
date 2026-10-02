@@ -39,8 +39,11 @@ public class CharacterDriver : MonoBehaviour {
     private CharacterStates states;
     private CharacterRig rig;
     private ShootingStance shootingStance;
+    private PlayerCommands latestCommands;
 
     public CharacterEvents Events { get; private set; }
+    // Read-only telemetry, runtime tuning and the gait preview for debug tools; the character never reads it back.
+    public LocomotionInspector Inspector { get; private set; }
 
     // Composes here rather than in Awake: a script recompile during play mode reloads the domain,
     // which clears these non-serialized collaborators and calls OnEnable again, but not Awake.
@@ -63,12 +66,14 @@ public class CharacterDriver : MonoBehaviour {
         states = BuildStates();
         shootingStance = new ShootingStance(rig, (pistol, shooting));
         ComposeSecondaryMotion();
+        Inspector = BuildInspector();
         states.Walk.Begin();
     }
 
     // Full-body state first, then the posture and the upper-body layer on top of it.
     private void Update() {
         PlayerCommands commands = input.ReadCommands();
+        latestCommands = commands;
         machine.Tick(Time.deltaTime, commands);
         posture.Tick(Time.deltaTime);
 
@@ -113,6 +118,12 @@ public class CharacterDriver : MonoBehaviour {
             new RollState(context, roll),
             new ClimbState(context, climb)));
         return built;
+    }
+
+    private LocomotionInspector BuildInspector() {
+        LocomotionTuning tuning = new LocomotionTuning((stride, posture, torsoMotion, head, armSwing));
+        LocomotionTelemetry telemetry = new LocomotionTelemetry(stride, (posture, torsoMotion, head, postureRoot));
+        return new LocomotionInspector((stride, tuning, telemetry, () => latestCommands));
     }
 
     private void ComposeSecondaryMotion() {

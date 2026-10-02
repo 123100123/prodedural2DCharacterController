@@ -6,15 +6,7 @@ using UnityEngine;
 // elbow bend come from the gait. Winding up a jump they swing back; in the air they rise for balance.
 [Serializable]
 public class ArmSwing {
-    [SerializeField] private SpringSettings spring = new SpringSettings(3.5f, 0.55f, 0f);
-    [Tooltip("Cycle share the arm swing lags the legs: the hand drags behind the shoulder.")]
-    [Range(0f, 0.25f)] [SerializeField] private float swingLag = 0.06f;
-    [Tooltip("Extra elbow bend while the arm is swinging forward.")]
-    [Range(0f, 1f)] [SerializeField] private float forwardElbowFlex = 0.35f;
-    [Tooltip("How much a fully bent arm shortens toward the shoulder.")]
-    [Range(0f, 0.8f)] [SerializeField] private float bentArmShortening = 0.45f;
-    [Tooltip("How far forward (degrees) a fully bent arm is carried.")]
-    [SerializeField] private float bentArmForwardAngle = 35f;
+    [SerializeField] private ArmSwingSettings settings = ArmSwingSettings.Default;
 
     [Header("Jump")]
     [Tooltip("Arms swing back this far (degrees) while crouching to jump.")]
@@ -24,6 +16,8 @@ public class ArmSwing {
     [SerializeField] private float airborneElbowBend = 0.3f;
 
     private CharacterRig rig;
+
+    public ArmSwingSettings Settings { get => settings; set => settings = value; }
     private (Vector2 front, Vector2 back) restHandsInChest;
     private (SecondOrderDynamics front, SecondOrderDynamics back) swing;
     private (SecondOrderDynamics front, SecondOrderDynamics back) bend;
@@ -37,10 +31,10 @@ public class ArmSwing {
 
     public void Tick(float deltaTime) {
         ((float front, float back) angles, (float front, float back) elbows) pose = rig.Stride.IsDrivingGait ? GroundedPose() : AirbornePose();
-        float frontAngle = swing.front.Update((pose.angles.front, deltaTime), spring);
-        float backAngle = swing.back.Update((pose.angles.back, deltaTime), spring);
-        float frontBend = bend.front.Update((pose.elbows.front, deltaTime), spring);
-        float backBend = bend.back.Update((pose.elbows.back, deltaTime), spring);
+        float frontAngle = swing.front.Update((pose.angles.front, deltaTime), settings.spring);
+        float backAngle = swing.back.Update((pose.angles.back, deltaTime), settings.spring);
+        float frontBend = bend.front.Update((pose.elbows.front, deltaTime), settings.spring);
+        float backBend = bend.back.Update((pose.elbows.back, deltaTime), settings.spring);
 
         rig.FrontArm.ReachToward(SwungHand((rig.FrontArm, restHandsInChest.front), (frontAngle, frontBend)));
         rig.BackArm.ReachToward(SwungHand((rig.BackArm, restHandsInChest.back), (backAngle, backBend)));
@@ -52,7 +46,7 @@ public class ArmSwing {
         StrideController stride = rig.Stride;
         GaitProfile gait = stride.CurrentGait;
         float contact = GaitWaves.FrontLegContact(gait.dutyFactor);
-        float wave = GaitWaves.OppositeArmSwing((stride.GaitPhase, contact, swingLag)) * gait.armSwing * stride.Pace.Moving;
+        float wave = GaitWaves.OppositeArmSwing((stride.GaitPhase, contact, settings.swingLag)) * gait.armSwing * stride.Pace.Moving;
         float windup = stride.HeldCrouch > 0f ? -windupSwing : 0f;
 
         (float front, float back) angles = (windup - wave, windup + wave);
@@ -70,7 +64,7 @@ public class ArmSwing {
     // Elbows flex as the arm swings forward and straighten as it swings back.
     private float ElbowBendFor((float swingAngle, float baseBend) arm) {
         float forwardShare = Mathf.Clamp01(arm.swingAngle / Mathf.Max(1f, rig.Stride.CurrentGait.armSwing));
-        return Mathf.Clamp01(arm.baseBend + forwardElbowFlex * forwardShare);
+        return Mathf.Clamp01(arm.baseBend + settings.forwardElbowFlex * forwardShare);
     }
 
     // Turns the hanging rest hand about the shoulder (positive swings toward the facing direction) and draws it in
@@ -78,8 +72,8 @@ public class ArmSwing {
     private Vector2 SwungHand((ArmLimb arm, Vector2 restHandInChest) limb, (float forwardDegrees, float elbowBend) pose) {
         Vector2 shoulder = limb.arm.ShoulderPosition;
         Vector2 restHand = rig.Chest.TransformPoint(limb.restHandInChest);
-        float worldDegrees = (pose.forwardDegrees + pose.elbowBend * bentArmForwardAngle) * rig.Facing.Sign;
-        Vector2 shortenedArm = (restHand - shoulder) * (1f - pose.elbowBend * bentArmShortening);
+        float worldDegrees = (pose.forwardDegrees + pose.elbowBend * settings.bentArmForwardAngle) * rig.Facing.Sign;
+        Vector2 shortenedArm = (restHand - shoulder) * (1f - pose.elbowBend * settings.bentArmShortening);
         return shoulder + (Vector2)(Quaternion.Euler(0f, 0f, worldDegrees) * shortenedArm);
     }
 }
