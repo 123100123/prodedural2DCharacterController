@@ -31,21 +31,27 @@ public class CharacterDriver : MonoBehaviour {
     private CharacterRig rig;
     private ShootingStance shootingStance;
 
-    private void Awake() {
+    // Composes here rather than in Awake: a script recompile during play mode reloads the domain,
+    // which clears these non-serialized collaborators and calls OnEnable again, but not Awake.
+    private void OnEnable() {
+        if (input == null) {
+            ComposeCharacter();
+        }
+        input.Enable();
+    }
+
+    private void OnDisable() => input?.Disable();
+
+    private void OnDestroy() => input?.Dispose();
+
+    private void ComposeCharacter() {
         input = new PlayerInputReader();
         machine = new CharacterStateMachine();
         rig = BuildRig();
         states = BuildStates();
         shootingStance = new ShootingStance(rig, (pistol, shooting));
+        states.Walk.Begin();
     }
-
-    private void OnEnable() => input.Enable();
-
-    private void OnDisable() => input.Disable();
-
-    private void OnDestroy() => input.Dispose();
-
-    private void Start() => states.Walk.Begin();
 
     // Full-body state first, then the upper-body layer on top of it.
     private void Update() {

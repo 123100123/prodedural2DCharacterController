@@ -24,7 +24,8 @@ public class LegStepper : MonoBehaviour {
     public float LegLength { get; private set; }
     public float BodyLift { get; private set; }
 
-    private void Awake() {
+    // OnEnable rather than Awake so the chain is found again after a script recompile during play mode.
+    private void OnEnable() {
         Transform[] chain = GetComponent<LimbSolver2D>().GetChain(0).transforms;
         hip = chain[0];
         LegLength = Vector2.Distance(chain[0].position, chain[1].position) + Vector2.Distance(chain[1].position, chain[2].position);
