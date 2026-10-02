@@ -34,7 +34,7 @@ public sealed class AirborneState : ICharacterState {
     public void Enter() {
         timeInAir = 0f;
         jumpBufferLeft = 0f;
-        legs = OrderLegsByFacing();
+        legs = context.Rig.Stride.LegsOrderedByFacing(context.Rig.Facing.Sign);
     }
 
     public void Tick(float deltaTime, PlayerCommands commands) {
@@ -131,12 +131,5 @@ public sealed class AirborneState : ICharacterState {
             return;
         }
         context.States.Walk.Begin();
-    }
-
-    private (LegStepper lead, LegStepper trail) OrderLegsByFacing() {
-        LegStepper front = context.Rig.Stride.FrontLeg;
-        LegStepper back = context.Rig.Stride.BackLeg;
-        int facing = context.Rig.Facing.Sign;
-        return front.FootTarget.x * facing >= back.FootTarget.x * facing ? (front, back) : (back, front);
     }
 }

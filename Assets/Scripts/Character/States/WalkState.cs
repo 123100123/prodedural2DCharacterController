@@ -27,6 +27,10 @@ public sealed class WalkState : ICharacterState {
             context.States.JumpWindup.Begin();
             return;
         }
+        if (commands.RollPressed && context.States.Roll.IsReady) {
+            context.States.Roll.Begin();
+            return;
+        }
 
         context.Rig.Stride.TickWalk(deltaTime, StrideWithinWalls(commands.MoveAxis));
         TrackBodyVelocity(deltaTime);

@@ -32,6 +32,7 @@ public class StrideController : MonoBehaviour {
     public LegStepper BackLeg => backLeg;
     public float BodyHeight => bodyHeight;
     public float MaxStrideOffset => reachRange * StrideClampFactor;
+    public float StanceHalfWidth => stanceHalfWidth;
     public float StanceHeight => (frontLeg.FootTarget.y + backLeg.FootTarget.y) / 2f;
     public LayerMask GroundMask => footholdLimits.groundMask;
 
@@ -51,6 +52,12 @@ public class StrideController : MonoBehaviour {
         RecoverLandingDip(deltaTime);
         CenterBodyHorizontally(deltaTime);
         MatchBodyHeightToFeet(deltaTime);
+    }
+
+    // The leg whose foot is further along the facing direction leads.
+    public (LegStepper lead, LegStepper trail) LegsOrderedByFacing(int facingSign) {
+        bool frontLeads = frontLeg.FootTarget.x * facingSign >= backLeg.FootTarget.x * facingSign;
+        return frontLeads ? (frontLeg, backLeg) : (backLeg, frontLeg);
     }
 
     public void AbsorbLanding(float dipDepth) => landingDip = Mathf.Max(landingDip, dipDepth);

@@ -13,6 +13,9 @@ public sealed class CharacterFacing {
         authoredSign = rig.authoredSign;
     }
 
+    // Facing of the unmirrored rig as authored: +1 right, -1 left.
+    public int AuthoredSign => authoredSign;
+
     // +1 when facing world right, -1 when facing world left.
     public int Sign => authoredSign * (root.localScale.x < 0f ? -1 : 1);
 

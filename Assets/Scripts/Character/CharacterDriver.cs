@@ -12,10 +12,13 @@ public class CharacterDriver : MonoBehaviour {
     [SerializeField] private ArmLimb frontArm = new ArmLimb();
     [SerializeField] private ArmLimb backArm = new ArmLimb();
     [SerializeField] private HeadLook head = new HeadLook();
+    [Tooltip("Upper-spine bone that curls forward during a roll.")]
+    [SerializeField] private Transform chest;
 
     [Header("Moves")]
     [SerializeField] private AirborneSettings airborne = new AirborneSettings();
     [SerializeField] private JumpSettings jump = new JumpSettings();
+    [SerializeField] private RollSettings roll = new RollSettings();
 
     [Header("Shooting")]
     [SerializeField] private ShootingSettings shooting = new ShootingSettings();
@@ -62,7 +65,7 @@ public class CharacterDriver : MonoBehaviour {
         head.Initialize((transform, authoredFacingSign));
 
         CharacterFacing facing = new CharacterFacing((transform, authoredFacingSign));
-        return new CharacterRig((stride, facing, motor), (frontArm, backArm, head));
+        return new CharacterRig((stride, facing, motor), (frontArm, backArm, head, chest));
     }
 
     private CharacterStates BuildStates() {
@@ -71,7 +74,8 @@ public class CharacterDriver : MonoBehaviour {
         built.Register((
             new WalkState(context),
             new JumpWindupState(context, (jump, airborne)),
-            new AirborneState(context, (airborne, jump))));
+            new AirborneState(context, (airborne, jump)),
+            new RollState(context, roll)));
         return built;
     }
 }

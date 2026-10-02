@@ -3,10 +3,12 @@ public sealed class CharacterStates {
     public WalkState Walk { get; private set; }
     public JumpWindupState JumpWindup { get; private set; }
     public AirborneState Airborne { get; private set; }
+    public RollState Roll { get; private set; }
 
-    public void Register((WalkState walk, JumpWindupState jumpWindup, AirborneState airborne) states) {
+    public void Register((WalkState walk, JumpWindupState jumpWindup, AirborneState airborne, RollState roll) states) {
         Walk = states.walk;
         JumpWindup = states.jumpWindup;
         Airborne = states.airborne;
+        Roll = states.roll;
     }
 }
