@@ -11,9 +11,9 @@ public class LegStepper : MonoBehaviour {
 
     private Transform hip;
     private (Vector2 start, Vector2 end, float duration) step;
+    private float stepLiftHeight;
     private float stepProgress = 1f;
     private bool isGrounded = true;
-    private bool liftsDuringStep = true;
     private Vector2 previousSolverPosition;
     // Downward foot speed at the moment of the last plant; read once through TryConsumePlant.
     private float? pendingPlantImpact;
@@ -34,15 +34,15 @@ public class LegStepper : MonoBehaviour {
         previousSolverPosition = transform.position;
     }
 
-    public void BeginStep((Vector2 foothold, float duration) plannedStep) {
-        StartStepFromCurrentPose(plannedStep);
-        liftsDuringStep = true;
+    public void BeginStep((Vector2 foothold, float duration, float liftHeight) plannedStep) {
+        StartStepFromCurrentPose((plannedStep.foothold, plannedStep.duration));
+        stepLiftHeight = plannedStep.liftHeight;
     }
 
     // Lands the foot on a foothold without a lift arc, e.g. after a jump.
     public void SettleOnto(Vector2 foothold) {
         StartStepFromCurrentPose((foothold, SettleDuration));
-        liftsDuringStep = false;
+        stepLiftHeight = 0f;
     }
 
     // Moves the foot freely toward a pose target while the leg carries no weight (airborne, rolling, climbing).
@@ -84,10 +84,10 @@ public class LegStepper : MonoBehaviour {
     }
 
     private Vector2 FootPositionAtProgress(StepArcShape shape) {
-        if (!liftsDuringStep) {
+        if (stepLiftHeight <= 0f) {
             return Vector2.Lerp(step.start, step.end, Mathf.SmoothStep(0f, 1f, stepProgress));
         }
-        return StepArc.Evaluate((step.start, step.end, stepProgress), shape);
+        return StepArc.Evaluate((step.start, step.end, stepProgress), (shape, stepLiftHeight));
     }
 
     private void Plant(float deltaTime) {

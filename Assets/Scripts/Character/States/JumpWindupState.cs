@@ -27,7 +27,7 @@ public sealed class JumpWindupState : ICharacterState {
             context.Rig.Facing.FaceToward(commands.MoveAxis);
         }
         (float min, float max) unbounded = (float.NegativeInfinity, float.PositiveInfinity);
-        context.Rig.Stride.TickWalk(deltaTime, (0f, unbounded, unbounded));
+        context.Rig.Stride.TickWalk(deltaTime, (0f, false, unbounded, unbounded));
 
         if (elapsed >= settings.jump.windupDuration) {
             Vector2 launch = LaunchVelocity(commands.MoveAxis);

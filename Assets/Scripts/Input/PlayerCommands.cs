@@ -5,6 +5,7 @@ public struct PlayerCommands {
     public float MoveAxis;
     public bool JumpPressed;
     public bool RollPressed;
+    public bool RunHeld;
     // Aim is held, or was latched on by a quick tap.
     public bool IsAiming;
     public bool FirePressed;

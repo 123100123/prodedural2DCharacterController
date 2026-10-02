@@ -3496,7 +3496,6 @@ MonoBehaviour:
   backLeg: {fileID: 738148327}
   strideTarget: {fileID: 219368120}
   bodyHeight: 2.4
-  reachRange: 1.2
   footholdLimits:
     maxStepUp: 1
     maxStepDown: 1.3
@@ -3509,11 +3508,39 @@ MonoBehaviour:
       serializedVersion: 2
       m_Bits: 4294967291
   edgeOverhang: 0.7
+  stoppingOverhang: 0.3
   stanceHalfWidth: 0.3
-  maxIdleFeetGap: 1
-  strideSpeed: 12
-  strideAcceleration: 45
-  strideDeceleration: 70
+  walk:
+    speed: 3.5
+    stanceTime: 0.6
+    swingTime: 0.38
+    minExcursion: 0.7
+    liftHeight: 0.45
+    pelvisDrop: 0
+    plantImpulse: 0.25
+    pushOffImpulse: 0
+    weightShift: 0.2
+    lean: 3
+    armSwing: 22
+    armBend: 0.1
+  run:
+    speed: 8.5
+    stanceTime: 0.27
+    swingTime: 0.36
+    minExcursion: 1.2
+    liftHeight: 0.8
+    pelvisDrop: 0.25
+    plantImpulse: 0.35
+    pushOffImpulse: 1.5
+    weightShift: 0.05
+    lean: 12
+    armSwing: 45
+    armBend: 0.6
+  acceleration: 18
+  deceleration: 30
+  runBlendRate: 2.5
+  idleSpeed: 0.2
+  idleFootTolerance: 0.25
   stepArc:
     travel:
       serializedVersion: 2
@@ -3581,22 +3608,19 @@ MonoBehaviour:
       m_PreInfinity: 2
       m_PostInfinity: 2
       m_RotationOrder: 4
-    liftHeight: 0.55
-    stepSpeed: 9
-    minStepDuration: 0.16
-    maxStepDuration: 0.4
+    settleLiftHeight: 0.25
+    settleStepDuration: 0.22
   horizontalSpring:
-    frequency: 2.2
-    damping: 0.65
-    response: 0.5
+    frequency: 3
+    damping: 0.7
+    response: 1
   verticalSpring:
     frequency: 3.2
     damping: 0.45
     response: 0
   legExtension: 0.96
-  plantImpulsePerSpeed: 0.3
+  bobDepth: 0.5
   maxPlantImpulse: 2.5
-  weightShiftShare: 0.2
 --- !u!1 &2036602645
 GameObject:
   m_ObjectHideFlags: 0
@@ -3880,17 +3904,18 @@ MonoBehaviour:
   torsoLean:
     leanPerAcceleration: 0.35
     maxLean: 12
+    maxTotalLean: 16
     spring:
       frequency: 2.5
-      damping: 0.45
+      damping: 0.7
       response: 0
   armSwing:
-    maxSwing: 28
-    fullSwingSpeed: 8
     spring:
       frequency: 3
       damping: 0.5
       response: 0
+    bentArmShortening: 0.45
+    bentArmForwardAngle: 35
   airborne:
     airSpeed: 6
     airAcceleration: 30

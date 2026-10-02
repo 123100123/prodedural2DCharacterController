@@ -33,7 +33,7 @@ public sealed class WalkState : ICharacterState {
             return;
         }
 
-        context.Rig.Stride.TickWalk(deltaTime, StrideWithinWalls(commands.MoveAxis));
+        context.Rig.Stride.TickWalk(deltaTime, GaitIntent(commands));
 
         if (context.Rig.Stride.IsPastSupportEdge || context.Rig.Stride.HasLostGround) {
             context.States.Airborne.Fall(context.Rig.Stride.BodyVelocity);
@@ -44,16 +44,19 @@ public sealed class WalkState : ICharacterState {
         context.Rig.Motor.Velocity = context.Rig.Stride.BodyVelocity;
     }
 
+    // Running needs the run input and no aiming: aiming slows the character to a walk.
+    private (float direction, bool running, (float min, float max) feetSpan, (float min, float max) bodySpan) GaitIntent(PlayerCommands commands) {
+        ((float min, float max) feet, (float min, float max) body) spans = SpansWithinWalls();
+        return (commands.MoveAxis, commands.RunHeld && !commands.IsAiming, spans.feet, spans.body);
+    }
+
     // The body may travel as far as its hull is free; feet may reach the wall face itself, a hull half-width further.
-    private (float direction, (float min, float max) feetSpan, (float min, float max) bodySpan) StrideWithinWalls(float moveAxis) {
+    private ((float min, float max) feet, (float min, float max) body) SpansWithinWalls() {
         float bodyX = context.Rig.Body.position.x;
-        float maxOffset = context.Rig.Stride.MaxStrideOffset;
+        float lookAhead = context.Rig.Stride.WallProbeDistance;
         KinematicBodyMotor motor = context.Rig.Motor;
 
-        float freeBehind = motor.FreeDistance(-1f, maxOffset);
-        float freeAhead = motor.FreeDistance(1f, maxOffset);
-        (float min, float max) bodySpan = (bodyX - freeBehind, bodyX + freeAhead);
-        (float min, float max) feetSpan = (bodySpan.min - motor.HullHalfWidth, bodySpan.max + motor.HullHalfWidth);
-        return (moveAxis, feetSpan, bodySpan);
+        (float min, float max) body = (bodyX - motor.FreeDistance(-1f, lookAhead), bodyX + motor.FreeDistance(1f, lookAhead));
+        return ((body.min - motor.HullHalfWidth, body.max + motor.HullHalfWidth), body);
     }
 }

@@ -9,6 +9,7 @@ public sealed class PlayerInputReader : IDisposable {
     private readonly InputAction move = new InputAction("Move", InputActionType.Value, expectedControlType: "Axis");
     private readonly InputAction jump = new InputAction("Jump", InputActionType.Button);
     private readonly InputAction roll = new InputAction("Roll", InputActionType.Button);
+    private readonly InputAction run = new InputAction("Run", InputActionType.Button);
     private readonly InputAction aim = new InputAction("Aim", InputActionType.Button);
     private readonly InputAction fire = new InputAction("Fire", InputActionType.Button);
     private readonly InputAction pointer = new InputAction("Pointer", InputActionType.Value, expectedControlType: "Vector2");
@@ -30,6 +31,7 @@ public sealed class PlayerInputReader : IDisposable {
             MoveAxis = move.ReadValue<float>(),
             JumpPressed = jump.WasPressedThisFrame(),
             RollPressed = roll.WasPressedThisFrame(),
+            RunHeld = run.IsPressed(),
             IsAiming = ReadAimMode(),
             FirePressed = fire.WasPressedThisFrame(),
             PointerScreenPosition = pointer.ReadValue<UnityEngine.Vector2>(),
@@ -50,8 +52,10 @@ public sealed class PlayerInputReader : IDisposable {
     private void BindActions() {
         jump.AddBinding("<Keyboard>/space");
         jump.AddBinding("<Gamepad>/buttonSouth");
-        roll.AddBinding("<Keyboard>/leftShift");
+        roll.AddBinding("<Keyboard>/c");
         roll.AddBinding("<Gamepad>/buttonEast");
+        run.AddBinding("<Keyboard>/leftShift");
+        run.AddBinding("<Gamepad>/leftStickPress");
         aim.AddBinding("<Mouse>/rightButton");
         aim.AddBinding("<Gamepad>/leftTrigger");
         fire.AddBinding("<Mouse>/leftButton");
@@ -63,6 +67,7 @@ public sealed class PlayerInputReader : IDisposable {
         apply(move);
         apply(jump);
         apply(roll);
+        apply(run);
         apply(aim);
         apply(fire);
         apply(pointer);

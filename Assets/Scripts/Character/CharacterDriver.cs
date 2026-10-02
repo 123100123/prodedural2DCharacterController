@@ -69,7 +69,7 @@ public class CharacterDriver : MonoBehaviour {
 
         if (machine.Current.AllowsUpperBodyActions) {
             PoseUpperBody(commands);
-            torsoLean.Tick(Time.deltaTime);
+            torsoLean.Tick((Time.deltaTime, rig.Stride.CurrentGait.lean * rig.Stride.SpeedShare));
         }
     }
 

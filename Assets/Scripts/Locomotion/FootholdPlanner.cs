@@ -4,6 +4,8 @@ using UnityEngine;
 // What a stepping leg needs to know to judge a foothold.
 public struct FootholdRequest {
     public float DesiredX;
+    // Where the hip will be horizontally when the foot touches down.
+    public float LandingHipX;
     public Vector2 PlantedFoot;
     public float HipHeight;
     public float LegLength;
@@ -13,7 +15,6 @@ public struct FootholdRequest {
 // Picks the cheapest reachable foothold: closest to the desired spot, least height change, never out of leg reach.
 public static class FootholdPlanner {
     private const float ForwardTieBreak = 0.01f;
-    private const float BodyAnchorCount = 3f;
 
     public static bool TryChooseFoothold(
         FootholdRequest request,
@@ -56,12 +57,10 @@ public static class FootholdPlanner {
         return Mathf.Abs(candidate.x - context.request.PlantedFoot.x) >= context.limits.minStepLength;
     }
 
-    // The body settles over the mean of both feet and the stride target (which sits near the new foot),
-    // and at the mean foot height plus the current hip height.
+    // At touchdown the hip is at the gait's predicted x, at the mean foot height plus the current hip height.
     private static Vector2 PredictSettledHip(Vector2 candidate, FootholdRequest request) {
-        float hipX = (request.PlantedFoot.x + 2f * candidate.x) / BodyAnchorCount;
         float hipY = (request.PlantedFoot.y + candidate.y) / 2f + request.HipHeight;
-        return new Vector2(hipX, hipY);
+        return new Vector2(request.LandingHipX, hipY);
     }
 
     private static float ScoreFoothold(Vector2 candidate, (FootholdRequest request, FootholdLimits limits) context) {

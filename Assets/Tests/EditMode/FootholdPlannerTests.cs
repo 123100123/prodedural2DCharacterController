@@ -8,6 +8,7 @@ public class FootholdPlannerTests {
     private static FootholdRequest WalkingRightFrom(Vector2 plantedFoot, float desiredX) {
         return new FootholdRequest {
             DesiredX = desiredX,
+            LandingHipX = desiredX - 0.5f,
             PlantedFoot = plantedFoot,
             HipHeight = 2.1f,
             LegLength = 2.34f,
@@ -53,7 +54,8 @@ public class FootholdPlannerTests {
     [Test]
     public void RejectsFootholdsOutOfLegReach() {
         FootholdRequest request = WalkingRightFrom(Vector2.zero, 6f);
-        Assert.IsFalse(TryChoose(request, new Vector2(6f, 0f)));
+        request.LandingHipX = 1f;
+        Assert.IsFalse(TryChoose(request, new Vector2(6f, 0f)), "the hip will be far behind the foothold");
     }
 
     [Test]

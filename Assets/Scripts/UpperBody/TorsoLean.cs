@@ -1,14 +1,16 @@
 using System;
 using UnityEngine;
 
-// Pitches the chest with the body's horizontal acceleration through a spring: leans into a start,
-// rocks back and settles on a stop, and takes recoil kicks.
+// Pitches the chest through a spring: a sustained lean from the gait (more when running), plus a lean with the body's
+// horizontal acceleration (into a start, rocking back on a stop), plus recoil kicks.
 [Serializable]
 public class TorsoLean {
     [Tooltip("Lean in degrees per unit of forward acceleration (units per second squared).")]
     [SerializeField] private float leanPerAcceleration = 0.35f;
     [SerializeField] private float maxLean = 12f;
-    [SerializeField] private SpringSettings spring = new SpringSettings(2.5f, 0.45f, 0f);
+    [Tooltip("Cap on the combined gait and acceleration lean, so a sprint start does not fold the torso over.")]
+    [SerializeField] private float maxTotalLean = 16f;
+    [SerializeField] private SpringSettings spring = new SpringSettings(2.5f, 0.7f, 0f);
 
     private (Transform chest, Transform body) bones;
     private (CharacterFacing facing, int authoredSign) orientation;
@@ -28,12 +30,14 @@ public class TorsoLean {
     // A backward jolt, e.g. pistol recoil (degrees per second of backward lean).
     public void Kick(float backwardDegreesPerSecond) => lean.AddVelocity(-backwardDegreesPerSecond);
 
-    public void Tick(float deltaTime) {
-        if (deltaTime <= 0f) {
+    public void Tick((float deltaTime, float gaitLean) frame) {
+        if (frame.deltaTime <= 0f) {
             return;
         }
 
-        float leanAngle = lean.Update((LeanForAcceleration(ForwardAcceleration(deltaTime)), deltaTime), spring);
+        float combined = frame.gaitLean + LeanForAcceleration(ForwardAcceleration(frame.deltaTime));
+        float target = Mathf.Clamp(combined, -maxTotalLean, maxTotalLean);
+        float leanAngle = lean.Update((target, frame.deltaTime), spring);
         float forwardTurnSign = -orientation.authoredSign;
         bones.chest.localRotation = Quaternion.Euler(0f, 0f, leanAngle * forwardTurnSign) * restChest;
     }

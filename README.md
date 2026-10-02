@@ -13,8 +13,9 @@ Open `Assets/Scenes/SampleScene.unity` and press Play.
 | Action | Keyboard / mouse | Gamepad |
 |---|---|---|
 | Walk | A / D (or ← / →) | Left stick |
+| Run (while walking, not while aiming) | Hold Left Shift | Press left stick |
 | Jump (climbs instead when a too-high ledge is ahead) | Space | South button |
-| Roll toward the facing direction | Left Shift | East button |
+| Roll toward the facing direction (disabled by default) | C | East button |
 | Shooting mode: face and aim at the pointer | Hold right mouse button | Left trigger |
 | Fire (in shooting mode; logs a debug message) | Left mouse button | Right trigger |
 
@@ -94,14 +95,18 @@ The full-body states switch through `CharacterStateMachine`. Each state receives
 
   _We know the lengths and positions of all the bones and line segments, so we can calculate the angle between the red and blue bones that reaches the target point._
 
-## 6. Walking
-  The move input accelerates a stride target, which is clamped near the body and to the wall face ahead. The body follows the mean of both feet and the stride target through a spring.
+## 6. Walking and running
+  The body leads and the feet follow, like a real gait:
+  - **Body motion:** the body moves at the ground speed. That speed accelerates and brakes toward the walk or run speed, and the body follows through a spring.
+  - **When a foot lifts:** once it trails half a stance behind the hip.
+  - **Where it lands:** where the hip will be at touchdown, plus half a stance ahead (Raibert-style foot placement). So the feet always stay under the body, however long the surface.
+  - **Overlap:** walking keeps one foot down; the trailing foot may lift just before the other lands, like a heel-off. Running lifts it mid-swing, so both feet leave the ground for a moment.
+  - **Stopping:** when idle, the feet take settling steps into a stance under the hip.
+  - **Edges:** walking into a ledge with no foothold ahead leans the body past its feet, and it falls. Stopping near a ledge keeps it on the ledge.
 
-  Steps work like this:
-  1. When both legs are grounded, the leg whose foot trails farther behind the stride target is chosen.
-  2. If the stride target is more than `reachRange` past the other (planted) foot, the chosen leg plans a foothold and starts a step.
-  3. The foot follows the step arc and plants firmly at the end.
-  4. The body height follows what the planted legs can reach (see section 8), so it dips at contact and rises over the support leg.
+  Walk and run are each a [GaitProfile](Assets/Scripts/Locomotion/GaitProfile.cs) on `StrideController`. A profile sets the speed, stance and swing times, lift height, pelvis drop, plant impulse, push-off bounce, weight shift, torso lean, arm swing and elbow bend.
+
+  Holding run blends from the walk profile to the run profile over about 0.4 s (`runBlendRate`). Everything scales with the current speed, so idle, walking and running flow into each other with no switching.
 
   ![Alt Text](https://media.giphy.com/media/UWcRcLwcw8LyuvL7qL/giphy.gif)
 
