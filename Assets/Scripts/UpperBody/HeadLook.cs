@@ -12,7 +12,7 @@ public class HeadLook {
     [SerializeField] private float followShare = 0.6f;
     [SerializeField] private float maxTilt = 30f;
     [Tooltip("How the head follows its requested tilt (looking, tucking): it lags slightly and settles after jolts.")]
-    [SerializeField] private SpringSettings poseSpring = new SpringSettings(3.5f, 0.5f, 0f);
+    [SerializeField] private SpringSettings poseSpring = new SpringSettings(4f, 0.9f, 0f);
     [Tooltip("How strongly the head keeps level in the world while holding level or looking: 0 rides the torso, " +
              "1 cancels all of its tilt.")]
     [Range(0f, 1f)] [SerializeField] private float stabilization = 0.8f;

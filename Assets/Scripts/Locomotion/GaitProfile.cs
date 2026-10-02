@@ -52,19 +52,20 @@ public struct GaitProfile {
         speed = 3.5f, acceleration = 10f, deceleration = 14f,
         dutyFactor = 0.62f, stepLengthPerRootSpeed = 0.9f, minStepLength = 0.45f, maxStepLength = 2.2f,
         minSwingDuration = 0.25f, maxSwingDuration = 0.55f, liftHeight = 0.4f,
-        pelvisDrop = 0.17f, bobAmplitude = 0.12f, lowAfterContact = 0.06f, surge = 0.05f, plantImpulse = 0.1f, pushOffImpulse = 0f,
+        pelvisDrop = 0.17f, bobAmplitude = 0.1f, lowAfterContact = 0.06f, surge = 0.05f, plantImpulse = 0.1f, pushOffImpulse = 0f,
         lean = 5f, pitchOscillation = 1f, armSwing = 25f, armBend = 0.15f,
     };
 
-    // Quick steps with firm plants and a push-off bounce: about three steps a second, each foot down for a third of the
-    // cycle, so the feet stay close under the body and both leave the ground between steps. The bounce comes from the
-    // plants and push-offs rather than a timed bob: running steps come as fast as the body's vertical spring responds,
-    // so a timed bob would lag a quarter step and peak at touchdown instead of in the air.
+    // Quick steps, about three a second, each foot down for a third of the cycle, so both feet leave the ground between
+    // steps. The bounce is a bob locked to the cycle, lowest at mid-stance as the leg compresses and highest in flight;
+    // the body's vertical spring is stiff enough to follow it closely. Plants and push-offs only add a little firmness,
+    // so the run is elastic without uncontrolled hops. A modest pelvis drop keeps the body tall and propelled forward
+    // rather than crouched.
     public static GaitProfile Run => new GaitProfile {
         speed = 8.5f, acceleration = 18f, deceleration = 30f,
-        dutyFactor = 0.33f, stepLengthPerRootSpeed = 0.92f, minStepLength = 0.8f, maxStepLength = 3.6f,
-        minSwingDuration = 0.25f, maxSwingDuration = 0.55f, liftHeight = 0.55f,
-        pelvisDrop = 0.38f, bobAmplitude = 0f, lowAfterContact = 0.165f, surge = 0.02f, plantImpulse = 0.5f, pushOffImpulse = 2.2f,
+        dutyFactor = 0.36f, stepLengthPerRootSpeed = 0.92f, minStepLength = 0.8f, maxStepLength = 3.6f,
+        minSwingDuration = 0.25f, maxSwingDuration = 0.55f, liftHeight = 0.45f,
+        pelvisDrop = 0.18f, bobAmplitude = 0.08f, lowAfterContact = 0.18f, surge = 0.02f, plantImpulse = 0.15f, pushOffImpulse = 0.6f,
         lean = 14f, pitchOscillation = 1.5f, armSwing = 45f, armBend = 0.6f,
     };
 

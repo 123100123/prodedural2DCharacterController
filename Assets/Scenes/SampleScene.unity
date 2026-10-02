@@ -3555,7 +3555,7 @@ MonoBehaviour:
     maxSwingDuration: 0.55
     liftHeight: 0.4
     pelvisDrop: 0.17
-    bobAmplitude: 0.12
+    bobAmplitude: 0.1
     lowAfterContact: 0.06
     surge: 0.05
     plantImpulse: 0.1
@@ -3568,19 +3568,19 @@ MonoBehaviour:
     speed: 8.5
     acceleration: 18
     deceleration: 30
-    dutyFactor: 0.33
+    dutyFactor: 0.36
     stepLengthPerRootSpeed: 0.92
     minStepLength: 0.8
     maxStepLength: 3.6
     minSwingDuration: 0.25
     maxSwingDuration: 0.55
-    liftHeight: 0.55
-    pelvisDrop: 0.38
-    bobAmplitude: 0
-    lowAfterContact: 0.165
+    liftHeight: 0.45
+    pelvisDrop: 0.18
+    bobAmplitude: 0.08
+    lowAfterContact: 0.18
     surge: 0.02
-    plantImpulse: 0.5
-    pushOffImpulse: 2.2
+    plantImpulse: 0.15
+    pushOffImpulse: 0.6
     lean: 14
     pitchOscillation: 1.5
     armSwing: 45
@@ -3729,17 +3729,18 @@ MonoBehaviour:
         m_RotationOrder: 4
     settleLiftHeight: 0.25
     settleStepDuration: 0.22
-  horizontalSpring:
-    frequency: 3
-    damping: 0.7
-    response: 1
-  verticalSpring:
-    frequency: 3.2
-    damping: 0.45
-    response: 0
-  legExtension: 0.99
-  maxPlantImpulse: 2.5
-  maxReachDrop: 0.35
+  body:
+    horizontalSpring:
+      frequency: 3
+      damping: 0.7
+      response: 1
+    verticalSpring:
+      frequency: 6
+      damping: 0.7
+      response: 1
+    legExtension: 0.99
+    maxReachDrop: 0.35
+    maxPlantImpulse: 1.2
 --- !u!1 &2036602645
 GameObject:
   m_ObjectHideFlags: 0
@@ -4014,8 +4015,8 @@ MonoBehaviour:
     followShare: 0.6
     maxTilt: 30
     poseSpring:
-      frequency: 3.5
-      damping: 0.5
+      frequency: 4
+      damping: 0.9
       response: 0
     stabilization: 0.8
     stabilizationFade: 0.2
@@ -4035,8 +4036,8 @@ MonoBehaviour:
         response: 0
   torsoMotion:
     spring:
-      frequency: 2.5
-      damping: 0.7
+      frequency: 3
+      damping: 0.8
       response: 0
     breathPeriod: 4
     breathPitch: 3.5

@@ -1,7 +1,8 @@
 using UnityEngine;
 
-// Moves the body pivot toward its target as a mass on springs, keeps it out of walls, and restarts from wherever it is
-// when something else moved it (a respawn, a teleport) or another state hands it over.
+// Moves the body pivot toward its target as a mass on springs, keeps it out of walls and no higher than its planted legs
+// reach, and restarts from wherever it is when something else moved it (a respawn, a teleport) or another state hands
+// it over.
 public sealed class BodyCarriage {
     // A body found further than this from where the springs last put it was moved by something else.
     private const float ExternalMoveDistance = 0.5f;
@@ -33,11 +34,21 @@ public sealed class BodyCarriage {
     // An instantaneous vertical push, e.g. a foot taking the weight or pushing off.
     public void Push(float verticalVelocity) => y?.AddVelocity(verticalVelocity);
 
-    public void Carry((Vector2 target, float deltaTime) frame, (SpringSettings horizontal, SpringSettings vertical, (float min, float max) span) motion) {
+    // ceilingY: the highest the planted legs let the body be; the spring never carries it above that.
+    public void Carry((Vector2 target, float deltaTime) frame, (SpringSettings horizontal, SpringSettings vertical, (float min, float max) span, float ceilingY) motion) {
         float carriedX = KeepWithinSpan(x.Update((frame.target.x, frame.deltaTime), motion.horizontal), motion.span);
-        float carriedY = y.Update((frame.target.y, frame.deltaTime), motion.vertical);
+        float carriedY = KeepBelowCeiling(y.Update((frame.target.y, frame.deltaTime), motion.vertical), motion.ceilingY);
         body.position = new Vector3(carriedX, carriedY, body.position.z);
         lastWrittenPosition = body.position;
+    }
+
+    // A planted leg cannot stretch: a spring overshooting its reach stops there and loses its upward speed.
+    private float KeepBelowCeiling(float carriedY, float ceilingY) {
+        if (carriedY <= ceilingY) {
+            return carriedY;
+        }
+        y.ResetWithVelocity((ceilingY, Mathf.Min(0f, y.Velocity)));
+        return ceilingY;
     }
 
     // A spring overshooting into a wall stops there and loses its speed toward it.

@@ -46,14 +46,7 @@ public class StrideController : MonoBehaviour {
     [SerializeField] private float idleFootTolerance = 0.18f;
     [SerializeField] private StepArcShape stepArc = new StepArcShape();
 
-    [Header("Body mass")]
-    [SerializeField] private SpringSettings horizontalSpring = new SpringSettings(3f, 0.7f, 1f);
-    [SerializeField] private SpringSettings verticalSpring = new SpringSettings(3.2f, 0.45f, 0f);
-    [Tooltip("Share of the leg length a supporting leg may extend to; the pelvis never rises higher than its planted legs reach.")]
-    [Range(0.8f, 1f)] [SerializeField] private float legExtension = 0.99f;
-    [SerializeField] private float maxPlantImpulse = 2.5f;
-    [Tooltip("Most the leg-reach limit may lower the pelvis below its gait height; a foot further away is about to step anyway.")]
-    [SerializeField] private float maxReachDrop = 0.35f;
+    [SerializeField] private BodyMassSettings body = BodyMassSettings.Default;
 
     private readonly List<Vector2> footholdCandidates = new List<Vector2>();
     private readonly StepScheduler scheduler = new StepScheduler();
@@ -366,7 +359,7 @@ public class StrideController : MonoBehaviour {
     // the difference (all of it when stopping). Speeding up gains nothing, the lag only grows.
     private float LagRecoveredBy(float landingSpeed) {
         float lagNow = (anchorX - transform.position.x) * Mathf.Sign(groundSpeed);
-        float lagAtLanding = horizontalSpring.TrackingLag(Mathf.Abs(landingSpeed));
+        float lagAtLanding = body.horizontalSpring.TrackingLag(Mathf.Abs(landingSpeed));
         return Mathf.Sign(groundSpeed) * Mathf.Max(0f, lagNow - lagAtLanding);
     }
 
@@ -470,8 +463,9 @@ public class StrideController : MonoBehaviour {
         AbsorbFootPlant(frontLeg);
         AbsorbFootPlant(backLeg);
 
-        Vector2 target = new Vector2(BodyTargetX(), BodyTargetY());
-        Carriage.Carry((target, frame.deltaTime), (horizontalSpring, verticalSpring, frame.bodySpan));
+        (float target, float ceiling) height = BodyHeightLimits();
+        Vector2 target = new Vector2(BodyTargetX(), height.target);
+        Carriage.Carry((target, frame.deltaTime), (body.horizontalSpring, body.verticalSpring, frame.bodySpan, height.ceiling));
     }
 
     // The body takes a planted foot's impact as a downward push, like a knee bending under the weight.
@@ -479,7 +473,7 @@ public class StrideController : MonoBehaviour {
         if (!leg.TryConsumePlant(out float impactSpeed)) {
             return;
         }
-        Carriage.Push(-Mathf.Min(maxPlantImpulse, impactSpeed * CurrentGait.plantImpulse));
+        Carriage.Push(-Mathf.Min(body.maxPlantImpulse, impactSpeed * CurrentGait.plantImpulse));
         diagnostics.RecordPlant(leg == frontLeg, Time.time);
         events?.RaiseFootPlanted((leg.FootTarget, impactSpeed));
     }
@@ -490,14 +484,16 @@ public class StrideController : MonoBehaviour {
         return anchorX + Mathf.Sign(groundSpeed) * surge;
     }
 
-    // The gait's height, never higher than the planted legs reach. The reach is measured from where the body is: its
-    // springs trail the anchor a little at speed, and measuring from the anchor would make a trailing foot seem further
-    // behind than it is.
-    private float BodyTargetY() {
+    // The gait's height, never higher than the planted legs reach: the spring's target, and the ceiling it may not
+    // overshoot. The reach is measured from where the body is: its springs trail the anchor a little at speed, and
+    // measuring from the anchor would make a trailing foot seem further behind than it is. A foot so far away that
+    // reaching it would sink the body more than the reach drop is about to step anyway, and does not hold it down.
+    private (float target, float ceiling) BodyHeightLimits() {
         float gaitHeight = GaitHeight();
         float pelvisX = transform.position.x;
         float reachable = Mathf.Min(HighestPelvisOver((frontLeg, pelvisX)), HighestPelvisOver((backLeg, pelvisX)));
-        return Mathf.Clamp(reachable, gaitHeight - maxReachDrop, gaitHeight);
+        float ceiling = Mathf.Max(reachable, gaitHeight - body.maxReachDrop);
+        return (Mathf.Min(ceiling, gaitHeight), ceiling);
     }
 
     // Standing height over the feet with the step's bob, sunk lower the faster the gait moves and by any held crouch.
@@ -513,7 +509,7 @@ public class StrideController : MonoBehaviour {
             return float.PositiveInfinity;
         }
         Vector2 hipOffset = support.leg.HipPosition - (Vector2)transform.position;
-        float reach = support.leg.LegLength * legExtension;
+        float reach = support.leg.LegLength * body.legExtension;
         return GaitPose.HighestPelvisY((support.leg.FootTarget, support.pelvisX), (hipOffset, reach));
     }
 }

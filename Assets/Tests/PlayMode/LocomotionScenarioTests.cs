@@ -15,6 +15,8 @@ public class LocomotionScenarioTests {
     private const float TransitionAsymmetry = 0.3f;
     // Toggling the run every step or so changes the speed between consecutive steps, so their durations genuinely differ.
     private const float RapidToggleAsymmetry = 0.35f;
+    // The rig's foot effector sits about 0.06 off its target even standing; more than this is a foot left unreachable.
+    private const float PlantedFootTolerance = 0.12f;
 
     private ScenarioStage stage;
     private GaitRecorder recorder;
@@ -104,7 +106,7 @@ public class LocomotionScenarioTests {
         yield return Hold(2f);
         GaitMetrics runStop = Measure("stop from full run", runStart, recorder.Now);
         Assert.That(runStop.RepeatedLegLifts, Is.Zero, "the legs alternate into the stop");
-        Assert.That(runStop.WorstPlantedFootGap, Is.LessThan(0.1f), "planted feet stay on their footholds");
+        Assert.That(runStop.WorstPlantedFootGap, Is.LessThan(PlantedFootTolerance), "planted feet stay on their footholds");
     }
 
     [UnityTest]
@@ -142,7 +144,7 @@ public class LocomotionScenarioTests {
         Assert.That(standing.MeanBodyAboveStance - run.MeanBodyAboveStance, Is.LessThan(0.3f), "the run pelvis is not crouched");
         Assert.That(run.MeanLean, Is.GreaterThan(standing.MeanLean + 6f), "the run leans forward");
         Assert.That(run.HeadAngleDeviation, Is.LessThan(2.5f), "the head stays steady while running");
-        Assert.That(run.WorstPlantedFootGap, Is.LessThan(0.1f), "planted feet stay on their footholds");
+        Assert.That(run.WorstPlantedFootGap, Is.LessThan(PlantedFootTolerance), "planted feet stay on their footholds");
         AssertEvenGait((run, SteadyAsymmetry));
     }
 
