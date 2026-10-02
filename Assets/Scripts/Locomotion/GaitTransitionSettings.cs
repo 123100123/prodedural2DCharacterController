@@ -19,8 +19,21 @@ public struct GaitTransitionSettings {
     [Tooltip("Fastest the walk/run blend may change, in shares per second; smooths sudden speed changes such as wall stops.")]
     public float runBlendRate;
 
+    [Tooltip("Most the swing's share of the cycle changes per gait cycle. Walking feet swing for about two fifths of the " +
+             "cycle and running feet for two thirds; with the lifts fixed half a cycle apart, that change moves the " +
+             "contacts, and a steady ramp moves them by the same small amount every step instead of stretching one " +
+             "interval into a limp.")]
+    [Range(0.02f, 1f)] public float swingShareChangePerCycle;
+
+    [Header("Overlap")]
+    [Tooltip("How far through its swing a walking foot must be before the other foot may lift: late, so a foot is always down.")]
+    [Range(0f, 1f)] public float walkLiftOverlap;
+    [Tooltip("How far through its swing a running foot must be before the other foot may lift: mid-swing, so both feet leave the ground.")]
+    [Range(0f, 1f)] public float runLiftOverlap;
+
     public static GaitTransitionSettings Default => new GaitTransitionSettings {
         startSpeed = 0.35f, stopSpeed = 0.15f,
-        runBlendStart = 0.1f, runBlendEnd = 0.8f, runBlendRate = 4f,
+        runBlendStart = 0.1f, runBlendEnd = 0.8f, runBlendRate = 4f, swingShareChangePerCycle = 0.15f,
+        walkLiftOverlap = 0.8f, runLiftOverlap = 0.5f,
     };
 }

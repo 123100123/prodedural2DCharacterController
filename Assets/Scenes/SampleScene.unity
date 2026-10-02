@@ -3559,6 +3559,9 @@ MonoBehaviour:
     runBlendStart: 0.1
     runBlendEnd: 0.8
     runBlendRate: 4
+    swingShareChangePerCycle: 0.15
+    walkLiftOverlap: 0.8
+    runLiftOverlap: 0.5
   idleFootTolerance: 0.18
   stepArc:
     walk:

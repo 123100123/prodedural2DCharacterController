@@ -34,14 +34,15 @@ public sealed class GaitMetrics {
         }
     }
 
-    // Largest difference between two consecutive contact intervals, as a share of their mean: 0 is perfectly even.
+    // A limp makes opposite contact intervals alternate short and long, while a cadence change only drifts them: the
+    // largest gap between an interval and the mean of its neighbours, as a share of that mean. 0 is perfectly even.
     public float WorstContactAsymmetry {
         get {
             List<float> intervals = AlternatingContactIntervals();
             float worst = 0f;
-            for (int index = 1; index < intervals.Count; index++) {
-                float mean = (intervals[index] + intervals[index - 1]) / 2f;
-                worst = Mathf.Max(worst, Mathf.Abs(intervals[index] - intervals[index - 1]) / mean);
+            for (int index = 1; index < intervals.Count - 1; index++) {
+                float neighbours = (intervals[index - 1] + intervals[index + 1]) / 2f;
+                worst = Mathf.Max(worst, Mathf.Abs(intervals[index] - neighbours) / neighbours);
             }
             return worst;
         }
