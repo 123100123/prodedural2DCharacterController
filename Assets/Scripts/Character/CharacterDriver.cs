@@ -12,8 +12,12 @@ public class CharacterDriver : MonoBehaviour {
     [SerializeField] private ArmLimb frontArm = new ArmLimb();
     [SerializeField] private ArmLimb backArm = new ArmLimb();
     [SerializeField] private HeadLook head = new HeadLook();
-    [Tooltip("Upper-spine bone that leans with acceleration and curls forward during a roll.")]
+    [Tooltip("Upper-spine bone that flexes with each step and curls forward during a roll.")]
     [SerializeField] private Transform chest;
+    [Tooltip("Parent of the chest at its pivot, not a bone: it carries the sustained forward lean of the locomotion " +
+             "posture, so the kinematic body pivot itself never tilts.")]
+    [SerializeField] private Transform postureRoot;
+    [SerializeField] private LocomotionPosture posture = new LocomotionPosture();
     [SerializeField] private TorsoMotion torsoMotion = new TorsoMotion();
     [SerializeField] private ArmSwing armSwing = new ArmSwing();
 
@@ -62,10 +66,11 @@ public class CharacterDriver : MonoBehaviour {
         states.Walk.Begin();
     }
 
-    // Full-body state first, then the upper-body layer on top of it.
+    // Full-body state first, then the posture and the upper-body layer on top of it.
     private void Update() {
         PlayerCommands commands = input.ReadCommands();
         machine.Tick(Time.deltaTime, commands);
+        posture.Tick(Time.deltaTime);
 
         if (machine.Current.AllowsUpperBodyActions) {
             PoseUpperBody(commands);
@@ -95,7 +100,7 @@ public class CharacterDriver : MonoBehaviour {
         frontArm.Initialize(authoredFacingSign);
         backArm.Initialize(authoredFacingSign);
         head.Initialize((transform, authoredFacingSign));
-        return new CharacterRig((stride, facing, motor, Events), (frontArm, backArm, head, chest));
+        return new CharacterRig((stride, facing, motor, Events), (frontArm, backArm, head, chest, postureRoot));
     }
 
     private CharacterStates BuildStates() {
@@ -111,6 +116,7 @@ public class CharacterDriver : MonoBehaviour {
     }
 
     private void ComposeSecondaryMotion() {
+        posture.Initialize(rig);
         torsoMotion.Initialize(rig);
         armSwing.Initialize(rig);
         followCamera.Initialize(rig.Body, Events);

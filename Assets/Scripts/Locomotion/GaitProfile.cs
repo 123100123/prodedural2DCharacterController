@@ -38,9 +38,10 @@ public struct GaitProfile {
     public float pushOffImpulse;
 
     [Header("Upper body")]
-    [Tooltip("Sustained forward chest lean in degrees at full speed.")]
+    [Tooltip("Sustained forward lean of the posture in degrees at full speed: the body line of the gait.")]
     public float lean;
-    [Tooltip("Chest pitch swing in degrees at full speed: flexing as weight is taken, extending over the supporting leg.")]
+    [Tooltip("Secondary chest pitch swing in degrees at full speed: flexing as weight is taken, extending over the " +
+             "supporting leg. Small next to the lean.")]
     public float pitchOscillation;
     [Tooltip("Arm swing in degrees at full speed.")]
     public float armSwing;
@@ -52,7 +53,7 @@ public struct GaitProfile {
         dutyFactor = 0.62f, stepLengthPerRootSpeed = 0.9f, minStepLength = 0.45f, maxStepLength = 2.2f,
         minSwingDuration = 0.25f, maxSwingDuration = 0.55f, liftHeight = 0.4f,
         pelvisDrop = 0.17f, bobAmplitude = 0.12f, lowAfterContact = 0.06f, surge = 0.05f, plantImpulse = 0.1f, pushOffImpulse = 0f,
-        lean = 3f, pitchOscillation = 2.5f, armSwing = 25f, armBend = 0.15f,
+        lean = 5f, pitchOscillation = 1f, armSwing = 25f, armBend = 0.15f,
     };
 
     // Quick steps with firm plants and a push-off bounce: about three steps a second, each foot down for a third of the
@@ -64,7 +65,7 @@ public struct GaitProfile {
         dutyFactor = 0.33f, stepLengthPerRootSpeed = 0.92f, minStepLength = 0.8f, maxStepLength = 3.6f,
         minSwingDuration = 0.25f, maxSwingDuration = 0.55f, liftHeight = 0.55f,
         pelvisDrop = 0.38f, bobAmplitude = 0f, lowAfterContact = 0.165f, surge = 0.02f, plantImpulse = 0.5f, pushOffImpulse = 2.2f,
-        lean = 12f, pitchOscillation = 3f, armSwing = 45f, armBend = 0.6f,
+        lean = 14f, pitchOscillation = 1.5f, armSwing = 45f, armBend = 0.6f,
     };
 
     public static GaitProfile Blend((GaitProfile walk, GaitProfile run) profiles, float runShare) {

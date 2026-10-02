@@ -1,20 +1,17 @@
 using System;
 using UnityEngine;
 
-// Moves the chest through springs so the torso moves with the legs: a sustained lean that grows with speed, a flex
-// as each foot takes the weight and an extension over the supporting leg (twice per stride), a lean into starts and a
-// rock back on stops, recoil kicks, and breathing when standing still (the chest rises along the spine and extends).
+// Secondary chest motion on top of the locomotion posture: a small flex as each foot takes the weight and an extension
+// over the supporting leg (twice per stride), recoil kicks, and breathing when standing still (the chest rises along
+// the spine and extends). The sustained forward lean belongs to the posture root (LocomotionPosture), so these stay
+// small and never dominate the silhouette.
 [Serializable]
 public class TorsoMotion {
     // Fades breathing in and out as the character stops and moves off, so the chest never jumps.
     private static readonly SpringSettings BreathFade = new SpringSettings(2f, 1f, 0f);
 
-    [Tooltip("Lean in degrees per unit of forward acceleration of the gait (units per second squared).")]
-    [SerializeField] private float leanPerAcceleration = 0.6f;
-    [SerializeField] private float maxAccelerationLean = 10f;
-    [Tooltip("Cap on the combined lean, so a sprint start does not fold the torso over.")]
-    [SerializeField] private float maxTotalLean = 16f;
-    [SerializeField] private SpringSettings spring = new SpringSettings(2.5f, 0.7f, 0f);
+    [Tooltip("How the chest follows its flex and absorbs recoil kicks.")]
+    [SerializeField] private SpringSettings spring = new SpringSettings(3f, 0.8f, 0f);
 
     [Header("Breathing when standing still")]
     [Tooltip("Seconds per breath.")]
@@ -29,8 +26,11 @@ public class TorsoMotion {
     private Vector3 restChestPosition;
     private SecondOrderDynamics pitch;
     private SecondOrderDynamics breath;
-    private float previousGroundSpeed;
     private float breathTime;
+
+    public SpringSettings Spring { get => spring; set => spring = value; }
+    // Degrees the chest is flexed forward on top of the posture right now.
+    public float CurrentPitch => pitch?.Value ?? 0f;
 
     public void Initialize(CharacterRig characterRig) {
         rig = characterRig;
@@ -38,7 +38,6 @@ public class TorsoMotion {
         restChestPosition = rig.Chest.localPosition;
         pitch = new SecondOrderDynamics(0f);
         breath = new SecondOrderDynamics(0f);
-        previousGroundSpeed = rig.Stride.GroundSpeed;
     }
 
     // A backward jolt, e.g. pistol recoil (degrees per second of backward lean).
@@ -50,8 +49,7 @@ public class TorsoMotion {
         }
 
         float lungs = BreathDepth(deltaTime);
-        float target = GaitPitch() + AccelerationLean(deltaTime) - breathPitch * lungs;
-        float forwardPitch = pitch.Update((Mathf.Clamp(target, -maxTotalLean, maxTotalLean), deltaTime), spring);
+        float forwardPitch = pitch.Update((GaitFlex() - breathPitch * lungs, deltaTime), spring);
         PoseChest((forwardPitch, lungs));
     }
 
@@ -62,8 +60,8 @@ public class TorsoMotion {
         rig.Chest.localPosition = restChestPosition + restChestPosition.normalized * (breathRise * pose.lungs);
     }
 
-    // Sustained lean plus the per-step flex and extension, both fading out as the character slows to a stop.
-    private float GaitPitch() {
+    // The per-step flex and extension, fading out as the character slows to a stop.
+    private float GaitFlex() {
         StrideController stride = rig.Stride;
         if (!stride.IsDrivingGait) {
             return 0f;
@@ -71,16 +69,7 @@ public class TorsoMotion {
 
         GaitProfile gait = stride.CurrentGait;
         float lowestPhase = GaitWaves.LowestPhase((gait.dutyFactor, gait.lowAfterContact));
-        float stepPitch = GaitWaves.TorsoPitch((stride.GaitPhase, lowestPhase)) * gait.pitchOscillation;
-        return (gait.lean + stepPitch) * stride.Pace.Moving;
-    }
-
-    // Uses the gait's ground speed rather than the body position, so the step's own surge and bob do not read as starts.
-    private float AccelerationLean(float deltaTime) {
-        float groundSpeed = rig.Stride.GroundSpeed;
-        float forwardAcceleration = (groundSpeed - previousGroundSpeed) / deltaTime * rig.Facing.Sign;
-        previousGroundSpeed = groundSpeed;
-        return Mathf.Clamp(forwardAcceleration * leanPerAcceleration, -maxAccelerationLean, maxAccelerationLean);
+        return GaitWaves.TorsoPitch((stride.GaitPhase, lowestPhase)) * gait.pitchOscillation * stride.Pace.Moving;
     }
 
     // How full the lungs are (0 to 1) while standing still; breathing fades out as the character moves off.

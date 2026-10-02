@@ -4,7 +4,7 @@ using UnityEngine;
 public sealed class CharacterRig {
     public CharacterRig(
         (StrideController stride, CharacterFacing facing, KinematicBodyMotor motor, CharacterEvents events) core,
-        (ArmLimb frontArm, ArmLimb backArm, HeadLook head, Transform chest) upperBody) {
+        (ArmLimb frontArm, ArmLimb backArm, HeadLook head, Transform chest, Transform postureRoot) upperBody) {
         Stride = core.stride;
         Facing = core.facing;
         Motor = core.motor;
@@ -13,6 +13,7 @@ public sealed class CharacterRig {
         BackArm = upperBody.backArm;
         Head = upperBody.head;
         Chest = upperBody.chest;
+        PostureRoot = upperBody.postureRoot;
     }
 
     public StrideController Stride { get; }
@@ -23,6 +24,8 @@ public sealed class CharacterRig {
     public ArmLimb BackArm { get; }
     public HeadLook Head { get; }
     public Transform Chest { get; }
+    // Parent of the chest that carries the sustained locomotion lean; the chest's own motion rides on top of it.
+    public Transform PostureRoot { get; }
     public Transform Body => Stride.transform;
 
     // Applies this frame's arm and head requests; parts nobody posed relax toward rest.

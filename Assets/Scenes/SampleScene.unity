@@ -119,6 +119,38 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1 &85695339
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 85695340}
+  m_Layer: 0
+  m_Name: posture
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &85695340
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 85695339}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.44788742, y: -0.00000014276652, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 2036566789}
+  m_Father: {fileID: 2036566835}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &98850140
 GameObject:
   m_ObjectHideFlags: 0
@@ -2979,15 +3011,15 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2036602725}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0.14347485, w: 0.989654}
-  m_LocalPosition: {x: 0.44788742, y: -0.00000014276652, z: 0}
+  m_LocalRotation: {x: -0, y: -0, z: -0.14347482, w: 0.98965394}
+  m_LocalPosition: {x: -0.000000029802322, y: 0.00000017256885, z: 0}
   m_LocalScale: {x: 1.0000001, y: 1.0000001, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 2036566791}
   - {fileID: 2036566787}
   - {fileID: 2036566799}
-  m_Father: {fileID: 2036566835}
+  m_Father: {fileID: 85695340}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: -16.498001}
 --- !u!4 &2036566791
 Transform:
@@ -3203,7 +3235,7 @@ Transform:
   m_Children:
   - {fileID: 2036566845}
   - {fileID: 2036566841}
-  - {fileID: 2036566789}
+  - {fileID: 85695340}
   m_Father: {fileID: 2036566821}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!4 &2036566837
@@ -3528,8 +3560,8 @@ MonoBehaviour:
     surge: 0.05
     plantImpulse: 0.1
     pushOffImpulse: 0
-    lean: 3
-    pitchOscillation: 2.5
+    lean: 5
+    pitchOscillation: 1
     armSwing: 25
     armBend: 0.15
   run:
@@ -3549,8 +3581,8 @@ MonoBehaviour:
     surge: 0.02
     plantImpulse: 0.5
     pushOffImpulse: 2.2
-    lean: 12
-    pitchOscillation: 3
+    lean: 14
+    pitchOscillation: 1.5
     armSwing: 45
     armBend: 0.6
   transitions:
@@ -3985,13 +4017,23 @@ MonoBehaviour:
       frequency: 3.5
       damping: 0.5
       response: 0
+    stabilization: 0.8
+    stabilizationFade: 0.2
     maxLevelCorrection: 40
     crownDistance: 0.63
   chest: {fileID: 2036566789}
+  postureRoot: {fileID: 85695340}
+  posture:
+    settings:
+      idleLean: 0
+      leanPerAcceleration: 0.5
+      maxAccelerationLean: 8
+      maxTotalLean: 22
+      spring:
+        frequency: 1.6
+        damping: 1
+        response: 0
   torsoMotion:
-    leanPerAcceleration: 0.6
-    maxAccelerationLean: 10
-    maxTotalLean: 16
     spring:
       frequency: 2.5
       damping: 0.7
