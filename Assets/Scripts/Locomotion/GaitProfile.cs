@@ -7,6 +7,10 @@ using UnityEngine;
 public struct GaitProfile {
     [Tooltip("Ground speed in units per second.")]
     public float speed;
+    [Tooltip("Speed gained per second when starting to move or speeding up.")]
+    public float acceleration;
+    [Tooltip("Speed lost per second when stopping, slowing or turning.")]
+    public float deceleration;
 
     [Header("Timing")]
     [Tooltip("Share of the cycle each foot is on the ground: about 0.6 walking (always a foot down), under 0.5 running (a flight phase).")]
@@ -20,7 +24,7 @@ public struct GaitProfile {
     public float liftHeight;
 
     [Header("Body")]
-    [Tooltip("How far the pelvis sinks below standing height at full speed.")]
+    [Tooltip("How far the pelvis sinks below standing height at full speed: knees bend a little walking, more running.")]
     public float pelvisDrop;
     [Tooltip("Vertical bob at full speed, twice per stride.")]
     public float bobAmplitude;
@@ -44,16 +48,22 @@ public struct GaitProfile {
     [Range(0f, 1f)] public float armBend;
 
     public static GaitProfile Walk => new GaitProfile {
-        speed = 3.5f, dutyFactor = 0.62f, stepLengthPerRootSpeed = 0.9f, minStepLength = 0.45f, maxStepLength = 2.2f,
+        speed = 3.5f, acceleration = 10f, deceleration = 14f,
+        dutyFactor = 0.62f, stepLengthPerRootSpeed = 0.9f, minStepLength = 0.45f, maxStepLength = 2.2f,
         minSwingDuration = 0.25f, maxSwingDuration = 0.55f, liftHeight = 0.4f,
-        pelvisDrop = 0f, bobAmplitude = 0.1f, lowAfterContact = 0.06f, surge = 0.05f, plantImpulse = 0.1f, pushOffImpulse = 0f,
+        pelvisDrop = 0.17f, bobAmplitude = 0.12f, lowAfterContact = 0.06f, surge = 0.05f, plantImpulse = 0.1f, pushOffImpulse = 0f,
         lean = 3f, pitchOscillation = 2.5f, armSwing = 25f, armBend = 0.15f,
     };
 
+    // Quick steps with firm plants and a push-off bounce: about three steps a second, each foot down for a third of the
+    // cycle, so the feet stay close under the body and both leave the ground between steps. The bounce comes from the
+    // plants and push-offs rather than a timed bob: running steps come as fast as the body's vertical spring responds,
+    // so a timed bob would lag a quarter step and peak at touchdown instead of in the air.
     public static GaitProfile Run => new GaitProfile {
-        speed = 8.5f, dutyFactor = 0.36f, stepLengthPerRootSpeed = 1.05f, minStepLength = 0.8f, maxStepLength = 3.6f,
-        minSwingDuration = 0.25f, maxSwingDuration = 0.55f, liftHeight = 0.8f,
-        pelvisDrop = 0.25f, bobAmplitude = 0.16f, lowAfterContact = 0.18f, surge = 0.02f, plantImpulse = 0.2f, pushOffImpulse = 1.2f,
+        speed = 8.5f, acceleration = 18f, deceleration = 30f,
+        dutyFactor = 0.33f, stepLengthPerRootSpeed = 0.92f, minStepLength = 0.8f, maxStepLength = 3.6f,
+        minSwingDuration = 0.25f, maxSwingDuration = 0.55f, liftHeight = 0.55f,
+        pelvisDrop = 0.38f, bobAmplitude = 0f, lowAfterContact = 0.165f, surge = 0.02f, plantImpulse = 0.5f, pushOffImpulse = 2.2f,
         lean = 12f, pitchOscillation = 3f, armSwing = 45f, armBend = 0.6f,
     };
 
@@ -63,6 +73,8 @@ public struct GaitProfile {
         float t = Mathf.Clamp01(runShare);
         return new GaitProfile {
             speed = Mathf.Lerp(a.speed, b.speed, t),
+            acceleration = Mathf.Lerp(a.acceleration, b.acceleration, t),
+            deceleration = Mathf.Lerp(a.deceleration, b.deceleration, t),
             dutyFactor = Mathf.Lerp(a.dutyFactor, b.dutyFactor, t),
             stepLengthPerRootSpeed = Mathf.Lerp(a.stepLengthPerRootSpeed, b.stepLengthPerRootSpeed, t),
             minStepLength = Mathf.Lerp(a.minStepLength, b.minStepLength, t),

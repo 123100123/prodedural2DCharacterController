@@ -3495,7 +3495,7 @@ MonoBehaviour:
   frontLeg: {fileID: 1346135902}
   backLeg: {fileID: 738148327}
   strideTarget: {fileID: 219368120}
-  bodyHeight: 2.4
+  bodyHeight: 2.58
   footholdLimits:
     maxStepUp: 1
     maxStepDown: 1.3
@@ -3509,9 +3509,12 @@ MonoBehaviour:
       m_Bits: 4294967291
   edgeOverhang: 0.7
   stoppingOverhang: 0.3
-  stanceHalfWidth: 0.3
+  stanceHalfWidth: 0.22
+  stanceLead: 0.1
   walk:
     speed: 3.5
+    acceleration: 10
+    deceleration: 14
     dutyFactor: 0.62
     stepLengthPerRootSpeed: 0.9
     minStepLength: 0.45
@@ -3519,8 +3522,8 @@ MonoBehaviour:
     minSwingDuration: 0.25
     maxSwingDuration: 0.55
     liftHeight: 0.4
-    pelvisDrop: 0
-    bobAmplitude: 0.1
+    pelvisDrop: 0.17
+    bobAmplitude: 0.12
     lowAfterContact: 0.06
     surge: 0.05
     plantImpulse: 0.1
@@ -3531,86 +3534,154 @@ MonoBehaviour:
     armBend: 0.15
   run:
     speed: 8.5
-    dutyFactor: 0.36
-    stepLengthPerRootSpeed: 1.05
+    acceleration: 18
+    deceleration: 30
+    dutyFactor: 0.33
+    stepLengthPerRootSpeed: 0.92
     minStepLength: 0.8
     maxStepLength: 3.6
     minSwingDuration: 0.25
     maxSwingDuration: 0.55
-    liftHeight: 0.8
-    pelvisDrop: 0.25
-    bobAmplitude: 0.16
-    lowAfterContact: 0.18
+    liftHeight: 0.55
+    pelvisDrop: 0.38
+    bobAmplitude: 0
+    lowAfterContact: 0.165
     surge: 0.02
-    plantImpulse: 0.2
-    pushOffImpulse: 1.2
+    plantImpulse: 0.5
+    pushOffImpulse: 2.2
     lean: 12
     pitchOscillation: 3
     armSwing: 45
     armBend: 0.6
-  acceleration: 10
-  deceleration: 14
   runBlendRate: 2.5
   idleSpeed: 0.2
-  idleFootTolerance: 0.25
+  idleFootTolerance: 0.18
   stepArc:
-    travel:
-      serializedVersion: 2
-      m_Curve:
-      - serializedVersion: 3
-        time: 0
-        value: 0
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 0
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      - serializedVersion: 3
-        time: 1
-        value: 1
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 0
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      m_PreInfinity: 2
-      m_PostInfinity: 2
-      m_RotationOrder: 4
-    lift:
-      serializedVersion: 2
-      m_Curve:
-      - serializedVersion: 3
-        time: 0
-        value: 0
-        inSlope: 0
-        outSlope: 4
-        tangentMode: 0
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      - serializedVersion: 3
-        time: 0.32
-        value: 1
-        inSlope: 0
-        outSlope: 0
-        tangentMode: 0
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      - serializedVersion: 3
-        time: 1
-        value: 0
-        inSlope: -1.2
-        outSlope: 0
-        tangentMode: 0
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      m_PreInfinity: 2
-      m_PostInfinity: 2
-      m_RotationOrder: 4
+    walk:
+      travel:
+        serializedVersion: 2
+        m_Curve:
+        - serializedVersion: 3
+          time: 0
+          value: 0
+          inSlope: 0
+          outSlope: 0.3
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        - serializedVersion: 3
+          time: 1
+          value: 1
+          inSlope: 0
+          outSlope: 0
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        m_PreInfinity: 2
+        m_PostInfinity: 2
+        m_RotationOrder: 4
+      lift:
+        serializedVersion: 2
+        m_Curve:
+        - serializedVersion: 3
+          time: 0
+          value: 0
+          inSlope: 0
+          outSlope: 4
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        - serializedVersion: 3
+          time: 0.38
+          value: 1
+          inSlope: 0
+          outSlope: 0
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        - serializedVersion: 3
+          time: 1
+          value: 0
+          inSlope: -1.2
+          outSlope: 0
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        m_PreInfinity: 2
+        m_PostInfinity: 2
+        m_RotationOrder: 4
+    run:
+      travel:
+        serializedVersion: 2
+        m_Curve:
+        - serializedVersion: 3
+          time: 0
+          value: 0
+          inSlope: 0
+          outSlope: 0.8
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        - serializedVersion: 3
+          time: 0.5
+          value: 0.58
+          inSlope: 1.4
+          outSlope: 1.4
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        - serializedVersion: 3
+          time: 1
+          value: 1
+          inSlope: 0.5
+          outSlope: 0
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        m_PreInfinity: 2
+        m_PostInfinity: 2
+        m_RotationOrder: 4
+      lift:
+        serializedVersion: 2
+        m_Curve:
+        - serializedVersion: 3
+          time: 0
+          value: 0
+          inSlope: 0
+          outSlope: 1.2
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        - serializedVersion: 3
+          time: 0.55
+          value: 1
+          inSlope: 0
+          outSlope: 0
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        - serializedVersion: 3
+          time: 1
+          value: 0
+          inSlope: -3.5
+          outSlope: 0
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        m_PreInfinity: 2
+        m_PostInfinity: 2
+        m_RotationOrder: 4
     settleLiftHeight: 0.25
     settleStepDuration: 0.22
   horizontalSpring:
@@ -3621,8 +3692,9 @@ MonoBehaviour:
     frequency: 3.2
     damping: 0.45
     response: 0
-  legExtension: 0.96
+  legExtension: 0.99
   maxPlantImpulse: 2.5
+  maxReachDrop: 0.35
 --- !u!1 &2036602645
 GameObject:
   m_ObjectHideFlags: 0
@@ -3911,8 +3983,9 @@ MonoBehaviour:
       frequency: 2.5
       damping: 0.7
       response: 0
-    breathPeriod: 3.6
-    breathPitch: 1.2
+    breathPeriod: 4
+    breathPitch: 3.5
+    breathRise: 0.07
   armSwing:
     spring:
       frequency: 3

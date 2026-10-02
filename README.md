@@ -99,12 +99,12 @@ The full-body states switch through `CharacterStateMachine`. Each state receives
   The body leads and the feet follow, timed by one gait cycle ([GaitCycle](Assets/Scripts/Locomotion/GaitCycle.cs)):
   - **One clock for both legs:** a phase in [0, 1) advances by distance travelled over a stride. The front leg lifts at phase 0 and the back leg at 0.5, so steps always alternate evenly. Without this shared clock, independent legs drift into a limp of alternating long and short steps.
   - **Speed sets step length and cadence:** both grow with the square root of speed ([GaitTiming](Assets/Scripts/Locomotion/GaitTiming.cs)), as people keep step length over cadence roughly constant (the "walk ratio"). That gives short, slow steps when starting and stopping, about two steps a second walking and about three running.
-  - **Stance and swing:** each foot spends a duty-factor share of the cycle on the ground: about 0.6 walking, so a foot is always down, and under 0.5 running, so both feet briefly leave the ground. A foot lands where the hip will be at touchdown, plus half its stance travel ahead, so the stance is centred under the body.
+  - **Stance and swing:** each foot spends a duty-factor share of the cycle on the ground: about 0.6 walking, so a foot is always down, and a third running, so both feet leave the ground between steps. A foot lands where the hip will be at touchdown, plus half its stance travel ahead, so the stance is centred under the body.
   - **Setting off and catching up:** the first step is planned for most of the intended speed, so it isn't a shuffle. If the body outruns a planted foot while speeding up, that foot takes a balance step and the cycle re-syncs to it.
-  - **Stopping:** when idle, the feet take settling steps into a stance under the hip.
+  - **Standing:** the robot stands tall on nearly straight legs (`bodyHeight`). Walking sinks the pelvis a little and running more (`pelvisDrop`). When it stops, the feet take settling steps into a stance centred under the torso, slightly ahead of the pelvis (`stanceLead`).
   - **Edges:** a foot that finds no foothold ahead leaves the body leaning past its feet, and it falls. Stopping near a ledge keeps it on the ledge.
 
-  Walk and run are each a [GaitProfile](Assets/Scripts/Locomotion/GaitProfile.cs) on `StrideController`. Holding run blends from the walk profile to the run profile over about 0.4 s (`runBlendRate`), and every motion scales with the current speed, so idle, walking and running flow into each other.
+  Walk and run are each a [GaitProfile](Assets/Scripts/Locomotion/GaitProfile.cs) on `StrideController`, with their own acceleration and braking: walking eases in, running starts and stops sharply. Holding run blends from the walk profile to the run profile over about 0.4 s (`runBlendRate`), and every motion scales with the current speed, so idle, walking and running flow into each other.
 
   ![Alt Text](https://media.giphy.com/media/UWcRcLwcw8LyuvL7qL/giphy.gif)
 
@@ -136,24 +136,26 @@ The full-body states switch through `CharacterStateMachine`. Each state receives
 
 ## 8. Weight and feel
   The body and upper body move in step with the legs, all from the same gait phase ([GaitWaves](Assets/Scripts/Locomotion/GaitWaves.cs)):
-  - **Bob:** twice per stride. When walking, the body is lowest just after each foot lands (the knee takes the weight) and highest passing over the supporting leg. When running, it's lowest mid-stance and highest in flight. The leg-reach limit stops the hips rising beyond what the planted legs reach.
+  - **Bob:** twice per stride. When walking, the body is lowest just after each foot lands (the knee takes the weight) and highest passing over the supporting leg. When running, the bounce comes from the foot plants and push-offs: lowest mid-stance, highest in flight. The leg-reach limit stops the hips rising beyond what the planted legs reach.
   - **Surge:** the body runs slightly ahead coming through each low point and drops back over the top.
   - **Torso** ([TorsoMotion](Assets/Scripts/UpperBody/TorsoMotion.cs)):
     - the chest flexes forward as weight is taken and extends upright over the supporting leg;
     - it leans with speed (more when running) and into starts, and rocks back on stops;
-    - it breathes slowly when standing still;
+    - when standing still it breathes ([Breathing](Assets/Scripts/UpperBody/Breathing.cs)): each in-breath raises the chest along the spine and extends it, lifting the shoulders, arms and head, and the out-breath is slower;
     - it kicks back with recoil.
   - **Arms** ([ArmSwing](Assets/Scripts/UpperBody/ArmSwing.cs)):
     - they swing opposite to the legs, the hand dragging a little behind the shoulder;
     - the elbows flex on the forward swing; when running they stay bent and pump;
     - winding up a jump they swing back, and in the air they rise for balance.
   - **Mass:** the body follows its target through [SecondOrderDynamics](Assets/Scripts/Locomotion/SecondOrderDynamics.cs) springs ([BodyCarriage](Assets/Scripts/Locomotion/BodyCarriage.cs)), with three perceptual parameters (t3ssel8r's formulation): `frequency`, `damping` and `response`. Foot plants push it down, and a landing's speed becomes the squash and rebound.
-  - **Steps:** the foot follows [StepArc](Assets/Scripts/Locomotion/StepArc.cs) curves: the toe clears early in the swing, then the foot lowers gently and comes to rest as it touches down.
+  - **Steps:** the foot follows [StepArc](Assets/Scripts/Locomotion/StepArc.cs) curves, one set for walking and one for running:
+    - walking, the toe clears early in the swing, the foot passes under the hip near the top, then lowers gently and comes to rest as it touches down;
+    - running, the foot stays low until it's under the hip, so the shin never folds back flat behind the body, then rises with the knee drive and comes down hard.
   - **Air:** falls are heavier than rises, with a brief hang at the apex.
   - **Camera and events:** [FollowCamera](Assets/Scripts/Character/FollowCamera.cs) follows with spring lag and look-ahead and kicks on landings. [CharacterEvents](Assets/Scripts/Character/CharacterEvents.cs) (`FootPlanted`, `Landed`, `Jumped`, `Fired`) are the place to attach sound and VFX.
 
 ## 9. Tests
-  Open the Test Runner (Window ▸ General ▸ Test Runner) and run the **EditMode** tests. They cover the pure policies: foothold planning, two-bone IK, ledge grab rules, jump math and frame-rate easing.
+  Open the Test Runner (Window ▸ General ▸ Test Runner) and run the **EditMode** tests. They cover the pure policies: foothold planning, two-bone IK, ledge grab rules, jump math, frame-rate easing, the gait cycle and timing, step arcs and breathing.
 
 ## 10. Todo
   - [ ] Character and ground prefabs

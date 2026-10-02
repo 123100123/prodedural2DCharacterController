@@ -89,13 +89,12 @@ public class CharacterDriver : MonoBehaviour {
     }
 
     private CharacterRig BuildRig() {
+        CharacterFacing facing = new CharacterFacing((transform, authoredFacingSign));
         motor.Bind(stride.transform);
-        stride.ConnectEvents(Events);
+        stride.Connect((Events, facing));
         frontArm.Initialize(authoredFacingSign);
         backArm.Initialize(authoredFacingSign);
         head.Initialize((transform, authoredFacingSign));
-
-        CharacterFacing facing = new CharacterFacing((transform, authoredFacingSign));
         return new CharacterRig((stride, facing, motor, Events), (frontArm, backArm, head, chest));
     }
 

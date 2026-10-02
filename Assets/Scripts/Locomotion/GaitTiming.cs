@@ -24,4 +24,7 @@ public static class GaitTiming {
     // While planted, the body travels a duty share of the stride over the foot; landing half that ahead of the hip
     // centres the stance under the body.
     public static float LandingLead(float speed, GaitProfile gait) => gait.dutyFactor * StepLength(speed, gait);
+
+    // How far ahead of the hip a step that starts now lands: the hip's travel during the swing plus the landing lead.
+    public static float LandingReach(float speed, GaitProfile gait) => Mathf.Abs(speed) * SwingDuration(speed, gait) + LandingLead(speed, gait);
 }

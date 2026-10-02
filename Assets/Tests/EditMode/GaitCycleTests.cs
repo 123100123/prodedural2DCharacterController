@@ -62,6 +62,15 @@ public class GaitCycleTests {
     }
 
     [Test]
+    public void StepLandsWhereTheHipWillBeAtTouchdownPlusTheLead() {
+        GaitProfile run = GaitProfile.Run;
+        float swing = GaitTiming.SwingDuration(run.speed, run);
+        float reach = GaitTiming.LandingReach(run.speed, run);
+        Assert.That(reach, Is.EqualTo(run.speed * swing + GaitTiming.LandingLead(run.speed, run)).Within(0.0001f));
+        Assert.That(GaitTiming.LandingReach(-run.speed, run), Is.EqualTo(reach).Within(0.0001f), "the same either way");
+    }
+
+    [Test]
     public void StepsLengthenWithTheSquareRootOfSpeedWithinLimits() {
         float slow = GaitTiming.StepLength(1f, Walk);
         float fast = GaitTiming.StepLength(4f, Walk);

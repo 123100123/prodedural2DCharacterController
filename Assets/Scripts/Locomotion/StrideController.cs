@@ -7,7 +7,8 @@ using UnityEngine;
 // springs and bobs and surges in step with the cycle.
 public class StrideController : MonoBehaviour {
     private const float GroundContactTolerance = 0.15f;
-    private const float WallLookAhead = 2.5f;
+    // Walls are looked for at least this far ahead, and as far as a full-speed running step lands.
+    private const float MinWallLookAhead = 2.5f;
     // Long frames (hitches) are split into gait steps no longer than this, so the feet keep up with the body.
     private const float MaxGaitStep = 1f / 30f;
     // How far through its swing the other foot must be before the trailing foot may lift: late when walking
@@ -25,35 +26,34 @@ public class StrideController : MonoBehaviour {
     [Tooltip("Debug marker showing where the gait is carrying the body.")]
     [SerializeField] private Transform strideTarget;
 
-    [SerializeField] private float bodyHeight = 2.3f;
+    [Tooltip("Height of the body pivot above the feet when standing, with the legs nearly straight.")]
+    [SerializeField] private float bodyHeight = 2.58f;
     [SerializeField] private FootholdLimits footholdLimits = FootholdLimits.Default;
     [Tooltip("How far the body may lean past its feet before the character falls.")]
     [SerializeField] private float edgeOverhang = 0.7f;
     [Tooltip("With no movement input, momentum carries the body at most this far past its feet, so stopping near a ledge settles there.")]
     [SerializeField] private float stoppingOverhang = 0.3f;
     [Tooltip("Half the distance between the feet when standing.")]
-    [SerializeField] private float stanceHalfWidth = 0.3f;
+    [SerializeField] private float stanceHalfWidth = 0.22f;
+    [Tooltip("How far ahead of the pelvis the standing feet are centred, so they stand under the torso rather than behind it.")]
+    [SerializeField] private float stanceLead = 0.1f;
 
     [Header("Gait")]
     [SerializeField] private GaitProfile walk = GaitProfile.Walk;
     [SerializeField] private GaitProfile run = GaitProfile.Run;
-    [Tooltip("Speed gained per second when starting to move or speeding up.")]
-    [SerializeField] private float acceleration = 10f;
-    [Tooltip("Speed lost per second when stopping, slowing or turning.")]
-    [SerializeField] private float deceleration = 14f;
     [Tooltip("How quickly the gait blends between walking and running (share per second).")]
     [SerializeField] private float runBlendRate = 2.5f;
     [Tooltip("Below this ground speed the character is idle and settles its feet into a stance.")]
     [SerializeField] private float idleSpeed = 0.2f;
     [Tooltip("An idle foot further than this from its stance spot takes a settling step.")]
-    [SerializeField] private float idleFootTolerance = 0.25f;
+    [SerializeField] private float idleFootTolerance = 0.18f;
     [SerializeField] private StepArcShape stepArc = new StepArcShape();
 
     [Header("Body mass")]
     [SerializeField] private SpringSettings horizontalSpring = new SpringSettings(3f, 0.7f, 1f);
     [SerializeField] private SpringSettings verticalSpring = new SpringSettings(3.2f, 0.45f, 0f);
     [Tooltip("Share of the leg length a supporting leg may extend to; the pelvis never rises higher than its planted legs reach.")]
-    [Range(0.8f, 1f)] [SerializeField] private float legExtension = 0.96f;
+    [Range(0.8f, 1f)] [SerializeField] private float legExtension = 0.99f;
     [SerializeField] private float maxPlantImpulse = 2.5f;
     [Tooltip("Most the leg-reach limit may lower the pelvis below its gait height; a foot further away is about to step anyway.")]
     [SerializeField] private float maxReachDrop = 0.35f;
@@ -70,11 +70,13 @@ public class StrideController : MonoBehaviour {
     private float runShare;
     private float anchorX;
     private CharacterEvents events;
+    private CharacterFacing facing;
 
     public LegStepper FrontLeg => frontLeg;
     public LegStepper BackLeg => backLeg;
     public float BodyHeight => bodyHeight;
-    public float WallProbeDistance => WallLookAhead;
+    // Far enough that open ground never shortens a step: a shorter look-ahead would land running feet under the hip.
+    public float WallProbeDistance => Mathf.Max(MinWallLookAhead, GaitTiming.LandingReach(run.speed, run));
     public float StanceHalfWidth => stanceHalfWidth;
     public float MaxStepUp => footholdLimits.maxStepUp;
     public float MaxStepDown => footholdLimits.maxStepDown;
@@ -103,7 +105,10 @@ public class StrideController : MonoBehaviour {
     // Neither foot stands on ground any more (e.g. spawned in the air or the floor moved away).
     public bool HasLostGround => !IsFootOnGround(frontLeg) && !IsFootOnGround(backLeg);
 
-    public void ConnectEvents(CharacterEvents characterEvents) => events = characterEvents;
+    public void Connect((CharacterEvents events, CharacterFacing facing) character) {
+        events = character.events;
+        facing = character.facing;
+    }
 
     private BodyCarriage Carriage => carriage ?? (carriage = new BodyCarriage(transform));
 
@@ -189,7 +194,7 @@ public class StrideController : MonoBehaviour {
         float targetSpeed = input.direction * CurrentGait.speed;
         intendedSpeed = targetSpeed;
         bool isSpeedingUp = Mathf.Abs(targetSpeed) > Mathf.Abs(groundSpeed) && targetSpeed * groundSpeed >= 0f;
-        float rate = isSpeedingUp ? acceleration : deceleration;
+        float rate = isSpeedingUp ? CurrentGait.acceleration : CurrentGait.deceleration;
         groundSpeed = Mathf.MoveTowards(groundSpeed, targetSpeed, rate * input.deltaTime);
     }
 
@@ -287,8 +292,8 @@ public class StrideController : MonoBehaviour {
         float planningSpeed = PlanningSpeed();
         float swing = GaitTiming.SwingDuration(planningSpeed, CurrentGait);
         float landingHipX = transform.position.x + direction * planningSpeed * swing;
-        float desiredX = Mathf.Clamp(landingHipX + direction * GaitTiming.LandingLead(planningSpeed, CurrentGait), feetSpan.min, feetSpan.max);
-        lastStepFoundNoFoothold = !TryStepToward((legs.stepping, legs.other, desiredX, direction), (landingHipX, swing, CurrentGait.liftHeight));
+        float desiredX = Mathf.Clamp(transform.position.x + direction * GaitTiming.LandingReach(planningSpeed, CurrentGait), feetSpan.min, feetSpan.max);
+        lastStepFoundNoFoothold = !TryStepToward((legs.stepping, legs.other, desiredX, direction), (landingHipX, swing, CurrentGait.liftHeight, runShare));
         if (!lastStepFoundNoFoothold) {
             Carriage.Push(CurrentGait.pushOffImpulse * SpeedShare);
         }
@@ -300,17 +305,17 @@ public class StrideController : MonoBehaviour {
         return otherLeg.IsGrounded || otherLeg.StepProgress >= requiredProgress;
     }
 
-    // Standing still, each foot steps toward its spot beside the hip, the furthest first, finishing in a stance.
+    // Standing still, each foot steps toward its spot under the torso, the furthest first, finishing in a stance.
     private void SettleFeetWhenIdle() {
         bool isIdle = Mathf.Abs(groundSpeed) < idleSpeed && frontLeg.IsGrounded && backLeg.IsGrounded;
         if (!isIdle) {
             return;
         }
 
-        float hipX = transform.position.x;
+        float centerX = StanceCenterX();
         bool frontIsLeft = frontLeg.FootTarget.x <= backLeg.FootTarget.x;
-        float frontSpot = hipX + (frontIsLeft ? -stanceHalfWidth : stanceHalfWidth);
-        float backSpot = hipX + (frontIsLeft ? stanceHalfWidth : -stanceHalfWidth);
+        float frontSpot = centerX + (frontIsLeft ? -stanceHalfWidth : stanceHalfWidth);
+        float backSpot = centerX + (frontIsLeft ? stanceHalfWidth : -stanceHalfWidth);
         float frontError = Mathf.Abs(frontLeg.FootTarget.x - frontSpot);
         float backError = Mathf.Abs(backLeg.FootTarget.x - backSpot);
         if (Mathf.Max(frontError, backError) <= idleFootTolerance) {
@@ -321,21 +326,27 @@ public class StrideController : MonoBehaviour {
             ? (frontLeg, backLeg, frontSpot)
             : (backLeg, frontLeg, backSpot);
         float towardSpot = Mathf.Sign(settle.spot - settle.stepping.FootTarget.x);
-        TryStepToward((settle.stepping, settle.planted, settle.spot, towardSpot), (hipX, stepArc.settleStepDuration, stepArc.settleLiftHeight));
+        TryStepToward((settle.stepping, settle.planted, settle.spot, towardSpot), (transform.position.x, stepArc.settleStepDuration, stepArc.settleLiftHeight, 0f));
+    }
+
+    // The torso leans a little ahead of the pelvis, so the standing feet are centred slightly ahead of it.
+    private float StanceCenterX() {
+        int facingSign = facing?.Sign ?? 0;
+        return transform.position.x + facingSign * stanceLead;
     }
 
     // A step must carry the foot at least a minimum step along its direction; otherwise (e.g. at a ledge whose
     // nearest ground is under the foot already) no step is taken, rather than stepping on the spot forever.
     private bool TryStepToward(
         (LegStepper stepping, LegStepper planted, float desiredX, float direction) step,
-        (float landingHipX, float duration, float liftHeight) motion) {
+        (float landingHipX, float duration, float liftHeight, float runShare) motion) {
         if (!TryPlanFoothold((step.stepping, step.planted, step.desiredX), motion.landingHipX, out Vector2 foothold)) {
             return false;
         }
         if ((foothold.x - step.stepping.FootTarget.x) * step.direction < footholdLimits.minStepLength) {
             return false;
         }
-        step.stepping.BeginStep((foothold, motion.duration, motion.liftHeight));
+        step.stepping.BeginStep((foothold, motion.duration), (motion.liftHeight, motion.runShare));
         return true;
     }
 
@@ -381,8 +392,7 @@ public class StrideController : MonoBehaviour {
         AbsorbFootPlant(frontLeg);
         AbsorbFootPlant(backLeg);
 
-        float targetX = BodyTargetX();
-        Vector2 target = new Vector2(targetX, BodyTargetY(targetX));
+        Vector2 target = new Vector2(BodyTargetX(), BodyTargetY());
         Carriage.Carry((target, frame.deltaTime), (horizontalSpring, verticalSpring, frame.bodySpan));
     }
 
@@ -401,14 +411,20 @@ public class StrideController : MonoBehaviour {
         return anchorX + Mathf.Sign(groundSpeed) * surge;
     }
 
-    // Standing height over the feet with the step's bob, never higher than the planted legs reach, and sunk lower the
-    // faster the gait moves.
-    private float BodyTargetY(float targetX) {
+    // The gait's height, never higher than the planted legs reach. The reach is measured from where the body is: its
+    // springs trail the anchor a little at speed, and measuring from the anchor would make a trailing foot seem further
+    // behind than it is.
+    private float BodyTargetY() {
+        float gaitHeight = GaitHeight();
+        float pelvisX = transform.position.x;
+        float reachable = Mathf.Min(HighestPelvisOver((frontLeg, pelvisX)), HighestPelvisOver((backLeg, pelvisX)));
+        return Mathf.Clamp(reachable, gaitHeight - maxReachDrop, gaitHeight);
+    }
+
+    // Standing height over the feet with the step's bob, sunk lower the faster the gait moves and by any held crouch.
+    private float GaitHeight() {
         float bob = GaitWaves.BodyBob((cycle.Phase, LowestPhase)) * CurrentGait.bobAmplitude * SpeedShare;
-        float gaitHeight = StanceHeight + bodyHeight + bob;
-        float reachable = Mathf.Min(HighestPelvisOver((frontLeg, targetX)), HighestPelvisOver((backLeg, targetX)));
-        float standing = Mathf.Clamp(reachable, gaitHeight - maxReachDrop, gaitHeight);
-        return standing - CurrentGait.pelvisDrop * SpeedShare - HeldCrouch;
+        return StanceHeight + bodyHeight + bob - CurrentGait.pelvisDrop * SpeedShare - HeldCrouch;
     }
 
     private float LowestPhase => GaitWaves.LowestPhase((CurrentGait.dutyFactor, CurrentGait.lowAfterContact));
