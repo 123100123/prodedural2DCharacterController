@@ -95,13 +95,13 @@ The full-body states switch through `CharacterStateMachine`. Each state receives
   _We know the lengths and positions of all the bones and line segments, so we can calculate the angle between the red and blue bones that reaches the target point._
 
 ## 6. Walking
-  The body follows a stride target that the move input pushes around, clamped near the body and to the wall face ahead. Each frame, the body eases horizontally toward the mean of both feet and the stride target.
+  The move input accelerates a stride target, which is clamped near the body and to the wall face ahead. The body follows the mean of both feet and the stride target through a spring.
 
   Steps work like this:
   1. When both legs are grounded, the leg whose foot trails farther behind the stride target is chosen.
   2. If the stride target is more than `reachRange` past the other (planted) foot, the chosen leg plans a foothold and starts a step.
-  3. During the first part of the step the foot lifts, and then it settles onto the foothold.
-  4. Half of the lift is passed to the body, which eases toward the average foot height plus `bodyHeight`.
+  3. The foot follows the step arc and plants firmly at the end.
+  4. The body height follows what the planted legs can reach (see section 8), so it dips at contact and rises over the support leg.
 
   ![Alt Text](https://media.giphy.com/media/UWcRcLwcw8LyuvL7qL/giphy.gif)
 
@@ -131,12 +131,27 @@ The full-body states switch through `CharacterStateMachine`. Each state receives
 
   ![Alt Text](https://media.giphy.com/media/H62vdwLXLRo3sMCKaL/giphy.gif)
 
-## 8. Tests
+## 8. Weight and feel
+  Weight comes from a few procedural layers, all tunable on `StrideController` and `CharacterDriver`:
+  - **Springs instead of easing:** the body, head, torso lean, arm swing, recoil and camera follow their targets through [SecondOrderDynamics](Assets/Scripts/Locomotion/SecondOrderDynamics.cs). It uses three perceptual parameters (t3ssel8r's formulation): `frequency` (how fast), `damping` (overshoot below 1) and `response` (anticipation below 0).
+  - **Momentum:** the stride accelerates and brakes (`strideAcceleration`, `strideDeceleration`). States hand the body's velocity to each other, so a landing's speed becomes the squash and rebound.
+  - **Gait bob:** the pelvis height comes from the planted legs' geometry ([GaitPose](Assets/Scripts/Locomotion/GaitPose.cs), `legExtension`). It drops at contact with the feet spread and rises over the single support leg.
+  - **Foot plants:** each plant pushes the body down (`plantImpulsePerSpeed`), and the body leans toward the supporting foot (`weightShiftShare`).
+  - **Firm steps:** steps follow [StepArc](Assets/Scripts/Locomotion/StepArc.cs) curves (`stepArc.travel`, `stepArc.lift`), so the foot accelerates down into a firm plant instead of gliding.
+  - **Stopping:** when the robot stops with its feet wide apart, it takes a settling step (`maxIdleFeetGap`).
+  - **Secondary motion:**
+    - the torso leans into starts and rocks back on stops (`torsoLean`);
+    - the arms swing against the legs (`armSwing`);
+    - the pistol grip and chest kick on each shot (`shooting` recoil).
+  - **Air:** falls are heavier than rises, with a brief hang at the apex (`motor` gravity multipliers).
+  - **Camera and events:** [FollowCamera](Assets/Scripts/Character/FollowCamera.cs) follows with spring lag and look-ahead, and kicks on landings and hard foot plants. [CharacterEvents](Assets/Scripts/Character/CharacterEvents.cs) (`FootPlanted`, `Landed`, `Jumped`, `Fired`) are the place to attach sound and VFX.
+
+## 9. Tests
   Open the Test Runner (Window ▸ General ▸ Test Runner) and run the **EditMode** tests. They cover the pure policies: foothold planning, two-bone IK, ledge grab rules, jump math and frame-rate easing.
 
-## 9. Todo
+## 10. Todo
   - [ ] Character and ground prefabs
-  - [ ] Follow camera
+  - [ ] Footstep and landing sounds and dust on `CharacterEvents`
   - [ ] Projectiles and hit reactions for the pistol
   - [ ] Foot alignment to slopes
   - [ ] Step curves as `AnimationCurve`s
