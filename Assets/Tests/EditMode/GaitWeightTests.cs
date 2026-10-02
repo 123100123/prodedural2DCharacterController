@@ -33,7 +33,7 @@ public class GaitWeightTests {
     }
 
     [Test]
-    public void StepClearsTheHigherEndAndPlantsFirmly() {
+    public void StepClearsTheHigherEndAndLandsGently() {
         StepArcShape shape = new StepArcShape();
         (Vector2 start, Vector2 end) stepUp = (Vector2.zero, new Vector2(1.5f, 0.8f));
 
@@ -42,19 +42,13 @@ public class GaitWeightTests {
 
         float nearEnd = StepArc.Evaluate((stepUp.start, stepUp.end, 0.95f), (shape, 0.5f)).y;
         float atEnd = StepArc.Evaluate((stepUp.start, stepUp.end, 1f), (shape, 0.5f)).y;
-        Assert.That((nearEnd - atEnd) / 0.05f, Is.GreaterThan(1f), "the foot is still coming down fast as it plants");
-    }
-
-    [Test]
-    public void RunningFeetTravelFurtherThanWalkingFeet() {
-        Assert.That(GaitProfile.Run.FootExcursion(GaitProfile.Run.speed), Is.GreaterThan(GaitProfile.Walk.FootExcursion(GaitProfile.Walk.speed)));
-        Assert.That(GaitProfile.Walk.FootExcursion(0f), Is.EqualTo(GaitProfile.Walk.minExcursion), "slow movement keeps a minimum step");
+        Assert.That((nearEnd - atEnd) / 0.05f, Is.InRange(0.1f, 2f), "the foot is still lowering as it touches down, but gently");
     }
 
     [Test]
     public void WalkKeepsAFootDownWhileRunHasFlight() {
-        Assert.That(GaitProfile.Walk.stanceTime, Is.GreaterThan(GaitProfile.Walk.swingTime));
-        Assert.That(GaitProfile.Run.stanceTime, Is.LessThan(GaitProfile.Run.swingTime));
+        Assert.That(GaitProfile.Walk.dutyFactor, Is.GreaterThan(0.5f), "stance longer than swing: a foot is always down");
+        Assert.That(GaitProfile.Run.dutyFactor, Is.LessThan(0.5f), "stance shorter than swing: both feet leave the ground");
     }
 
     [Test]

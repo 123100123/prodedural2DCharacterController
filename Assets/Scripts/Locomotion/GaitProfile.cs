@@ -7,42 +7,55 @@ using UnityEngine;
 public struct GaitProfile {
     [Tooltip("Ground speed in units per second.")]
     public float speed;
-    [Tooltip("Seconds a foot carries weight per stride. Stance shorter than swing gives a run's flight phase.")]
-    public float stanceTime;
-    [Tooltip("Seconds a foot is in the air per step.")]
-    public float swingTime;
-    [Tooltip("Smallest foot travel relative to the hip, so slow movement does not shuffle in tiny steps.")]
-    public float minExcursion;
+
+    [Header("Timing")]
+    [Tooltip("Share of the cycle each foot is on the ground: about 0.6 walking (always a foot down), under 0.5 running (a flight phase).")]
+    [Range(0.2f, 0.8f)] public float dutyFactor;
+    [Tooltip("Step length = this x square root of speed (the walk ratio): short steps when slow, longer ones when fast.")]
+    public float stepLengthPerRootSpeed;
+    public float minStepLength;
+    public float maxStepLength;
+    public float minSwingDuration;
+    public float maxSwingDuration;
     public float liftHeight;
+
+    [Header("Body")]
     [Tooltip("How far the pelvis sinks below standing height at full speed.")]
     public float pelvisDrop;
+    [Tooltip("Vertical bob at full speed, twice per stride.")]
+    public float bobAmplitude;
+    [Tooltip("Cycle share after a foot lands when the body is lowest: just after contact walking, mid-stance running.")]
+    public float lowAfterContact;
+    [Tooltip("Forward-backward body surge at full speed: fastest through the low point, slowest over the top.")]
+    public float surge;
     [Tooltip("Downward body velocity per unit of foot impact speed when a foot plants.")]
     public float plantImpulse;
     [Tooltip("Upward body velocity when a foot pushes off: the bounce of a run.")]
     public float pushOffImpulse;
-    [Tooltip("Share of the way the body leans toward the supporting foot.")]
-    public float weightShift;
+
+    [Header("Upper body")]
     [Tooltip("Sustained forward chest lean in degrees at full speed.")]
     public float lean;
+    [Tooltip("Chest pitch swing in degrees at full speed: flexing as weight is taken, extending over the supporting leg.")]
+    public float pitchOscillation;
     [Tooltip("Arm swing in degrees at full speed.")]
     public float armSwing;
     [Tooltip("0 hangs the arms straight, 1 bends the elbows like a sprinter.")]
     [Range(0f, 1f)] public float armBend;
 
     public static GaitProfile Walk => new GaitProfile {
-        speed = 3.5f, stanceTime = 0.6f, swingTime = 0.38f, minExcursion = 0.7f, liftHeight = 0.45f,
-        pelvisDrop = 0f, plantImpulse = 0.25f, pushOffImpulse = 0f, weightShift = 0.2f,
-        lean = 3f, armSwing = 22f, armBend = 0.1f,
+        speed = 3.5f, dutyFactor = 0.62f, stepLengthPerRootSpeed = 0.9f, minStepLength = 0.45f, maxStepLength = 2.2f,
+        minSwingDuration = 0.25f, maxSwingDuration = 0.55f, liftHeight = 0.4f,
+        pelvisDrop = 0f, bobAmplitude = 0.1f, lowAfterContact = 0.06f, surge = 0.05f, plantImpulse = 0.1f, pushOffImpulse = 0f,
+        lean = 3f, pitchOscillation = 2.5f, armSwing = 25f, armBend = 0.15f,
     };
 
     public static GaitProfile Run => new GaitProfile {
-        speed = 8.5f, stanceTime = 0.27f, swingTime = 0.36f, minExcursion = 1.2f, liftHeight = 0.8f,
-        pelvisDrop = 0.25f, plantImpulse = 0.35f, pushOffImpulse = 1.5f, weightShift = 0.05f,
-        lean = 12f, armSwing = 45f, armBend = 0.6f,
+        speed = 8.5f, dutyFactor = 0.36f, stepLengthPerRootSpeed = 1.05f, minStepLength = 0.8f, maxStepLength = 3.6f,
+        minSwingDuration = 0.25f, maxSwingDuration = 0.55f, liftHeight = 0.8f,
+        pelvisDrop = 0.25f, bobAmplitude = 0.16f, lowAfterContact = 0.18f, surge = 0.02f, plantImpulse = 0.2f, pushOffImpulse = 1.2f,
+        lean = 12f, pitchOscillation = 3f, armSwing = 45f, armBend = 0.6f,
     };
-
-    // How far a foot travels relative to the hip while planted: the body moves over it for one stance.
-    public float FootExcursion(float groundSpeed) => Mathf.Max(minExcursion, Mathf.Abs(groundSpeed) * stanceTime);
 
     public static GaitProfile Blend((GaitProfile walk, GaitProfile run) profiles, float runShare) {
         GaitProfile a = profiles.walk;
@@ -50,15 +63,21 @@ public struct GaitProfile {
         float t = Mathf.Clamp01(runShare);
         return new GaitProfile {
             speed = Mathf.Lerp(a.speed, b.speed, t),
-            stanceTime = Mathf.Lerp(a.stanceTime, b.stanceTime, t),
-            swingTime = Mathf.Lerp(a.swingTime, b.swingTime, t),
-            minExcursion = Mathf.Lerp(a.minExcursion, b.minExcursion, t),
+            dutyFactor = Mathf.Lerp(a.dutyFactor, b.dutyFactor, t),
+            stepLengthPerRootSpeed = Mathf.Lerp(a.stepLengthPerRootSpeed, b.stepLengthPerRootSpeed, t),
+            minStepLength = Mathf.Lerp(a.minStepLength, b.minStepLength, t),
+            maxStepLength = Mathf.Lerp(a.maxStepLength, b.maxStepLength, t),
+            minSwingDuration = Mathf.Lerp(a.minSwingDuration, b.minSwingDuration, t),
+            maxSwingDuration = Mathf.Lerp(a.maxSwingDuration, b.maxSwingDuration, t),
             liftHeight = Mathf.Lerp(a.liftHeight, b.liftHeight, t),
             pelvisDrop = Mathf.Lerp(a.pelvisDrop, b.pelvisDrop, t),
+            bobAmplitude = Mathf.Lerp(a.bobAmplitude, b.bobAmplitude, t),
+            lowAfterContact = Mathf.Lerp(a.lowAfterContact, b.lowAfterContact, t),
+            surge = Mathf.Lerp(a.surge, b.surge, t),
             plantImpulse = Mathf.Lerp(a.plantImpulse, b.plantImpulse, t),
             pushOffImpulse = Mathf.Lerp(a.pushOffImpulse, b.pushOffImpulse, t),
-            weightShift = Mathf.Lerp(a.weightShift, b.weightShift, t),
             lean = Mathf.Lerp(a.lean, b.lean, t),
+            pitchOscillation = Mathf.Lerp(a.pitchOscillation, b.pitchOscillation, t),
             armSwing = Mathf.Lerp(a.armSwing, b.armSwing, t),
             armBend = Mathf.Lerp(a.armBend, b.armBend, t),
         };

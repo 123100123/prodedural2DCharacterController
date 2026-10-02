@@ -4,12 +4,11 @@ using UnityEngine;
 // Shape of one step over normalized progress: how the foot travels and lifts, ending in a firm plant rather than a glide.
 [Serializable]
 public class StepArcShape {
-    [Tooltip("Share of the horizontal distance covered over step progress. Ends with a non-zero slope so the foot arrives with speed.")]
-    public AnimationCurve travel = new AnimationCurve(
-        new Keyframe(0f, 0f, 0f, 0.6f), new Keyframe(0.55f, 0.6f, 1.5f, 1.5f), new Keyframe(1f, 1f, 0.6f, 0f));
-    [Tooltip("Share of the lift height over step progress: a quick lift, then the foot accelerates down into the plant.")]
+    [Tooltip("Share of the horizontal distance covered over step progress: the foot speeds up through mid-swing and comes to rest as it touches down.")]
+    public AnimationCurve travel = new AnimationCurve(new Keyframe(0f, 0f, 0f, 0f), new Keyframe(1f, 1f, 0f, 0f));
+    [Tooltip("Share of the lift height over step progress: the toe clears early in the swing, then the foot lowers gently to the ground.")]
     public AnimationCurve lift = new AnimationCurve(
-        new Keyframe(0f, 0f, 0f, 4f), new Keyframe(0.4f, 1f, 0f, 0f), new Keyframe(1f, 0f, -3.5f, 0f));
+        new Keyframe(0f, 0f, 0f, 4f), new Keyframe(0.32f, 1f, 0f, 0f), new Keyframe(1f, 0f, -1.2f, 0f));
     [Header("Settling steps (small steps into a standing stance)")]
     public float settleLiftHeight = 0.25f;
     public float settleStepDuration = 0.22f;

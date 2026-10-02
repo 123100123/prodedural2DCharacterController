@@ -3512,32 +3512,44 @@ MonoBehaviour:
   stanceHalfWidth: 0.3
   walk:
     speed: 3.5
-    stanceTime: 0.6
-    swingTime: 0.38
-    minExcursion: 0.7
-    liftHeight: 0.45
+    dutyFactor: 0.62
+    stepLengthPerRootSpeed: 0.9
+    minStepLength: 0.45
+    maxStepLength: 2.2
+    minSwingDuration: 0.25
+    maxSwingDuration: 0.55
+    liftHeight: 0.4
     pelvisDrop: 0
-    plantImpulse: 0.25
+    bobAmplitude: 0.1
+    lowAfterContact: 0.06
+    surge: 0.05
+    plantImpulse: 0.1
     pushOffImpulse: 0
-    weightShift: 0.2
     lean: 3
-    armSwing: 22
-    armBend: 0.1
+    pitchOscillation: 2.5
+    armSwing: 25
+    armBend: 0.15
   run:
     speed: 8.5
-    stanceTime: 0.27
-    swingTime: 0.36
-    minExcursion: 1.2
+    dutyFactor: 0.36
+    stepLengthPerRootSpeed: 1.05
+    minStepLength: 0.8
+    maxStepLength: 3.6
+    minSwingDuration: 0.25
+    maxSwingDuration: 0.55
     liftHeight: 0.8
     pelvisDrop: 0.25
-    plantImpulse: 0.35
-    pushOffImpulse: 1.5
-    weightShift: 0.05
+    bobAmplitude: 0.16
+    lowAfterContact: 0.18
+    surge: 0.02
+    plantImpulse: 0.2
+    pushOffImpulse: 1.2
     lean: 12
+    pitchOscillation: 3
     armSwing: 45
     armBend: 0.6
-  acceleration: 18
-  deceleration: 30
+  acceleration: 10
+  deceleration: 14
   runBlendRate: 2.5
   idleSpeed: 0.2
   idleFootTolerance: 0.25
@@ -3549,16 +3561,7 @@ MonoBehaviour:
         time: 0
         value: 0
         inSlope: 0
-        outSlope: 0.6
-        tangentMode: 0
-        weightedMode: 0
-        inWeight: 0
-        outWeight: 0
-      - serializedVersion: 3
-        time: 0.55
-        value: 0.6
-        inSlope: 1.5
-        outSlope: 1.5
+        outSlope: 0
         tangentMode: 0
         weightedMode: 0
         inWeight: 0
@@ -3566,7 +3569,7 @@ MonoBehaviour:
       - serializedVersion: 3
         time: 1
         value: 1
-        inSlope: 0.6
+        inSlope: 0
         outSlope: 0
         tangentMode: 0
         weightedMode: 0
@@ -3588,7 +3591,7 @@ MonoBehaviour:
         inWeight: 0
         outWeight: 0
       - serializedVersion: 3
-        time: 0.4
+        time: 0.32
         value: 1
         inSlope: 0
         outSlope: 0
@@ -3599,7 +3602,7 @@ MonoBehaviour:
       - serializedVersion: 3
         time: 1
         value: 0
-        inSlope: -3.5
+        inSlope: -1.2
         outSlope: 0
         tangentMode: 0
         weightedMode: 0
@@ -3619,7 +3622,6 @@ MonoBehaviour:
     damping: 0.45
     response: 0
   legExtension: 0.96
-  bobDepth: 0.5
   maxPlantImpulse: 2.5
 --- !u!1 &2036602645
 GameObject:
@@ -3901,21 +3903,28 @@ MonoBehaviour:
     maxLevelCorrection: 40
     crownDistance: 0.63
   chest: {fileID: 2036566789}
-  torsoLean:
-    leanPerAcceleration: 0.35
-    maxLean: 12
+  torsoMotion:
+    leanPerAcceleration: 0.6
+    maxAccelerationLean: 10
     maxTotalLean: 16
     spring:
       frequency: 2.5
       damping: 0.7
       response: 0
+    breathPeriod: 3.6
+    breathPitch: 1.2
   armSwing:
     spring:
       frequency: 3
       damping: 0.5
       response: 0
+    swingLag: 0.06
+    forwardElbowFlex: 0.35
     bentArmShortening: 0.45
     bentArmForwardAngle: 35
+    windupSwing: 40
+    airborneRaise: {x: 80, y: 45}
+    airborneElbowBend: 0.3
   airborne:
     airSpeed: 6
     airAcceleration: 30

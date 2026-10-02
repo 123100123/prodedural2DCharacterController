@@ -1,9 +1,10 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-// Grounded gait: the body moves at the ground speed and the feet follow it. A foot lifts once it trails half a
-// stance behind the hip and lands where the hip will be at touchdown plus half a stance ahead. Walk and run are
-// blended profiles, so idle, walking and running flow into each other. The body rides the feet as a mass on springs.
+// Grounded gait: the body moves at the ground speed and the feet follow it. One gait cycle times both legs half a cycle
+// apart, so steps alternate evenly; each foot lands where the hip will be at touchdown plus half a stance ahead. Walk and
+// run are blended profiles, so idle, walking and running flow into each other. The body rides the feet as a mass on
+// springs and bobs and surges in step with the cycle.
 public class StrideController : MonoBehaviour {
     private const float GroundContactTolerance = 0.15f;
     private const float WallLookAhead = 2.5f;
@@ -13,8 +14,11 @@ public class StrideController : MonoBehaviour {
     // (a heel-off just before touchdown), mid-swing when running (both feet in the air for a moment).
     private const float WalkingLiftOverlap = 0.8f;
     private const float RunningLiftOverlap = 0.5f;
-    // A body found further than this from where the springs last put it was moved by something else (a respawn, a teleport).
-    private const float ExternalMoveDistance = 0.5f;
+    // Steps planned while speeding up assume at least this share of the intended speed, as people do when setting off:
+    // the first step is a little shorter than a full one rather than a shuffle.
+    private const float SettingOffShare = 0.65f;
+    // A planted foot trailing the hip by this much more than a normal stance takes a balance step at once.
+    private const float BalanceStepMargin = 0.3f;
 
     [SerializeField] private LegStepper frontLeg;
     [SerializeField] private LegStepper backLeg;
@@ -34,9 +38,9 @@ public class StrideController : MonoBehaviour {
     [SerializeField] private GaitProfile walk = GaitProfile.Walk;
     [SerializeField] private GaitProfile run = GaitProfile.Run;
     [Tooltip("Speed gained per second when starting to move or speeding up.")]
-    [SerializeField] private float acceleration = 18f;
+    [SerializeField] private float acceleration = 10f;
     [Tooltip("Speed lost per second when stopping, slowing or turning.")]
-    [SerializeField] private float deceleration = 30f;
+    [SerializeField] private float deceleration = 14f;
     [Tooltip("How quickly the gait blends between walking and running (share per second).")]
     [SerializeField] private float runBlendRate = 2.5f;
     [Tooltip("Below this ground speed the character is idle and settles its feet into a stance.")]
@@ -48,19 +52,23 @@ public class StrideController : MonoBehaviour {
     [Header("Body mass")]
     [SerializeField] private SpringSettings horizontalSpring = new SpringSettings(3f, 0.7f, 1f);
     [SerializeField] private SpringSettings verticalSpring = new SpringSettings(3.2f, 0.45f, 0f);
-    [Tooltip("Share of the leg length a supporting leg may extend to; the pelvis drops when the feet are spread further.")]
+    [Tooltip("Share of the leg length a supporting leg may extend to; the pelvis never rises higher than its planted legs reach.")]
     [Range(0.8f, 1f)] [SerializeField] private float legExtension = 0.96f;
-    [Tooltip("Share of the straight-leg drop the pelvis actually takes when the feet are spread. Real knees and ankles lengthen the leg, so hips bob less than straight legs would.")]
-    [Range(0f, 1f)] [SerializeField] private float bobDepth = 0.5f;
     [SerializeField] private float maxPlantImpulse = 2.5f;
+    [Tooltip("Most the leg-reach limit may lower the pelvis below its gait height; a foot further away is about to step anyway.")]
+    [SerializeField] private float maxReachDrop = 0.35f;
 
     private readonly List<Vector2> footholdCandidates = new List<Vector2>();
-    private SecondOrderDynamics bodyX;
-    private SecondOrderDynamics bodyY;
+    private readonly GaitCycle cycle = new GaitCycle();
+    private (bool front, bool back) pendingLift;
+    private bool wasMoving;
+    private bool lastStepFoundNoFoothold;
+    private int lastGaitFrame = -10;
+    private BodyCarriage carriage;
     private float groundSpeed;
+    private float intendedSpeed;
     private float runShare;
     private float anchorX;
-    private Vector2 lastWrittenBodyPosition;
     private CharacterEvents events;
 
     public LegStepper FrontLeg => frontLeg;
@@ -72,38 +80,43 @@ public class StrideController : MonoBehaviour {
     public float MaxStepDown => footholdLimits.maxStepDown;
     public float StanceHeight => (frontLeg.FootTarget.y + backLeg.FootTarget.y) / 2f;
     public LayerMask GroundMask => footholdLimits.groundMask;
-    public Vector2 BodyVelocity => bodyX == null ? Vector2.zero : new Vector2(bodyX.Velocity, bodyY.Velocity);
+    public Vector2 BodyVelocity => Carriage.Velocity;
 
     // The blend of the walk and run profiles currently in use.
     public GaitProfile CurrentGait { get; private set; } = GaitProfile.Walk;
     // Ground speed as a share of the current gait's full speed: 0 idle, 1 at full walk or run speed.
     public float SpeedShare => Mathf.Clamp01(Mathf.Abs(groundSpeed) / Mathf.Max(0.01f, CurrentGait.speed));
+    // Signed ground speed the gait is carrying the body at (positive toward world right).
+    public float GroundSpeed => groundSpeed;
+    // Where the legs are in their shared cycle; the torso and arms move in step with it.
+    public float GaitPhase => cycle.Phase;
+    // True while a grounded state ticks the gait this frame (false in the air, rolling or climbing).
+    public bool IsDrivingGait => Time.frameCount - lastGaitFrame <= 1;
 
     // Held by a state (e.g. a jump wind-up) to lower the body.
     public float HeldCrouch { get; set; }
 
-    // The body leans past both feet (with a swinging foot counted at its landing spot), e.g. walking off a ledge.
-    public bool IsPastSupportEdge => SupportOverhang() > edgeOverhang;
+    // The body leans past both feet toward a spot where no foothold was found, e.g. walking off a ledge. On solid ground
+    // balance steps keep the feet under the body, so leaning ahead alone is never a fall.
+    public bool IsPastSupportEdge => lastStepFoundNoFoothold && SupportOverhang() > edgeOverhang;
 
     // Neither foot stands on ground any more (e.g. spawned in the air or the floor moved away).
     public bool HasLostGround => !IsFootOnGround(frontLeg) && !IsFootOnGround(backLeg);
 
     public void ConnectEvents(CharacterEvents characterEvents) => events = characterEvents;
 
+    private BodyCarriage Carriage => carriage ?? (carriage = new BodyCarriage(transform));
+
     // Hands the body to the gait with its current momentum, e.g. after a landing (a downward velocity becomes the squash).
     public void BeginGroundedMotion(Vector2 velocity) {
-        Vector2 position = transform.position;
-        bodyX = bodyX ?? new SecondOrderDynamics(position.x);
-        bodyY = bodyY ?? new SecondOrderDynamics(position.y);
-        bodyX.ResetWithVelocity((position.x, velocity.x));
-        bodyY.ResetWithVelocity((position.y, velocity.y));
+        Carriage.Restart(velocity);
         groundSpeed = Mathf.Clamp(velocity.x, -run.speed, run.speed);
-        anchorX = position.x;
-        lastWrittenBodyPosition = position;
+        anchorX = transform.position.x;
     }
 
     // feetSpan bounds where feet may go (up to wall faces); bodySpan bounds the body pivot so its hull stays out of walls.
     public void TickWalk(float deltaTime, (float direction, bool running, (float min, float max) feetSpan, (float min, float max) bodySpan) intent) {
+        lastGaitFrame = Time.frameCount;
         int gaitSteps = Mathf.Max(1, Mathf.CeilToInt(deltaTime / MaxGaitStep));
         for (int step = 0; step < gaitSteps; step++) {
             TickGaitStep(deltaTime / gaitSteps, intent);
@@ -114,7 +127,9 @@ public class StrideController : MonoBehaviour {
         BlendGait((intent.running, deltaTime));
         AccelerateGround((intent.direction, deltaTime));
         AdvanceAnchor((deltaTime, AnchorSpan(intent)));
-        StepFeetAlongMotion(intent.feetSpan);
+        AdvanceGaitCycle(deltaTime);
+        CueBalanceSteps();
+        LiftFeetOnCue(intent.feetSpan);
         SettleFeetWhenIdle();
         TickLegs(deltaTime);
         CarryBodyOverFeet((deltaTime, intent.bodySpan));
@@ -140,6 +155,7 @@ public class StrideController : MonoBehaviour {
 
         frontLeg.SettleOnto(frontGround);
         backLeg.SettleOnto(backGround);
+        lastStepFoundNoFoothold = false;
         PlaceStrideTargetUnderBody();
         return true;
     }
@@ -171,6 +187,7 @@ public class StrideController : MonoBehaviour {
     // Speeds up gradually and brakes harder than it accelerates, so starts and stops carry momentum.
     private void AccelerateGround((float direction, float deltaTime) input) {
         float targetSpeed = input.direction * CurrentGait.speed;
+        intendedSpeed = targetSpeed;
         bool isSpeedingUp = Mathf.Abs(targetSpeed) > Mathf.Abs(groundSpeed) && targetSpeed * groundSpeed >= 0f;
         float rate = isSpeedingUp ? acceleration : deceleration;
         groundSpeed = Mathf.MoveTowards(groundSpeed, targetSpeed, rate * input.deltaTime);
@@ -197,31 +214,85 @@ public class StrideController : MonoBehaviour {
 
     // ---- Steps -----------------------------------------------------------------------------------------------
 
-    // The trailing foot lifts once it is half a stance behind the hip and lands half a stance ahead of where the hip
-    // will be at touchdown. Walking keeps the other foot down; running may lift before the other foot lands.
-    private void StepFeetAlongMotion((float min, float max) feetSpan) {
-        if (Mathf.Abs(groundSpeed) < idleSpeed) {
+    private bool IsMoving => Mathf.Abs(groundSpeed) >= idleSpeed;
+
+    // The cycle advances by distance over the stride. When motion starts it is primed so the trailing foot steps first.
+    private void AdvanceGaitCycle(float deltaTime) {
+        if (!IsMoving) {
+            wasMoving = false;
             return;
         }
+        if (!wasMoving) {
+            (LegStepper lead, LegStepper trail) legs = LegsOrderedByFacing((int)Mathf.Sign(groundSpeed));
+            cycle.PrimeToLift(legs.trail == frontLeg);
+            wasMoving = true;
+        }
 
-        // A swinging foot's target is its landing spot ahead, so ordering by targets finds the planted, trailing foot.
+        float strides = Mathf.Abs(groundSpeed) * deltaTime / GaitTiming.StrideLength(groundSpeed, CurrentGait);
+        (bool front, bool back) cues = cycle.Advance(strides);
+        pendingLift = (pendingLift.front || cues.front, pendingLift.back || cues.back);
+    }
+
+    // When the body outruns a planted foot (starting off, speeding up) that foot steps now instead of waiting for its cue,
+    // and the cycle re-syncs to it so the steps that follow stay even.
+    private void CueBalanceSteps() {
+        if (!IsMoving) {
+            return;
+        }
+        float normalLag = GaitTiming.LandingLead(groundSpeed, CurrentGait) + BalanceStepMargin;
+        if (IsTrailingBeyond((frontLeg, normalLag)) && !pendingLift.front) {
+            pendingLift.front = true;
+            cycle.SyncToLift(true);
+        }
+        else if (IsTrailingBeyond((backLeg, normalLag)) && !pendingLift.back) {
+            pendingLift.back = true;
+            cycle.SyncToLift(false);
+        }
+    }
+
+    // Speeding up, steps are planned for at least part of the intended speed; slowing down, for the current speed.
+    private float PlanningSpeed() {
+        bool isSpeedingUp = intendedSpeed * groundSpeed > 0f && Mathf.Abs(intendedSpeed) > Mathf.Abs(groundSpeed);
+        float speed = Mathf.Abs(groundSpeed);
+        return isSpeedingUp ? Mathf.Max(speed, SettingOffShare * Mathf.Abs(intendedSpeed)) : speed;
+    }
+
+    private bool IsTrailingBeyond((LegStepper leg, float lag) check) {
+        float lag = (transform.position.x - check.leg.FootTarget.x) * Mathf.Sign(groundSpeed);
+        return check.leg.IsGrounded && lag > check.lag;
+    }
+
+    // A leg cued by the cycle lifts as soon as it is planted (and, when walking, the other foot is nearly down).
+    private void LiftFeetOnCue((float min, float max) feetSpan) {
+        if (!IsMoving) {
+            pendingLift = (false, false);
+            return;
+        }
+        if (pendingLift.front && TryLiftOnCue((frontLeg, backLeg), feetSpan)) {
+            pendingLift.front = false;
+        }
+        if (pendingLift.back && TryLiftOnCue((backLeg, frontLeg), feetSpan)) {
+            pendingLift.back = false;
+        }
+    }
+
+    // Returns false to keep the cue pending (the leg is still swinging or the other leg needs it down). A cue with no
+    // foothold ahead is used up, so at a ledge the body moves on past the planted feet and falls.
+    private bool TryLiftOnCue((LegStepper stepping, LegStepper other) legs, (float min, float max) feetSpan) {
+        if (!legs.stepping.IsGrounded || !MayLiftWhile(legs.other)) {
+            return false;
+        }
+
         float direction = Mathf.Sign(groundSpeed);
-        (LegStepper lead, LegStepper trail) legs = LegsOrderedByFacing((int)direction);
-        if (!legs.trail.IsGrounded || !MayLiftWhile(legs.lead)) {
-            return;
+        float planningSpeed = PlanningSpeed();
+        float swing = GaitTiming.SwingDuration(planningSpeed, CurrentGait);
+        float landingHipX = transform.position.x + direction * planningSpeed * swing;
+        float desiredX = Mathf.Clamp(landingHipX + direction * GaitTiming.LandingLead(planningSpeed, CurrentGait), feetSpan.min, feetSpan.max);
+        lastStepFoundNoFoothold = !TryStepToward((legs.stepping, legs.other, desiredX, direction), (landingHipX, swing, CurrentGait.liftHeight));
+        if (!lastStepFoundNoFoothold) {
+            Carriage.Push(CurrentGait.pushOffImpulse * SpeedShare);
         }
-
-        float hipX = transform.position.x;
-        float halfExcursion = CurrentGait.FootExcursion(groundSpeed) / 2f;
-        if ((hipX - legs.trail.FootTarget.x) * direction < halfExcursion) {
-            return;
-        }
-
-        float landingHipX = hipX + groundSpeed * CurrentGait.swingTime;
-        float desiredX = Mathf.Clamp(landingHipX + direction * halfExcursion, feetSpan.min, feetSpan.max);
-        if (TryStepToward((legs.trail, legs.lead, desiredX, direction), (landingHipX, CurrentGait.swingTime, CurrentGait.liftHeight))) {
-            bodyY.AddVelocity(CurrentGait.pushOffImpulse * SpeedShare);
-        }
+        return true;
     }
 
     private bool MayLiftWhile(LegStepper otherLeg) {
@@ -303,7 +374,7 @@ public class StrideController : MonoBehaviour {
     // ---- Body ------------------------------------------------------------------------------------------------
 
     private void CarryBodyOverFeet((float deltaTime, (float min, float max) bodySpan) frame) {
-        if (bodyX == null || WasMovedExternally()) {
+        if (Carriage.NeedsRestart) {
             BeginGroundedMotion(Vector2.zero);
         }
 
@@ -311,53 +382,36 @@ public class StrideController : MonoBehaviour {
         AbsorbFootPlant(backLeg);
 
         float targetX = BodyTargetX();
-        float x = KeepWithinSpan(bodyX.Update((targetX, frame.deltaTime), horizontalSpring), frame.bodySpan);
-        float y = bodyY.Update((BodyTargetY(targetX), frame.deltaTime), verticalSpring);
-        transform.position = new Vector3(x, y, transform.position.z);
-        lastWrittenBodyPosition = transform.position;
+        Vector2 target = new Vector2(targetX, BodyTargetY(targetX));
+        Carriage.Carry((target, frame.deltaTime), (horizontalSpring, verticalSpring, frame.bodySpan));
     }
-
-    // A body spring overshooting into a wall stops there and loses its speed toward it.
-    private float KeepWithinSpan(float x, (float min, float max) span) {
-        float clamped = Mathf.Clamp(x, Mathf.Min(span.min, span.max), Mathf.Max(span.min, span.max));
-        if (!Mathf.Approximately(clamped, x)) {
-            bodyX.ResetWithVelocity((clamped, 0f));
-        }
-        return clamped;
-    }
-
-    private bool WasMovedExternally() => Vector2.Distance(transform.position, lastWrittenBodyPosition) > ExternalMoveDistance;
 
     // The body takes a planted foot's impact as a downward push, like a knee bending under the weight.
     private void AbsorbFootPlant(LegStepper leg) {
         if (!leg.TryConsumePlant(out float impactSpeed)) {
             return;
         }
-        bodyY.AddVelocity(-Mathf.Min(maxPlantImpulse, impactSpeed * CurrentGait.plantImpulse));
+        Carriage.Push(-Mathf.Min(maxPlantImpulse, impactSpeed * CurrentGait.plantImpulse));
         events?.RaiseFootPlanted((leg.FootTarget, impactSpeed));
     }
 
-    // The moving anchor, leaning toward the supporting foot while the other leg swings.
+    // The moving anchor plus the step's surge: the body runs slightly ahead coming through each low point.
     private float BodyTargetX() {
-        LegStepper support = SupportingLeg();
-        return support == null ? anchorX : Mathf.Lerp(anchorX, support.FootTarget.x, CurrentGait.weightShift);
+        float surge = GaitWaves.Surge((cycle.Phase, LowestPhase)) * CurrentGait.surge * SpeedShare;
+        return anchorX + Mathf.Sign(groundSpeed) * surge;
     }
 
-    private LegStepper SupportingLeg() {
-        if (frontLeg.IsGrounded == backLeg.IsGrounded) {
-            return null;
-        }
-        return frontLeg.IsGrounded ? frontLeg : backLeg;
-    }
-
-    // Standing height over the feet, lowered wherever a planted leg could not reach the ground from it,
-    // and sunk lower the faster the gait moves.
+    // Standing height over the feet with the step's bob, never higher than the planted legs reach, and sunk lower the
+    // faster the gait moves.
     private float BodyTargetY(float targetX) {
-        float standing = StanceHeight + bodyHeight;
-        float reachable = Mathf.Min(standing, Mathf.Min(HighestPelvisOver((frontLeg, targetX)), HighestPelvisOver((backLeg, targetX))));
-        float bobbing = Mathf.Lerp(standing, reachable, bobDepth);
-        return bobbing - CurrentGait.pelvisDrop * SpeedShare - HeldCrouch;
+        float bob = GaitWaves.BodyBob((cycle.Phase, LowestPhase)) * CurrentGait.bobAmplitude * SpeedShare;
+        float gaitHeight = StanceHeight + bodyHeight + bob;
+        float reachable = Mathf.Min(HighestPelvisOver((frontLeg, targetX)), HighestPelvisOver((backLeg, targetX)));
+        float standing = Mathf.Clamp(reachable, gaitHeight - maxReachDrop, gaitHeight);
+        return standing - CurrentGait.pelvisDrop * SpeedShare - HeldCrouch;
     }
+
+    private float LowestPhase => GaitWaves.LowestPhase((CurrentGait.dutyFactor, CurrentGait.lowAfterContact));
 
     private float HighestPelvisOver((LegStepper leg, float pelvisX) support) {
         if (!support.leg.IsGrounded) {

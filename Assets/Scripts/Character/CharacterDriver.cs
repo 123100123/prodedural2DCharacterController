@@ -14,7 +14,7 @@ public class CharacterDriver : MonoBehaviour {
     [SerializeField] private HeadLook head = new HeadLook();
     [Tooltip("Upper-spine bone that leans with acceleration and curls forward during a roll.")]
     [SerializeField] private Transform chest;
-    [SerializeField] private TorsoLean torsoLean = new TorsoLean();
+    [SerializeField] private TorsoMotion torsoMotion = new TorsoMotion();
     [SerializeField] private ArmSwing armSwing = new ArmSwing();
 
     [Header("Moves")]
@@ -69,7 +69,7 @@ public class CharacterDriver : MonoBehaviour {
 
         if (machine.Current.AllowsUpperBodyActions) {
             PoseUpperBody(commands);
-            torsoLean.Tick((Time.deltaTime, rig.Stride.CurrentGait.lean * rig.Stride.SpeedShare));
+            torsoMotion.Tick(Time.deltaTime);
         }
     }
 
@@ -112,9 +112,9 @@ public class CharacterDriver : MonoBehaviour {
     }
 
     private void ComposeSecondaryMotion() {
-        torsoLean.Initialize((chest, rig.Body), rig.Facing);
+        torsoMotion.Initialize(rig);
         armSwing.Initialize(rig);
         followCamera.Initialize(rig.Body, Events);
-        Events.Fired += _ => torsoLean.Kick(shooting.recoilTorsoKick);
+        Events.Fired += _ => torsoMotion.Kick(shooting.recoilTorsoKick);
     }
 }
