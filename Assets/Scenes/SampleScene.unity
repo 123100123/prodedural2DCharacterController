@@ -3512,6 +3512,9 @@ MonoBehaviour:
     groundMask:
       serializedVersion: 2
       m_Bits: 4294967291
+  edgeOverhang: 0.7
+  stanceHalfWidth: 0.3
+  landingDipRecovery: 5
 --- !u!1 &2036602645
 GameObject:
   m_ObjectHideFlags: 0
@@ -3759,6 +3762,54 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CharacterDriver
   stride: {fileID: 2036602644}
   authoredFacingSign: -1
+  motor:
+    hullSize: {x: 0.8, y: 2.45}
+    hullOffset: {x: 0, y: 0.93}
+    gravity: 30
+    solidMask:
+      serializedVersion: 2
+      m_Bits: 4294967291
+  frontArm:
+    shoulder: {fileID: 2036566791}
+    forearm: {fileID: 2036566785}
+    forearmLength: 0.896
+    authoredElbowHint: {x: 1, y: -1}
+    poseEase: 0.35
+  backArm:
+    shoulder: {fileID: 2036566787}
+    forearm: {fileID: 2036566797}
+    forearmLength: 0.927
+    authoredElbowHint: {x: 1, y: -1}
+    poseEase: 0.35
+  head:
+    head: {fileID: 2036566799}
+    followShare: 0.6
+    maxTilt: 30
+    poseEase: 0.25
+  airborne:
+    airSpeed: 6
+    airAcceleration: 30
+    coyoteTime: 0.1
+    jumpBufferTime: 0.15
+    leadFootTucked: {x: 0.55, y: -1.5}
+    trailFootTucked: {x: -0.15, y: -1.75}
+    leadFootReaching: {x: 0.3, y: -2.05}
+    trailFootReaching: {x: -0.2, y: -2.15}
+    poseBlendSpeed: 4
+    legPoseEase: 0.3
+    landingDipPerSpeed: 0.04
+    maxLandingDip: 0.6
+  jump:
+    jumpHeight: 2.4
+    windupDuration: 0.12
+    crouchDepth: 0.45
+  shooting:
+    aimCamera: {fileID: 0}
+    armExtension: 0.92
+  pistol:
+    cooldown: 0.18
+    muzzleOffset: 0.15
+    debugRayLength: 12
 --- !u!114 &2036699567
 MonoBehaviour:
   m_ObjectHideFlags: 0
