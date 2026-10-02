@@ -37,6 +37,20 @@ public class LegStepper : MonoBehaviour {
         isGrounded = false;
     }
 
+    // Lands the foot on a foothold without a lift arc, e.g. after a jump.
+    public void SettleOnto(Vector2 foothold) {
+        BeginStep(foothold);
+        stepLength = 0f;
+    }
+
+    // Moves the foot freely toward a pose target while the leg carries no weight (airborne, rolling, climbing).
+    public void SwingFreelyToward(Vector2 poseTarget, float easeFraction) {
+        footTarget.position = poseTarget;
+        transform.position = Vector2.Lerp(transform.position, poseTarget, easeFraction);
+        isGrounded = false;
+        BodyLift = 0f;
+    }
+
     public void TickStep(float deltaTime, (float reachRange, float easeDivisor) gait) {
         float liftHeight = isGrounded ? 0f : LiftHeightForStepProgress(gait);
         MoveSolverToward(new Vector2(footTarget.position.x, footTarget.position.y + liftHeight), (deltaTime, gait.easeDivisor));

@@ -1,0 +1,12 @@
+// The set of full-body states, filled once after construction so states can name each other as transition targets.
+public sealed class CharacterStates {
+    public WalkState Walk { get; private set; }
+    public JumpWindupState JumpWindup { get; private set; }
+    public AirborneState Airborne { get; private set; }
+
+    public void Register((WalkState walk, JumpWindupState jumpWindup, AirborneState airborne) states) {
+        Walk = states.walk;
+        JumpWindup = states.jumpWindup;
+        Airborne = states.airborne;
+    }
+}
