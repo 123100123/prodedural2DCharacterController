@@ -496,8 +496,8 @@ Transform:
   m_GameObject: {fileID: 219390760}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 10.07, y: -2.12, z: 0.16102569}
-  m_LocalScale: {x: 3.425, y: 0.2, z: 1}
+  m_LocalPosition: {x: 10.07, y: -0.2956, z: 0.16102569}
+  m_LocalScale: {x: 3.425, y: 0.91257495, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
@@ -3761,7 +3761,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CharacterDriver
   stride: {fileID: 2036602644}
-  authoredFacingSign: -1
+  authoredFacingSign: 1
   motor:
     hullSize: {x: 0.8, y: 2.45}
     hullOffset: {x: 0, y: 0.93}
@@ -3773,13 +3773,13 @@ MonoBehaviour:
     shoulder: {fileID: 2036566791}
     forearm: {fileID: 2036566785}
     forearmLength: 0.896
-    authoredElbowHint: {x: 1, y: -1}
+    elbowHint: {x: -1, y: -1}
     poseEase: 0.35
   backArm:
     shoulder: {fileID: 2036566787}
     forearm: {fileID: 2036566797}
     forearmLength: 0.927
-    authoredElbowHint: {x: 1, y: -1}
+    elbowHint: {x: -1, y: -1}
     poseEase: 0.35
   head:
     head: {fileID: 2036566799}

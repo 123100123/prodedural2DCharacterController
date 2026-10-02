@@ -4,8 +4,8 @@ using UnityEngine;
 public class CharacterDriver : MonoBehaviour {
     [Header("Body")]
     [SerializeField] private StrideController stride;
-    [Tooltip("Direction the character faces in the authored rig: -1 left, +1 right.")]
-    [SerializeField] private int authoredFacingSign = -1;
+    [Tooltip("Direction the torso and head face in the authored rig: -1 left, +1 right. inverseRobo faces right (its knees bend backward).")]
+    [SerializeField] private int authoredFacingSign = 1;
     [SerializeField] private KinematicBodyMotor motor = new KinematicBodyMotor();
 
     [Header("Upper body")]
@@ -61,8 +61,8 @@ public class CharacterDriver : MonoBehaviour {
 
     private CharacterRig BuildRig() {
         motor.Bind(stride.transform);
-        frontArm.Initialize(transform);
-        backArm.Initialize(transform);
+        frontArm.Initialize((transform, authoredFacingSign));
+        backArm.Initialize((transform, authoredFacingSign));
         head.Initialize((transform, authoredFacingSign));
 
         CharacterFacing facing = new CharacterFacing((transform, authoredFacingSign));

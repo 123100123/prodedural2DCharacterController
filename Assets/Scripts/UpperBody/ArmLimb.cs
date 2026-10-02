@@ -11,12 +11,13 @@ public class ArmLimb {
     [SerializeField] private Transform forearm;
     [Tooltip("Forearm bone length; the bone has no end joint to measure it from.")]
     [SerializeField] private float forearmLength = 0.9f;
-    [Tooltip("Elbow bend direction in the authored rig: x toward the back, y up.")]
-    [SerializeField] private Vector2 authoredElbowHint = new Vector2(1f, -1f);
+    [Tooltip("Elbow bend direction relative to the character: x forward, y up.")]
+    [SerializeField] private Vector2 elbowHint = new Vector2(-1f, -1f);
     [Tooltip("Fraction of the remaining pose change covered per 60 Hz frame.")]
     [SerializeField] private float poseEase = 0.35f;
 
     private Transform root;
+    private Vector2 authoredElbowHint;
     private float upperLength;
     private (float upper, float forearm) restAngles;
     private Vector2 easedTarget;
@@ -27,8 +28,9 @@ public class ArmLimb {
     public float Reach => upperLength + forearmLength;
     public Vector2 HandPosition => forearm.TransformPoint(new Vector3(forearmLength, 0f, 0f));
 
-    public void Initialize(Transform characterRoot) {
-        root = characterRoot;
+    public void Initialize((Transform characterRoot, int authoredFacingSign) rig) {
+        root = rig.characterRoot;
+        authoredElbowHint = new Vector2(elbowHint.x * rig.authoredFacingSign, elbowHint.y);
         upperLength = forearm.localPosition.magnitude;
         restAngles = (shoulder.localEulerAngles.z, forearm.localEulerAngles.z);
         easedTarget = HandPosition;
