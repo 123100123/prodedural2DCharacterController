@@ -1,47 +1,48 @@
 using UnityEngine;
 using UnityEngine.U2D.IK;
 
-// Moves one leg's IK solver toward its foot target, lifting the foot during the first part of a step.
+// Moves one leg's IK solver: steps along a StepArc over a timed progress and plants firmly, or swings freely
+// while the leg carries no weight (airborne, climbing, rolling).
 [RequireComponent(typeof(LimbSolver2D))]
 public class LegStepper : MonoBehaviour {
-    private const float LiftPhaseFraction = 0.5f;
-    private const float LiftHeightFactor = 1.5f;
-    private const float SolverEaseShare = 2f;
-    private const float BodyLiftShare = 2f;
-    private const float ContactToleranceFactor = 0.05f;
+    private const float SettleDuration = 0.12f;
 
     [SerializeField] private Transform footTarget;
-    [SerializeField] private float speed = 6.8f;
 
     private Transform hip;
-    private float stepStartX;
-    private float stepLength;
+    private (Vector2 start, Vector2 end, float duration) step;
+    private float stepProgress = 1f;
     private bool isGrounded = true;
+    private bool liftsDuringStep = true;
+    private Vector2 previousSolverPosition;
+    // Downward foot speed at the moment of the last plant; read once through TryConsumePlant.
+    private float? pendingPlantImpact;
 
     public bool IsGrounded => isGrounded;
     public Vector2 FootTarget => footTarget.position;
     public Vector2 HipPosition => hip.position;
     public float LegLength { get; private set; }
-    public float BodyLift { get; private set; }
+
+    // Normalized progress of the current step; 0 while planted.
+    public float StepProgress => isGrounded ? 0f : stepProgress;
 
     // OnEnable rather than Awake so the chain is found again after a script recompile during play mode.
     private void OnEnable() {
         Transform[] chain = GetComponent<LimbSolver2D>().GetChain(0).transforms;
         hip = chain[0];
         LegLength = Vector2.Distance(chain[0].position, chain[1].position) + Vector2.Distance(chain[1].position, chain[2].position);
+        previousSolverPosition = transform.position;
     }
 
-    public void BeginStep(Vector2 foothold) {
-        stepStartX = transform.position.x;
-        stepLength = Mathf.Abs(foothold.x - stepStartX);
-        footTarget.position = foothold;
-        isGrounded = false;
+    public void BeginStep((Vector2 foothold, float duration) plannedStep) {
+        StartStepFromCurrentPose(plannedStep);
+        liftsDuringStep = true;
     }
 
     // Lands the foot on a foothold without a lift arc, e.g. after a jump.
     public void SettleOnto(Vector2 foothold) {
-        BeginStep(foothold);
-        stepLength = 0f;
+        StartStepFromCurrentPose((foothold, SettleDuration));
+        liftsDuringStep = false;
     }
 
     // Moves the foot freely toward a pose target while the leg carries no weight (airborne, rolling, climbing).
@@ -49,42 +50,50 @@ public class LegStepper : MonoBehaviour {
         footTarget.position = poseTarget;
         transform.position = Vector2.Lerp(transform.position, poseTarget, easeFraction);
         isGrounded = false;
-        BodyLift = 0f;
+        stepProgress = 1f;
+        previousSolverPosition = transform.position;
     }
 
-    public void TickStep(float deltaTime, (float reachRange, float easeDivisor) gait) {
-        float liftHeight = isGrounded ? 0f : LiftHeightForStepProgress(gait);
-        MoveSolverToward(new Vector2(footTarget.position.x, footTarget.position.y + liftHeight), (deltaTime, gait.easeDivisor));
-
-        BodyLift = isGrounded ? 0f : liftHeight / BodyLiftShare;
-        RegisterLandingWhenFootArrives(gait.reachRange);
-    }
-
-    // Raises the foot during the first part of the step, then lets it settle onto the target.
-    private float LiftHeightForStepProgress((float reachRange, float easeDivisor) gait) {
-        float stepProgressX = Mathf.Abs(transform.position.x - stepStartX);
-        float liftPhaseLength = Mathf.Min(gait.reachRange, stepLength) * LiftPhaseFraction;
-
-        if (stepProgressX < liftPhaseLength) {
-            return gait.reachRange * LiftHeightFactor;
+    public void TickStep(float deltaTime, StepArcShape shape) {
+        if (isGrounded) {
+            transform.position = footTarget.position;
+            return;
         }
-        return (footTarget.position.y - transform.position.y) / gait.easeDivisor / SolverEaseShare;
-    }
 
-    // Combines a constant-speed approach with an ease-out step, both measured from the pre-move position.
-    private void MoveSolverToward(Vector2 liftedTarget, (float deltaTime, float easeDivisor) motion) {
-        float easeFraction = FrameRateEase.FractionForFrame(1f / motion.easeDivisor / SolverEaseShare, motion.deltaTime);
-        Vector2 easeStep = (liftedTarget - (Vector2)transform.position) * easeFraction;
+        stepProgress = Mathf.Min(1f, stepProgress + deltaTime / step.duration);
+        previousSolverPosition = transform.position;
+        transform.position = FootPositionAtProgress(shape);
 
-        Vector2 approached = Vector2.MoveTowards(transform.position, liftedTarget, speed * motion.deltaTime);
-        transform.position = approached + easeStep;
-    }
-
-    private void RegisterLandingWhenFootArrives(float reachRange) {
-        float distanceToTarget = Vector2.Distance(transform.position, footTarget.position);
-
-        if (!isGrounded && distanceToTarget < reachRange * ContactToleranceFactor) {
-            isGrounded = true;
+        if (stepProgress >= 1f) {
+            Plant(deltaTime);
         }
+    }
+
+    public bool TryConsumePlant(out float impactSpeed) {
+        impactSpeed = pendingPlantImpact ?? 0f;
+        bool hasPlanted = pendingPlantImpact.HasValue;
+        pendingPlantImpact = null;
+        return hasPlanted;
+    }
+
+    private void StartStepFromCurrentPose((Vector2 foothold, float duration) plannedStep) {
+        step = (transform.position, plannedStep.foothold, Mathf.Max(0.01f, plannedStep.duration));
+        stepProgress = 0f;
+        footTarget.position = plannedStep.foothold;
+        isGrounded = false;
+    }
+
+    private Vector2 FootPositionAtProgress(StepArcShape shape) {
+        if (!liftsDuringStep) {
+            return Vector2.Lerp(step.start, step.end, Mathf.SmoothStep(0f, 1f, stepProgress));
+        }
+        return StepArc.Evaluate((step.start, step.end, stepProgress), shape);
+    }
+
+    private void Plant(float deltaTime) {
+        float downwardSpeed = deltaTime > 0f ? Mathf.Max(0f, (previousSolverPosition.y - transform.position.y) / deltaTime) : 0f;
+        transform.position = step.end;
+        isGrounded = true;
+        pendingPlantImpact = downwardSpeed;
     }
 }

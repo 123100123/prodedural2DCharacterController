@@ -12,8 +12,10 @@ public class CharacterDriver : MonoBehaviour {
     [SerializeField] private ArmLimb frontArm = new ArmLimb();
     [SerializeField] private ArmLimb backArm = new ArmLimb();
     [SerializeField] private HeadLook head = new HeadLook();
-    [Tooltip("Upper-spine bone that curls forward during a roll.")]
+    [Tooltip("Upper-spine bone that leans with acceleration and curls forward during a roll.")]
     [SerializeField] private Transform chest;
+    [SerializeField] private TorsoLean torsoLean = new TorsoLean();
+    [SerializeField] private ArmSwing armSwing = new ArmSwing();
 
     [Header("Moves")]
     [SerializeField] private AirborneSettings airborne = new AirborneSettings();
@@ -25,11 +27,16 @@ public class CharacterDriver : MonoBehaviour {
     [SerializeField] private ShootingSettings shooting = new ShootingSettings();
     [SerializeField] private Pistol pistol = new Pistol();
 
+    [Header("Camera")]
+    [SerializeField] private FollowCamera followCamera = new FollowCamera();
+
     private PlayerInputReader input;
     private CharacterStateMachine machine;
     private CharacterStates states;
     private CharacterRig rig;
     private ShootingStance shootingStance;
+
+    public CharacterEvents Events { get; private set; }
 
     // Composes here rather than in Awake: a script recompile during play mode reloads the domain,
     // which clears these non-serialized collaborators and calls OnEnable again, but not Awake.
@@ -47,9 +54,11 @@ public class CharacterDriver : MonoBehaviour {
     private void ComposeCharacter() {
         input = new PlayerInputReader();
         machine = new CharacterStateMachine();
+        Events = new CharacterEvents();
         rig = BuildRig();
         states = BuildStates();
         shootingStance = new ShootingStance(rig, (pistol, shooting));
+        ComposeSecondaryMotion();
         states.Walk.Begin();
     }
 
@@ -60,28 +69,34 @@ public class CharacterDriver : MonoBehaviour {
 
         if (machine.Current.AllowsUpperBodyActions) {
             PoseUpperBody(commands);
+            torsoLean.Tick(Time.deltaTime);
         }
     }
 
-    // Aiming drives the arms and head; otherwise the head stays level and the arms hang at rest.
+    // Aiming drives the arms and head; otherwise the head stays level and the arms swing with the legs.
     private void PoseUpperBody(PlayerCommands commands) {
         if (commands.IsAiming) {
             shootingStance.Tick(commands, Time.time);
             return;
         }
         rig.Head.HoldLevel();
+        armSwing.Tick(Time.deltaTime);
     }
 
-    private void LateUpdate() => rig.ApplyUpperBodyPose(Time.deltaTime);
+    private void LateUpdate() {
+        rig.ApplyUpperBodyPose(Time.deltaTime);
+        followCamera.Tick(Time.deltaTime);
+    }
 
     private CharacterRig BuildRig() {
         motor.Bind(stride.transform);
+        stride.ConnectEvents(Events);
         frontArm.Initialize(authoredFacingSign);
         backArm.Initialize(authoredFacingSign);
         head.Initialize((transform, authoredFacingSign));
 
         CharacterFacing facing = new CharacterFacing((transform, authoredFacingSign));
-        return new CharacterRig((stride, facing, motor), (frontArm, backArm, head, chest));
+        return new CharacterRig((stride, facing, motor, Events), (frontArm, backArm, head, chest));
     }
 
     private CharacterStates BuildStates() {
@@ -94,5 +109,12 @@ public class CharacterDriver : MonoBehaviour {
             new RollState(context, roll),
             new ClimbState(context, climb)));
         return built;
+    }
+
+    private void ComposeSecondaryMotion() {
+        torsoLean.Initialize((chest, rig.Body), rig.Facing);
+        armSwing.Initialize(rig);
+        followCamera.Initialize(rig.Body, Events);
+        Events.Fired += _ => torsoLean.Kick(shooting.recoilTorsoKick);
     }
 }

@@ -17,6 +17,7 @@ public sealed class JumpWindupState : ICharacterState {
 
     public void Enter() {
         elapsed = 0f;
+        context.Rig.Stride.BeginGroundedMotion(context.Rig.Motor.Velocity);
         context.Rig.Stride.HeldCrouch = settings.jump.crouchDepth;
     }
 
@@ -25,10 +26,13 @@ public sealed class JumpWindupState : ICharacterState {
         if (!commands.IsAiming) {
             context.Rig.Facing.FaceToward(commands.MoveAxis);
         }
-        context.Rig.Stride.TickWalk(deltaTime, (0f, float.NegativeInfinity, float.PositiveInfinity));
+        (float min, float max) unbounded = (float.NegativeInfinity, float.PositiveInfinity);
+        context.Rig.Stride.TickWalk(deltaTime, (0f, unbounded, unbounded));
 
         if (elapsed >= settings.jump.windupDuration) {
-            context.States.Airborne.Launch(LaunchVelocity(commands.MoveAxis));
+            Vector2 launch = LaunchVelocity(commands.MoveAxis);
+            context.Rig.Events.RaiseJumped(launch);
+            context.States.Airborne.Launch(launch);
         }
     }
 

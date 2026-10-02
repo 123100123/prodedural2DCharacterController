@@ -6,6 +6,7 @@ public sealed class ShootingStance {
     private readonly CharacterRig rig;
     private readonly Pistol pistol;
     private readonly ShootingSettings settings;
+    private readonly SecondOrderDynamics recoil = new SecondOrderDynamics(0f);
 
     public ShootingStance(CharacterRig rig, (Pistol pistol, ShootingSettings settings) weapon) {
         this.rig = rig;
@@ -19,15 +20,29 @@ public sealed class ShootingStance {
         rig.Facing.FaceToward(aimPoint.x - rig.Body.position.x);
 
         Vector2 aimDirection = ClampElevation(AimDirectionFromShoulder(aimPoint));
-        Vector2 gripPoint = rig.FrontArm.ShoulderPosition + aimDirection * (rig.FrontArm.Reach * settings.armExtension);
+        Vector2 gripPoint = rig.FrontArm.ShoulderPosition + aimDirection * (rig.FrontArm.Reach * settings.armExtension)
+            + RecoilOffset((aimDirection, Time.deltaTime));
         rig.FrontArm.ReachToward(gripPoint);
         rig.BackArm.ReachToward(gripPoint - aimDirection * settings.supportHandOffset);
         rig.Head.LookToward(aimDirection);
 
         if (commands.FirePressed) {
-            Vector2 muzzle = pistol.MuzzleFor((rig.FrontArm.HandPosition, aimDirection));
-            pistol.TryFire((muzzle, aimDirection), now);
+            FirePistol((aimDirection, now));
         }
+    }
+
+    private void FirePistol((Vector2 aimDirection, float now) shot) {
+        Vector2 muzzle = pistol.MuzzleFor((rig.FrontArm.HandPosition, shot.aimDirection));
+        if (pistol.TryFire((muzzle, shot.aimDirection), shot.now)) {
+            recoil.AddVelocity(settings.recoilKick);
+            rig.Events.RaiseFired((muzzle, shot.aimDirection));
+        }
+    }
+
+    // The grip is thrown back along the aim and up, then springs back.
+    private Vector2 RecoilOffset((Vector2 aimDirection, float deltaTime) frame) {
+        float kick = recoil.Update((0f, frame.deltaTime), settings.recoilSpring);
+        return (-frame.aimDirection + Vector2.up * settings.recoilRise) * kick;
     }
 
     private Vector2 PointerInWorld(Vector2 screenPosition) {

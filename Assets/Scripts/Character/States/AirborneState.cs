@@ -104,6 +104,7 @@ public sealed class AirborneState : ICharacterState {
     }
 
     // Swept landing: checks the whole fall of this frame so a long frame cannot carry the body through the ground.
+    // Part of the landing speed is handed to the grounded state, whose body spring turns it into the squash.
     private bool TryTouchDown(float deltaTime) {
         KinematicBodyMotor motor = context.Rig.Motor;
         StrideController stride = context.Rig.Stride;
@@ -115,10 +116,11 @@ public sealed class AirborneState : ICharacterState {
             return false;
         }
 
-        float landingDip = Mathf.Min(settings.air.maxLandingDip, -motor.Velocity.y * settings.air.landingDipPerSpeed);
-        PlaceBodyAtTouchdown((ground.y + stride.BodyHeight - landingDip, fallThisFrame));
-        stride.AbsorbLanding(landingDip);
-        motor.Velocity = Vector2.zero;
+        float impactSpeed = -motor.Velocity.y;
+        PlaceBodyAtTouchdown((ground.y + stride.BodyHeight - settings.air.touchdownSink, fallThisFrame));
+        float carriedFallSpeed = Mathf.Min(settings.air.maxCarriedLandingSpeed, impactSpeed * settings.air.landingSpeedCarry);
+        motor.Velocity = new Vector2(motor.Velocity.x, -carriedFallSpeed);
+        context.Rig.Events.RaiseLanded((ground, impactSpeed));
         ContinueAfterLanding();
         return true;
     }

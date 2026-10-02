@@ -1043,7 +1043,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   footTarget: {fileID: 590980464}
-  speed: 8
 --- !u!1 &770779858
 GameObject:
   m_ObjectHideFlags: 0
@@ -1738,7 +1737,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   footTarget: {fileID: 1118553915}
-  speed: 8
 --- !u!1 &1351324845
 GameObject:
   m_ObjectHideFlags: 0
@@ -3498,8 +3496,6 @@ MonoBehaviour:
   backLeg: {fileID: 738148327}
   strideTarget: {fileID: 219368120}
   bodyHeight: 2.4
-  strideSpeed: 12
-  easeDivisor: 14
   reachRange: 1.2
   footholdLimits:
     maxStepUp: 1
@@ -3514,7 +3510,93 @@ MonoBehaviour:
       m_Bits: 4294967291
   edgeOverhang: 0.7
   stanceHalfWidth: 0.3
-  landingDipRecovery: 5
+  maxIdleFeetGap: 1
+  strideSpeed: 12
+  strideAcceleration: 45
+  strideDeceleration: 70
+  stepArc:
+    travel:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 0
+        inSlope: 0
+        outSlope: 0.6
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 0.55
+        value: 0.6
+        inSlope: 1.5
+        outSlope: 1.5
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 1
+        value: 1
+        inSlope: 0.6
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+    lift:
+      serializedVersion: 2
+      m_Curve:
+      - serializedVersion: 3
+        time: 0
+        value: 0
+        inSlope: 0
+        outSlope: 4
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 0.4
+        value: 1
+        inSlope: 0
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      - serializedVersion: 3
+        time: 1
+        value: 0
+        inSlope: -3.5
+        outSlope: 0
+        tangentMode: 0
+        weightedMode: 0
+        inWeight: 0
+        outWeight: 0
+      m_PreInfinity: 2
+      m_PostInfinity: 2
+      m_RotationOrder: 4
+    liftHeight: 0.55
+    stepSpeed: 9
+    minStepDuration: 0.16
+    maxStepDuration: 0.4
+  horizontalSpring:
+    frequency: 2.2
+    damping: 0.65
+    response: 0.5
+  verticalSpring:
+    frequency: 3.2
+    damping: 0.45
+    response: 0
+  legExtension: 0.96
+  plantImpulsePerSpeed: 0.3
+  maxPlantImpulse: 2.5
+  weightShiftShare: 0.2
 --- !u!1 &2036602645
 GameObject:
   m_ObjectHideFlags: 0
@@ -3766,6 +3848,9 @@ MonoBehaviour:
     hullSize: {x: 0.8, y: 2.45}
     hullOffset: {x: 0, y: 0.93}
     gravity: 30
+    fallGravityMultiplier: 1.6
+    apexGravityMultiplier: 0.75
+    apexSpeed: 2
     solidMask:
       serializedVersion: 2
       m_Bits: 4294967291
@@ -3773,21 +3858,39 @@ MonoBehaviour:
     shoulder: {fileID: 2036566791}
     forearm: {fileID: 2036566785}
     forearmLength: 0.896
-    elbowHint: {x: -1, y: -1}
+    elbowBendSide: 1
     poseEase: 0.35
   backArm:
     shoulder: {fileID: 2036566787}
     forearm: {fileID: 2036566797}
     forearmLength: 0.927
-    elbowHint: {x: -1, y: -1}
+    elbowBendSide: 1
     poseEase: 0.35
   head:
     head: {fileID: 2036566799}
     followShare: 0.6
     maxTilt: 30
-    poseEase: 0.25
+    poseSpring:
+      frequency: 3.5
+      damping: 0.5
+      response: 0
+    maxLevelCorrection: 40
     crownDistance: 0.63
   chest: {fileID: 2036566789}
+  torsoLean:
+    leanPerAcceleration: 0.35
+    maxLean: 12
+    spring:
+      frequency: 2.5
+      damping: 0.45
+      response: 0
+  armSwing:
+    maxSwing: 28
+    fullSwingSpeed: 8
+    spring:
+      frequency: 3
+      damping: 0.5
+      response: 0
   airborne:
     airSpeed: 6
     airAcceleration: 30
@@ -3799,13 +3902,15 @@ MonoBehaviour:
     trailFootReaching: {x: -0.2, y: -2.15}
     poseBlendSpeed: 4
     legPoseEase: 0.3
-    landingDipPerSpeed: 0.04
-    maxLandingDip: 0.6
+    landingSpeedCarry: 0.6
+    maxCarriedLandingSpeed: 9
+    touchdownSink: 0.3
   jump:
     jumpHeight: 2.4
-    windupDuration: 0.12
-    crouchDepth: 0.45
+    windupDuration: 0.16
+    crouchDepth: 0.6
   roll:
+    enabled: 0
     cooldown: 0.3
     speedEase: 0.15
     groundFollowEase: 0.35
@@ -3874,10 +3979,40 @@ MonoBehaviour:
   shooting:
     aimCamera: {fileID: 0}
     armExtension: 0.92
+    maxAimElevation: 80
+    supportHandOffset: 0.1
+    recoilKick: 5
+    recoilSpring:
+      frequency: 6
+      damping: 0.4
+      response: 0
+    recoilRise: 0.6
+    recoilTorsoKick: 60
   pistol:
     cooldown: 0.18
     muzzleOffset: 0.15
     debugRayLength: 12
+  followCamera:
+    followsCharacter: 1
+    targetCamera: {fileID: 0}
+    offset: {x: 0, y: 1}
+    lookAhead: 1.5
+    lookAheadFullSpeed: 10
+    horizontalSpring:
+      frequency: 1.4
+      damping: 0.9
+      response: 0
+    verticalSpring:
+      frequency: 1.2
+      damping: 1
+      response: 0
+    kickSpring:
+      frequency: 5
+      damping: 0.35
+      response: 0
+    landingKickPerSpeed: 0.12
+    footKickPerSpeed: 0.02
+    footKickThreshold: 6
 --- !u!114 &2036699567
 MonoBehaviour:
   m_ObjectHideFlags: 0

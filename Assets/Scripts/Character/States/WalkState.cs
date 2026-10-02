@@ -3,8 +3,6 @@ using UnityEngine;
 // Grounded locomotion: the stride gait walks the character between walls, turning toward the movement direction.
 public sealed class WalkState : ICharacterState {
     private readonly StateContext context;
-    private Vector2 lastBodyPosition;
-    private Vector2 bodyVelocity;
 
     public WalkState(StateContext context) {
         this.context = context;
@@ -14,9 +12,10 @@ public sealed class WalkState : ICharacterState {
 
     public void Begin() => context.Machine.ChangeTo(this);
 
+    // Grounded states hand momentum over through the motor velocity: read on entry, written on exit.
     public void Enter() {
-        lastBodyPosition = context.Rig.Body.position;
-        bodyVelocity = Vector2.zero;
+        context.Rig.Stride.BeginGroundedMotion(context.Rig.Motor.Velocity);
+        context.Rig.Motor.Velocity = Vector2.zero;
     }
 
     public void Tick(float deltaTime, PlayerCommands commands) {
@@ -35,31 +34,26 @@ public sealed class WalkState : ICharacterState {
         }
 
         context.Rig.Stride.TickWalk(deltaTime, StrideWithinWalls(commands.MoveAxis));
-        TrackBodyVelocity(deltaTime);
 
         if (context.Rig.Stride.IsPastSupportEdge || context.Rig.Stride.HasLostGround) {
-            context.States.Airborne.Fall(bodyVelocity);
+            context.States.Airborne.Fall(context.Rig.Stride.BodyVelocity);
         }
     }
 
-    public void Exit() { }
+    public void Exit() {
+        context.Rig.Motor.Velocity = context.Rig.Stride.BodyVelocity;
+    }
 
-    // Feet may reach the wall face itself, which lies a hull half-width beyond the hull's free travel.
-    private (float direction, float minX, float maxX) StrideWithinWalls(float moveAxis) {
+    // The body may travel as far as its hull is free; feet may reach the wall face itself, a hull half-width further.
+    private (float direction, (float min, float max) feetSpan, (float min, float max) bodySpan) StrideWithinWalls(float moveAxis) {
         float bodyX = context.Rig.Body.position.x;
         float maxOffset = context.Rig.Stride.MaxStrideOffset;
         KinematicBodyMotor motor = context.Rig.Motor;
 
-        float reachBehind = motor.FreeDistance(-1f, maxOffset) + motor.HullHalfWidth;
-        float reachAhead = motor.FreeDistance(1f, maxOffset) + motor.HullHalfWidth;
-        return (moveAxis, bodyX - reachBehind, bodyX + reachAhead);
-    }
-
-    private void TrackBodyVelocity(float deltaTime) {
-        Vector2 bodyPosition = context.Rig.Body.position;
-        if (deltaTime > 0f) {
-            bodyVelocity = (bodyPosition - lastBodyPosition) / deltaTime;
-        }
-        lastBodyPosition = bodyPosition;
+        float freeBehind = motor.FreeDistance(-1f, maxOffset);
+        float freeAhead = motor.FreeDistance(1f, maxOffset);
+        (float min, float max) bodySpan = (bodyX - freeBehind, bodyX + freeAhead);
+        (float min, float max) feetSpan = (bodySpan.min - motor.HullHalfWidth, bodySpan.max + motor.HullHalfWidth);
+        return (moveAxis, feetSpan, bodySpan);
     }
 }

@@ -3,11 +3,12 @@ using UnityEngine;
 // The character's movable parts as seen by the full-body states and the upper-body layer.
 public sealed class CharacterRig {
     public CharacterRig(
-        (StrideController stride, CharacterFacing facing, KinematicBodyMotor motor) lowerBody,
+        (StrideController stride, CharacterFacing facing, KinematicBodyMotor motor, CharacterEvents events) core,
         (ArmLimb frontArm, ArmLimb backArm, HeadLook head, Transform chest) upperBody) {
-        Stride = lowerBody.stride;
-        Facing = lowerBody.facing;
-        Motor = lowerBody.motor;
+        Stride = core.stride;
+        Facing = core.facing;
+        Motor = core.motor;
+        Events = core.events;
         FrontArm = upperBody.frontArm;
         BackArm = upperBody.backArm;
         Head = upperBody.head;
@@ -17,6 +18,7 @@ public sealed class CharacterRig {
     public StrideController Stride { get; }
     public CharacterFacing Facing { get; }
     public KinematicBodyMotor Motor { get; }
+    public CharacterEvents Events { get; }
     public ArmLimb FrontArm { get; }
     public ArmLimb BackArm { get; }
     public HeadLook Head { get; }

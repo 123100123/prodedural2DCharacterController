@@ -11,6 +11,11 @@ public class KinematicBodyMotor {
     [Tooltip("Hull centre relative to the body pivot.")]
     [SerializeField] private Vector2 hullOffset = new Vector2(0f, 0.93f);
     [SerializeField] private float gravity = 30f;
+    [Tooltip("Gravity multiplier while falling: falls feel heavier than rises.")]
+    [SerializeField] private float fallGravityMultiplier = 1.6f;
+    [Tooltip("Gravity multiplier near the jump apex (vertical speed below apexSpeed), for a brief hang.")]
+    [SerializeField] private float apexGravityMultiplier = 0.75f;
+    [SerializeField] private float apexSpeed = 2f;
     [SerializeField] private LayerMask solidMask = Physics2D.DefaultRaycastLayers;
 
     private readonly RaycastHit2D[] hullHits = new RaycastHit2D[8];
@@ -23,7 +28,14 @@ public class KinematicBodyMotor {
 
     public void Bind(Transform movedBody) => body = movedBody;
 
-    public void ApplyGravity(float deltaTime) => Velocity += Vector2.down * (gravity * deltaTime);
+    public void ApplyGravity(float deltaTime) => Velocity += Vector2.down * (gravity * GravityMultiplier() * deltaTime);
+
+    private float GravityMultiplier() {
+        if (Mathf.Abs(Velocity.y) < apexSpeed) {
+            return apexGravityMultiplier;
+        }
+        return Velocity.y < 0f ? fallGravityMultiplier : 1f;
+    }
 
     // Moves horizontally then vertically; a blocked axis loses its velocity.
     public void MoveWithCollisions(float deltaTime) {

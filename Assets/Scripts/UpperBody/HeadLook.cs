@@ -8,7 +8,8 @@ public class HeadLook {
     [Tooltip("Share of the look elevation the head follows.")]
     [SerializeField] private float followShare = 0.6f;
     [SerializeField] private float maxTilt = 30f;
-    [SerializeField] private float poseEase = 0.25f;
+    [Tooltip("How the head follows its requested tilt: it lags slightly and settles after jolts.")]
+    [SerializeField] private SpringSettings poseSpring = new SpringSettings(3.5f, 0.5f, 0f);
     [Tooltip("Largest correction applied to keep the head level when the torso leans.")]
     [SerializeField] private float maxLevelCorrection = 40f;
     [Tooltip("Distance from the head bone pivot to the top of the head along the bone.")]
@@ -17,13 +18,14 @@ public class HeadLook {
     private Transform root;
     private int authoredFacingSign;
     private float restAngle;
-    private float tilt;
+    private SecondOrderDynamics tilt;
     private float? requestedTilt;
 
     public void Initialize((Transform characterRoot, int authoredFacingSign) rig) {
         root = rig.characterRoot;
         authoredFacingSign = rig.authoredFacingSign;
         restAngle = head.localEulerAngles.z;
+        tilt = new SecondOrderDynamics(0f);
     }
 
     public Vector2 CrownPosition => head.TransformPoint(new Vector3(crownDistance, 0f, 0f));
@@ -38,9 +40,9 @@ public class HeadLook {
     public void TuckChin(float degrees) => requestedTilt = -degrees * authoredFacingSign;
 
     public void ApplyPose(float deltaTime) {
-        tilt = Mathf.Lerp(tilt, requestedTilt ?? 0f, FrameRateEase.FractionForFrame(poseEase, deltaTime));
+        float currentTilt = tilt.Update((requestedTilt ?? 0f, deltaTime), poseSpring);
         requestedTilt = null;
-        head.localRotation = Quaternion.Euler(0f, 0f, restAngle + tilt);
+        head.localRotation = Quaternion.Euler(0f, 0f, restAngle + currentTilt);
     }
 
     // How far the head must turn from its rest angle for its bone (neck to crown) to point straight up,

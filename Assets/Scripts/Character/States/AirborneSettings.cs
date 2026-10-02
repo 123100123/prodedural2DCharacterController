@@ -22,6 +22,10 @@ public class AirborneSettings {
     public float legPoseEase = 0.3f;
 
     [Header("Landing")]
-    public float landingDipPerSpeed = 0.04f;
-    public float maxLandingDip = 0.6f;
+    [Tooltip("Share of the landing speed carried into the body spring: the squash on touchdown.")]
+    [Range(0f, 1f)] public float landingSpeedCarry = 0.6f;
+    [Tooltip("Cap on the carried landing speed, so very long falls do not fold the body into the ground.")]
+    public float maxCarriedLandingSpeed = 9f;
+    [Tooltip("How far below standing height the body may be placed at touchdown.")]
+    public float touchdownSink = 0.3f;
 }

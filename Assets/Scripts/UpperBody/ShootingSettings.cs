@@ -11,4 +11,13 @@ public class ShootingSettings {
     [Range(10f, 89f)] public float maxAimElevation = 80f;
     [Tooltip("How far behind the front hand, along the aim, the support hand grips.")]
     public float supportHandOffset = 0.1f;
+
+    [Header("Recoil")]
+    [Tooltip("Speed at which a shot throws the grip back and up.")]
+    public float recoilKick = 5f;
+    public SpringSettings recoilSpring = new SpringSettings(6f, 0.4f, 0f);
+    [Tooltip("Upward share of the recoil relative to its backward push.")]
+    public float recoilRise = 0.6f;
+    [Tooltip("Backward chest lean speed (degrees per second) a shot gives the torso.")]
+    public float recoilTorsoKick = 60f;
 }
