@@ -24,7 +24,9 @@ public sealed class WalkState : ICharacterState {
             context.Rig.Facing.FaceToward(commands.MoveAxis);
         }
         if (commands.JumpPressed) {
-            context.States.JumpWindup.Begin();
+            if (!context.States.Climb.TryBeginFromStance()) {
+                context.States.JumpWindup.Begin();
+            }
             return;
         }
         if (commands.RollPressed && context.States.Roll.IsReady) {

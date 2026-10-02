@@ -3878,6 +3878,35 @@ MonoBehaviour:
     limbPoseEase: 0.5
     groundFollowEase: 0.5
     maxGroundDrop: 3.5
+  climb:
+    maxGrabRise: 4.5
+    searchDistance: 1.6
+    searchStep: 0.1
+    airGrabBelowShoulder: 2
+    airGrabAboveShoulderShare: 0.8
+    standingRoom: {x: 0.8, y: 4.3}
+    minTopDepth: 0.8
+    ledgeMask:
+      serializedVersion: 2
+      m_Bits: 4294967291
+    hangInset: 0.45
+    hangDrop: 2.5
+    pulledUp: {x: -0.25, y: 0.5}
+    mounted: {x: 0.3, y: 1.6}
+    standingInset: 0.45
+    frontGrip: {x: 0.05, y: 0.02}
+    backGrip: {x: 0.25, y: 0.02}
+    hangingLeadFoot: {x: 0.15, y: -2}
+    hangingTrailFoot: {x: -0.1, y: -2.1}
+    scrambleFootDrop: 1.7
+    mountFootInset: 0.3
+    limbPoseEase: 0.4
+    reachSpeed: 7
+    minReachDuration: 0.15
+    hangDuration: 0.1
+    pullDuration: 0.35
+    mountDuration: 0.25
+    standDuration: 0.25
   shooting:
     aimCamera: {fileID: 0}
     armExtension: 0.92

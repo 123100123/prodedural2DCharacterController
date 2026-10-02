@@ -19,6 +19,7 @@ public class CharacterDriver : MonoBehaviour {
     [SerializeField] private AirborneSettings airborne = new AirborneSettings();
     [SerializeField] private JumpSettings jump = new JumpSettings();
     [SerializeField] private RollSettings roll = new RollSettings();
+    [SerializeField] private ClimbSettings climb = new ClimbSettings();
 
     [Header("Shooting")]
     [SerializeField] private ShootingSettings shooting = new ShootingSettings();
@@ -75,7 +76,8 @@ public class CharacterDriver : MonoBehaviour {
             new WalkState(context),
             new JumpWindupState(context, (jump, airborne)),
             new AirborneState(context, (airborne, jump)),
-            new RollState(context, roll)));
+            new RollState(context, roll),
+            new ClimbState(context, climb)));
         return built;
     }
 }

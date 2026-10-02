@@ -1,6 +1,7 @@
 using UnityEngine;
 
-// Ballistic flight after a jump or a fall: air steering, flight leg pose, coyote jump, buffered jump and landing.
+// Ballistic flight after a jump or a fall: air steering, flight leg pose, coyote jump, buffered jump,
+// ledge grabs and landing.
 public sealed class AirborneState : ICharacterState {
     private readonly StateContext context;
     private readonly (AirborneSettings air, JumpSettings jump) settings;
@@ -55,6 +56,9 @@ public sealed class AirborneState : ICharacterState {
         }
 
         context.Rig.Motor.MoveWithCollisions(deltaTime);
+        if (context.States.Climb.TryBeginFromAir()) {
+            return;
+        }
         PoseLegsForFlight(deltaTime);
         context.Rig.Stride.PlaceStrideTargetUnderBody();
     }
@@ -107,7 +111,7 @@ public sealed class AirborneState : ICharacterState {
         if (fallThisFrame < 0f || !stride.TryFindGroundBelowBody(fallThisFrame, out Vector2 ground)) {
             return false;
         }
-        if (!stride.TrySettleStance((context.Rig.Body.position.x, context.Rig.Facing.Sign))) {
+        if (!stride.TrySettleStance((context.Rig.Body.position.x, context.Rig.Facing.Sign, ground.y))) {
             return false;
         }
 

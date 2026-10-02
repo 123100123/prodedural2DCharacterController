@@ -5,7 +5,6 @@ using UnityEngine;
 public class StrideController : MonoBehaviour {
     private const float StrideClampFactor = 1.8f;
     private const float BodyAnchorCount = 3f;
-    private const float StanceProbeHeadroom = 0.5f;
     private const float GroundContactTolerance = 0.15f;
 
     [SerializeField] private LegStepper frontLeg;
@@ -33,6 +32,7 @@ public class StrideController : MonoBehaviour {
     public float BodyHeight => bodyHeight;
     public float MaxStrideOffset => reachRange * StrideClampFactor;
     public float StanceHalfWidth => stanceHalfWidth;
+    public float MaxStepUp => footholdLimits.maxStepUp;
     public float StanceHeight => (frontLeg.FootTarget.y + backLeg.FootTarget.y) / 2f;
     public LayerMask GroundMask => footholdLimits.groundMask;
 
@@ -64,11 +64,12 @@ public class StrideController : MonoBehaviour {
 
     public void PlaceStrideTargetUnderBody() => strideTarget.position = new Vector2(transform.position.x, StanceHeight);
 
-    // Picks ground under both feet around centerX and lets the legs settle onto it.
-    public bool TrySettleStance((float centerX, int facingSign) stance) {
+    // Picks ground under both feet around centerX, within a step of groundY, and lets the legs settle onto it.
+    public bool TrySettleStance((float centerX, int facingSign, float groundY) stance) {
         float frontX = stance.centerX + stance.facingSign * stanceHalfWidth;
         float backX = stance.centerX - stance.facingSign * stanceHalfWidth;
-        if (!TryFindStanceGround(frontX, out Vector2 frontGround) || !TryFindStanceGround(backX, out Vector2 backGround)) {
+        if (!TryFindStanceGround((frontX, stance.groundY), out Vector2 frontGround)
+            || !TryFindStanceGround((backX, stance.groundY), out Vector2 backGround)) {
             return false;
         }
 
@@ -85,9 +86,9 @@ public class StrideController : MonoBehaviour {
         return FootholdProbe.TryFindGroundBelow((origin, bodyHeight + extraDepth), footholdLimits.groundMask, out ground);
     }
 
-    private bool TryFindStanceGround(float x, out Vector2 ground) {
-        Vector2 origin = new Vector2(x, transform.position.y + StanceProbeHeadroom);
-        float depth = StanceProbeHeadroom + bodyHeight + footholdLimits.maxStepDown;
+    private bool TryFindStanceGround((float x, float groundY) column, out Vector2 ground) {
+        Vector2 origin = new Vector2(column.x, column.groundY + footholdLimits.maxStepUp);
+        float depth = footholdLimits.maxStepUp + footholdLimits.maxStepDown;
         return FootholdProbe.TryFindGroundBelow((origin, depth), footholdLimits.groundMask, out ground);
     }
 

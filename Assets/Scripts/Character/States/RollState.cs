@@ -11,6 +11,7 @@ public sealed class RollState : ICharacterState {
 
     private float elapsed;
     private float readyTime;
+    private float groundY;
     private int direction;
     private (Quaternion body, Quaternion chest) uprightPose;
     private (Vector2 leadFoot, Vector2 trailFoot, Vector2 hands) tuckInBodySpace;
@@ -41,7 +42,7 @@ public sealed class RollState : ICharacterState {
         float t = Mathf.Clamp01(elapsed / settings.duration);
 
         TravelForward((t, deltaTime));
-        if (!TryFollowGround((t, deltaTime), out float groundY)) {
+        if (!TryFollowGround((t, deltaTime), out groundY)) {
             context.States.Airborne.Fall(context.Rig.Motor.Velocity);
             return;
         }
@@ -131,7 +132,7 @@ public sealed class RollState : ICharacterState {
     }
 
     private void StandUp() {
-        if (context.Rig.Stride.TrySettleStance((context.Rig.Body.position.x, direction))) {
+        if (context.Rig.Stride.TrySettleStance((context.Rig.Body.position.x, direction, groundY))) {
             context.States.Walk.Begin();
             return;
         }
