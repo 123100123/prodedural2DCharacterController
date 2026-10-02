@@ -526,7 +526,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 251587947}
   serializedVersion: 2
-  m_LocalRotation: {x: -0.008334203, y: -0.00393107, z: 0.90100026, w: 0.43372062}
+  m_LocalRotation: {x: -0, y: -0, z: 0.9010144, w: 0.4337893}
   m_LocalPosition: {x: 1.2184755, y: -0.019262383, z: 0.022460938}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -557,7 +557,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 264105703}
   serializedVersion: 2
-  m_LocalRotation: {x: -0.020622425, y: -0.012486033, z: 0.85945946, w: 0.51063526}
+  m_LocalRotation: {x: -0, y: -0, z: 0.8595624, w: 0.5110308}
   m_LocalPosition: {x: 1.2, y: 0.02, z: 0.057915222}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -1042,9 +1042,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 49fefb00012b2614c88ae02182c38bfd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  body: {fileID: 2036602644}
   footTarget: {fileID: 590980464}
-  desiredFoothold: {fileID: 1611934363}
   speed: 8
 --- !u!1 &770779858
 GameObject:
@@ -1739,9 +1737,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 49fefb00012b2614c88ae02182c38bfd, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  body: {fileID: 2036602644}
   footTarget: {fileID: 1118553915}
-  desiredFoothold: {fileID: 1545547789}
   speed: 8
 --- !u!1 &1351324845
 GameObject:
@@ -3250,7 +3246,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2036602649}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: -0.9350392, w: 0.35454446}
+  m_LocalRotation: {x: 0, y: 0, z: -0.9352826, w: 0.35390183}
   m_LocalPosition: {x: -0.27645773, y: -0.048737913, z: 0}
   m_LocalScale: {x: 1.0000001, y: 1.0000001, z: 1}
   m_ConstrainProportionsScale: 0
@@ -3266,7 +3262,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2036602651}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.012655258, y: 0.02051901, z: -0.53186, w: 0.8464891}
+  m_LocalRotation: {x: 0, y: 0, z: -0.5311892, w: 0.84725326}
   m_LocalPosition: {x: 1.1375405, y: -0.000000039343504, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -3282,7 +3278,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2036602653}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: -0.97910255, w: 0.20336722}
+  m_LocalRotation: {x: 0, y: 0, z: -0.979125, w: 0.20325905}
   m_LocalPosition: {x: -0.2687417, y: 0.06101937, z: 0}
   m_LocalScale: {x: 1.0000001, y: 1.0000001, z: 1}
   m_ConstrainProportionsScale: 0
@@ -3298,7 +3294,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2036602655}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.00440735, y: 0.008092436, z: -0.4713159, w: 0.8819164}
+  m_LocalRotation: {x: 0, y: 0, z: -0.47118932, w: 0.88203216}
   m_LocalPosition: {x: 1.1187927, y: 0.000000094599756, z: 0}
   m_LocalScale: {x: 1.0000001, y: 1.0000001, z: 1}
   m_ConstrainProportionsScale: 0
@@ -3352,6 +3348,7 @@ GameObject:
   m_Component:
   - component: {fileID: 2036566821}
   - component: {fileID: 2036699564}
+  - component: {fileID: 2036699565}
   m_Layer: 0
   m_Name: inverseRobo
   m_TagString: Untagged
@@ -3497,17 +3494,24 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a8ec55e3e88aa63419aff1053515998d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  frontFootTarget: {fileID: 1118553915}
-  backFootTarget: {fileID: 590980464}
+  frontLeg: {fileID: 1346135902}
+  backLeg: {fileID: 738148327}
   strideTarget: {fileID: 219368120}
-  frontLegSolver: {fileID: 1346135902}
-  backLegSolver: {fileID: 738148327}
-  frontDesiredFoothold: {fileID: 1545547789}
-  backDesiredFoothold: {fileID: 1611934363}
   bodyHeight: 2.4
   strideSpeed: 12
   easeDivisor: 14
   reachRange: 1.2
+  footholdLimits:
+    maxStepUp: 1
+    maxStepDown: 1.3
+    maxReachStretch: 1.2
+    searchRadius: 0.8
+    searchStep: 0.05
+    heightWeight: 0.5
+    minStepLength: 0.15
+    groundMask:
+      serializedVersion: 2
+      m_Bits: 4294967291
 --- !u!1 &2036602645
 GameObject:
   m_ObjectHideFlags: 0
@@ -3539,7 +3543,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   desiredTarget: {fileID: 219368120}
-  snapToFoundLedge: 0
 --- !u!1 &2036602647
 GameObject:
   m_ObjectHideFlags: 0
@@ -3742,6 +3745,20 @@ MonoBehaviour:
     showGizmo: 1
   - color: {r: 0, g: 1, b: 0, a: 1}
     showGizmo: 1
+--- !u!114 &2036699565
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2036602629}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 74c33a78a6723bf4b8cbf40d19072637, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CharacterDriver
+  stride: {fileID: 2036602644}
+  authoredFacingSign: -1
 --- !u!114 &2036699567
 MonoBehaviour:
   m_ObjectHideFlags: 0

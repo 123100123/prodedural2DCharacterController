@@ -1,16 +1,12 @@
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.InputSystem;
-using UnityEngine.Serialization;
 
 // Walking gait: moves the stride target, plans the next foothold, steps one leg at a time and keeps the body over the feet.
 public class StrideController : MonoBehaviour {
     private const float StrideClampFactor = 1.8f;
     private const float BodyAnchorCount = 3f;
 
-    [FormerlySerializedAs("frontLegSolver")]
     [SerializeField] private LegStepper frontLeg;
-    [FormerlySerializedAs("backLegSolver")]
     [SerializeField] private LegStepper backLeg;
     [SerializeField] private Transform strideTarget;
 
@@ -21,18 +17,6 @@ public class StrideController : MonoBehaviour {
     [SerializeField] private FootholdLimits footholdLimits = FootholdLimits.Default;
 
     private readonly List<Vector2> footholdCandidates = new List<Vector2>();
-
-    private void Update() {
-        TickWalk(Time.deltaTime, ReadStrideDirection());
-    }
-
-    private static float ReadStrideDirection() {
-        Keyboard keyboard = Keyboard.current;
-        if (keyboard == null) {
-            return 0f;
-        }
-        return (keyboard.dKey.isPressed ? 1f : 0f) - (keyboard.aKey.isPressed ? 1f : 0f);
-    }
 
     public void TickWalk(float deltaTime, float strideDirection) {
         MoveStrideTarget(strideDirection * strideSpeed * deltaTime);
