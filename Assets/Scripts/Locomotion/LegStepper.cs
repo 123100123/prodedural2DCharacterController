@@ -27,6 +27,9 @@ public class LegStepper : MonoBehaviour {
     public float StepProgress => swing.Progress;
     // The other foot may lift while this one is planted or far enough through its swing.
     public bool LetsOtherLegLift => swing.LetsOtherLegLift;
+    public SwingTiming SwingTiming => swing.Timing;
+    // A gait step in the air, timed by the gait clock (not settling, not swinging freely).
+    public bool IsSwingingOnClock => !swing.IsGrounded && swing.Timing.IsOnClock && swing.Progress < 1f;
 
     // OnEnable rather than Awake so the chain is found again after a script recompile during play mode.
     private void OnEnable() {
@@ -39,6 +42,17 @@ public class LegStepper : MonoBehaviour {
     public void BeginStep((Vector2 foothold, SwingTiming timing) plannedStep, (float liftHeight, float runShare) arc) {
         StartStepFromCurrentPose(plannedStep);
         stepArc = arc;
+    }
+
+    // Lands the step in the air on a new foothold, e.g. when the character stops mid-stride. The path is re-anchored so the
+    // foot carries on from where it is now rather than jumping to the new path.
+    public void RetargetStep((Vector2 foothold, SwingTiming timing) replanned, StepArcShape shape) {
+        float travel = shape.Evaluate((swing.Progress, stepArc.runShare)).travel;
+        Vector2 onPath = Vector2.LerpUnclamped(step.start, step.end, travel);
+        Vector2 start = travel < 0.99f ? (onPath - travel * replanned.foothold) / (1f - travel) : step.start;
+        step = (start, replanned.foothold);
+        footTarget.position = replanned.foothold;
+        swing.Retime(replanned.timing);
     }
 
     // Lands the foot on a foothold without a lift arc, e.g. after a jump.

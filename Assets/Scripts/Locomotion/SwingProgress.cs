@@ -17,6 +17,9 @@ public sealed class SwingProgress {
         IsGrounded = false;
     }
 
+    // Keeps the progress made so far and times the rest of the swing anew.
+    public void Retime(SwingTiming timing) => Timing = timing;
+
     // The leg carries no weight and swings freely (airborne, rolling, climbing).
     public void Release() {
         progress = 1f;

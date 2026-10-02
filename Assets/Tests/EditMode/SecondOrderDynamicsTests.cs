@@ -16,6 +16,19 @@ public class SecondOrderDynamicsTests {
     }
 
     [Test]
+    public void TrailsASteadilyMovingTargetByItsTrackingLag([Values(0f, 1f)] float response) {
+        SpringSettings settings = new SpringSettings(3f, 0.7f, response);
+        SecondOrderDynamics spring = new SecondOrderDynamics(0f);
+        const float speed = 5f;
+        float target = 0f;
+        for (float time = 0f; time < 4f; time += Frame) {
+            target += speed * Frame;
+            spring.Update((target, Frame), settings);
+        }
+        Assert.That(target - spring.Value, Is.EqualTo(settings.TrackingLag(speed)).Within(0.01f));
+    }
+
+    [Test]
     public void SettlesOnTheTarget() {
         (float _, float final, float _) = RunStep(new SpringSettings(2f, 0.6f, 0f), (4f, Frame));
         Assert.That(final, Is.EqualTo(1f).Within(0.01f));

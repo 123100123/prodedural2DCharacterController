@@ -16,6 +16,12 @@ public struct SpringSettings {
         this.damping = damping;
         this.response = response;
     }
+
+    // How far the value trails a target moving steadily at the given speed: the damping drags it behind, the response
+    // term leads it back.
+    public float TrackingLag(float targetSpeed) {
+        return targetSpeed * damping * (2f - response) / (2f * Mathf.PI * Mathf.Max(0.01f, frequency));
+    }
 }
 
 // A value that follows a moving target like a mass on a spring, giving procedural motion inertia, overshoot and settle.

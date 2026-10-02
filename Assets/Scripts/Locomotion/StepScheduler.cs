@@ -12,6 +12,7 @@ public sealed class StepScheduler {
     private readonly GaitCycle cycle = new GaitCycle();
     private readonly MotionLatch motion = new MotionLatch();
     private (bool front, bool back) cues;
+    private (bool front, bool back) outOfTurn;
     private (bool front, float secondsAgo) lastLift = (false, float.PositiveInfinity);
 
     public float Phase => cycle.Phase;
@@ -36,6 +37,7 @@ public sealed class StepScheduler {
         if (!IsMoving) {
             StridesThisTick = 0f;
             cues = (false, false);
+            outOfTurn = (false, false);
             return;
         }
 
@@ -61,17 +63,28 @@ public sealed class StepScheduler {
         }
     }
 
-    public void RecordLift(bool frontLeg) => lastLift = (frontLeg, 0f);
+    // Returns true when the lift answered an out-of-turn cue and re-phased the clock to it.
+    public bool RecordLift(bool frontLeg) {
+        lastLift = (frontLeg, 0f);
+        bool wasOutOfTurn = frontLeg ? outOfTurn.front : outOfTurn.back;
+        if (wasOutOfTurn) {
+            cycle.SyncToLift(frontLeg);
+            outOfTurn = frontLeg ? (false, outOfTurn.back) : (outOfTurn.front, false);
+        }
+        return wasOutOfTurn;
+    }
 
-    // Cues a leg out of turn (a balance step) and puts the clock at its lift, so the other leg follows half a cycle later.
+    // Cues a leg out of turn (an emergency balance step). When it lifts, the clock is put at its lift, so the other leg
+    // follows half a cycle later.
     public void CueOutOfTurn(bool frontLeg) {
         if (frontLeg) {
             cues.front = true;
+            outOfTurn.front = true;
         }
         else {
             cues.back = true;
+            outOfTurn.back = true;
         }
-        cycle.SyncToLift(frontLeg);
     }
 
     private bool FirstLegToStep(bool frontLegTrails) => lastLift.secondsAgo < RhythmMemory ? !lastLift.front : frontLegTrails;

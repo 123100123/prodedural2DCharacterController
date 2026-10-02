@@ -17,6 +17,9 @@ public sealed class GaitRecorder {
         public readonly float HeadAngle;
         public readonly float ChestAngle;
         public readonly float PlantedFootGap;
+        public readonly int BalanceSteps;
+        public readonly int PhaseResyncs;
+        public readonly int FootholdFailures;
 
         public Sample(GaitRecorder recorder, float time) {
             StrideController stride = recorder.stride;
@@ -33,6 +36,9 @@ public sealed class GaitRecorder {
             HeadAngle = recorder.BoneAngle(recorder.head);
             ChestAngle = recorder.BoneAngle(recorder.chest);
             PlantedFootGap = Mathf.Max(recorder.PlantedGap((stride.FrontLeg, recorder.frontEffector)), recorder.PlantedGap((stride.BackLeg, recorder.backEffector)));
+            BalanceSteps = stride.Diagnostics.BalanceSteps;
+            PhaseResyncs = stride.Diagnostics.PhaseResyncs;
+            FootholdFailures = stride.Diagnostics.FootholdFailures;
         }
     }
 

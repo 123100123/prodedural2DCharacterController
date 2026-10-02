@@ -13,6 +13,8 @@ public class LocomotionScenarioTests {
     // Contact intervals may differ this much (share of their mean) at steady speed and through a speed change.
     private const float SteadyAsymmetry = 0.15f;
     private const float TransitionAsymmetry = 0.3f;
+    // Toggling the run every step or so changes the speed between consecutive steps, so their durations genuinely differ.
+    private const float RapidToggleAsymmetry = 0.35f;
 
     private ScenarioStage stage;
     private GaitRecorder recorder;
@@ -80,7 +82,7 @@ public class LocomotionScenarioTests {
         }
         stage.Release(Key.LeftShift);
         yield return Hold(1.5f);
-        AssertEvenGait((Measure("run toggles", togglesStart, recorder.Now), TransitionAsymmetry));
+        AssertEvenGait((Measure("run toggles", togglesStart, recorder.Now), RapidToggleAsymmetry));
     }
 
     [UnityTest]

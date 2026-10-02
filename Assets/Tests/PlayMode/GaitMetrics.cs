@@ -8,6 +8,8 @@ public sealed class GaitMetrics {
     private const float PhaseJumpTolerance = 0.06f;
     // Below this speed the gait may be starting: priming the phase for the first step is not a jump.
     private const float MovingSpeed = 0.6f;
+    // Lifts further apart than this are separated by a standing pause; either foot may start again after one.
+    private const float RhythmGap = 0.8f;
 
     private readonly List<GaitRecorder.Sample> samples;
     private readonly List<GaitRecorder.FootEvent> events;
@@ -22,13 +24,15 @@ public sealed class GaitMetrics {
 
     public int LiftCount => Lifts.Count;
 
-    // Consecutive lifts by the same leg: a limp or a repeated step.
+    // Consecutive lifts by the same leg within one rhythm: a limp or a repeated step.
     public int RepeatedLegLifts {
         get {
             List<GaitRecorder.FootEvent> lifts = Lifts;
             int repeats = 0;
             for (int index = 1; index < lifts.Count; index++) {
-                repeats += lifts[index].Front == lifts[index - 1].Front ? 1 : 0;
+                bool sameLeg = lifts[index].Front == lifts[index - 1].Front;
+                bool sameRhythm = lifts[index].Time - lifts[index - 1].Time < RhythmGap;
+                repeats += sameLeg && sameRhythm ? 1 : 0;
             }
             return repeats;
         }
@@ -78,12 +82,24 @@ public sealed class GaitMetrics {
     public float FlightShare => samples.Count == 0 ? 0f : samples.Count(sample => !sample.FrontGrounded && !sample.BackGrounded) / (float)samples.Count;
     public float WorstPlantedFootGap => samples.Count == 0 ? 0f : samples.Max(sample => sample.PlantedFootGap);
     public float MeanSpeed => samples.Count == 0 ? 0f : samples.Average(sample => Mathf.Abs(sample.GroundSpeed));
+    public int BalanceSteps => CountOver(sample => sample.BalanceSteps);
+    public int PhaseResyncs => CountOver(sample => sample.PhaseResyncs);
+    public int FootholdFailures => CountOver(sample => sample.FootholdFailures);
 
     public string Describe(string label) {
         return $"{label,-28} t=[{Window.start:F2},{Window.end:F2}] speed={MeanSpeed:F2} lifts={LiftCount} repeats={RepeatedLegLifts} " +
                $"contactAsym={WorstContactAsymmetry:F2} contactInterval={MeanContactInterval:F3} phaseJumps={PhaseJumps} " +
                $"lean={MeanLean:F1} bodyAboveStance={MeanBodyAboveStance:F2} flight={FlightShare:F2} " +
-               $"headDev={HeadAngleDeviation:F2} chestDev={ChestAngleDeviation:F2} footGap={WorstPlantedFootGap:F3}";
+               $"headDev={HeadAngleDeviation:F2} chestDev={ChestAngleDeviation:F2} footGap={WorstPlantedFootGap:F3} " +
+               $"balanceSteps={BalanceSteps} resyncs={PhaseResyncs} footholdFailures={FootholdFailures}" +
+               (RepeatedLegLifts > 0 ? $" lifts: {LiftSequence}" : "");
+    }
+
+    private string LiftSequence => string.Join(" ", Lifts.Select(lift => $"{(lift.Front ? "F" : "B")}{lift.Time:F2}"));
+
+    // How much a running counter grew over the window.
+    private int CountOver(System.Func<GaitRecorder.Sample, int> counter) {
+        return samples.Count == 0 ? 0 : counter(samples[samples.Count - 1]) - counter(samples[0]);
     }
 
     private List<GaitRecorder.FootEvent> Lifts => events.Where(footEvent => footEvent.IsLift).ToList();
