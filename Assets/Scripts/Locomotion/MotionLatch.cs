@@ -7,6 +7,9 @@ public sealed class MotionLatch {
 
     public bool IsMoving { get; private set; }
 
+    // Back to standing, e.g. when the feet have just been placed in a stance after a landing.
+    public void Reset() => IsMoving = false;
+
     public Change Track(float speed, GaitTransitionSettings thresholds) {
         float magnitude = Mathf.Abs(speed);
         if (!IsMoving && magnitude >= thresholds.startSpeed) {

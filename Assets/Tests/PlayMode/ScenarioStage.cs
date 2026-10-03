@@ -56,6 +56,12 @@ public sealed class ScenarioStage {
         }
     }
 
+    // A raised block starting at startX, its top the given height above the track: a ledge to climb.
+    public float AddLedge((float startX, float height, float width) ledge) {
+        CreateBlock(new Vector2(ledge.startX + ledge.width / 2f, GroundTop + ledge.height / 2f), new Vector2(ledge.width, ledge.height));
+        return GroundTop + ledge.height;
+    }
+
     public void Press(params Key[] keys) {
         heldKeys.UnionWith(keys);
         QueueKeyboard();

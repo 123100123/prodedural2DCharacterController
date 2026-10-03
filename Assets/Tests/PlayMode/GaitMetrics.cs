@@ -76,6 +76,10 @@ public sealed class GaitMetrics {
     }
 
     public float MeanLean => samples.Count == 0 ? 0f : samples.Average(sample => sample.BodyLineLean);
+    public float MeanHeadAngle => samples.Count == 0 ? 0f : samples.Average(sample => sample.HeadAngle);
+    // Frames the grounded gait was not driving (in the air, landing, climbing).
+    public int UngroundedFrames => samples.Count(sample => !sample.IsDrivingGait);
+    public bool EndsGrounded => samples.Count > 0 && samples[samples.Count - 1].IsDrivingGait;
     public float MeanBodyAboveStance => samples.Count == 0 ? 0f : samples.Average(sample => sample.BodyAboveStance);
     public float HeadAngleDeviation => StandardDeviation(samples.Select(sample => sample.HeadAngle));
     public float ChestAngleDeviation => StandardDeviation(samples.Select(sample => sample.ChestAngle));

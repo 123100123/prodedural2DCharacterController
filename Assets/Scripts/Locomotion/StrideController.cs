@@ -127,6 +127,9 @@ public class StrideController : MonoBehaviour {
         anchorX = transform.position.x;
     }
 
+    // The feet were just placed in a stance (spawning, landing, after a roll or a climb): the gait starts afresh from it.
+    public void RestartGaitFromStance() => scheduler.RestartFromStance();
+
     // feetSpan bounds where feet may go (up to wall faces); bodySpan bounds the body pivot so its hull stays out of walls.
     public void TickWalk(float deltaTime, (float direction, bool running, (float min, float max) feetSpan, (float min, float max) bodySpan) intent) {
         lastGaitFrame = Time.frameCount;

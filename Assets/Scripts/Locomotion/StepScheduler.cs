@@ -47,6 +47,15 @@ public sealed class StepScheduler {
         cues = (cues.front || crossed.frontLeg, cues.back || crossed.backLeg);
     }
 
+    // The feet were just placed in a stance by something else (a landing, a roll): the gait starts afresh from it, with
+    // the trailing foot stepping first, instead of carrying on a rhythm the feet no longer match.
+    public void RestartFromStance() {
+        motion.Reset();
+        cues = (false, false);
+        outOfTurn = (false, false);
+        StridesThisTick = 0f;
+    }
+
     public bool IsCued(bool frontLeg) => frontLeg ? cues.front : cues.back;
 
     // The cue has come, the leg is planted, and the other foot is down or far enough through its swing.

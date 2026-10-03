@@ -12,9 +12,11 @@ public sealed class WalkState : ICharacterState {
 
     public void Begin() => context.Machine.ChangeTo(this);
 
-    // Grounded states hand momentum over through the motor velocity: read on entry, written on exit.
+    // Grounded states hand momentum over through the motor velocity: read on entry, written on exit. Walking always
+    // begins on feet just placed in a stance (spawning, landing, after a roll or a climb), so the gait starts from it.
     public void Enter() {
         context.Rig.Stride.BeginGroundedMotion(context.Rig.Motor.Velocity);
+        context.Rig.Stride.RestartGaitFromStance();
         context.Rig.Motor.Velocity = Vector2.zero;
     }
 
