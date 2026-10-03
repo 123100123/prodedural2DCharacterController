@@ -18,6 +18,24 @@ public class LocomotionPreset {
     public HeadMotionSettings head;
     public ArmSwingSettings arms;
 
+    // The settings as the code defines them, whatever the scene has serialized.
+    public static LocomotionPreset CodeDefaults() {
+        return new LocomotionPreset {
+            walk = GaitProfile.Walk,
+            run = GaitProfile.Run,
+            transitions = GaitTransitionSettings.Default,
+            balance = BalanceSettings.Default,
+            idle = IdleStanceSettings.Default,
+            bodyHeight = StrideController.DefaultBodyHeight,
+            body = BodyMassSettings.Default,
+            posture = PostureSettings.Default,
+            chestSpring = TorsoMotion.DefaultSpring,
+            breathing = BreathingSettings.Default,
+            head = HeadMotionSettings.Default,
+            arms = ArmSwingSettings.Default,
+        };
+    }
+
     // Every field is a value, so a member-wise copy is a full, independent copy.
     public LocomotionPreset Copy() => (LocomotionPreset)MemberwiseClone();
 

@@ -13,6 +13,6 @@ public struct HeadMotionSettings {
     public float stabilizationFade;
 
     public static HeadMotionSettings Default => new HeadMotionSettings {
-        poseSpring = new SpringSettings(4f, 0.9f, 0f), stabilization = 0.8f, stabilizationFade = 0.2f,
+        poseSpring = new SpringSettings(4f, 0.9f, 0f), stabilization = 0.6f, stabilizationFade = 0.2f,
     };
 }

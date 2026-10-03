@@ -2,20 +2,7 @@ using NUnit.Framework;
 
 public class LocomotionPresetTests {
     private static LocomotionPreset Sample() {
-        LocomotionPreset preset = new LocomotionPreset {
-            walk = GaitProfile.Walk,
-            run = GaitProfile.Run,
-            transitions = GaitTransitionSettings.Default,
-            balance = BalanceSettings.Default,
-            idle = IdleStanceSettings.Default,
-            bodyHeight = 2.58f,
-            body = BodyMassSettings.Default,
-            posture = PostureSettings.Default,
-            chestSpring = new SpringSettings(3f, 0.8f, 0f),
-            breathing = BreathingSettings.Default,
-            head = HeadMotionSettings.Default,
-            arms = ArmSwingSettings.Default,
-        };
+        LocomotionPreset preset = LocomotionPreset.CodeDefaults();
         preset.run.lean = 17.5f;
         preset.body.verticalSpring.frequency = 7.25f;
         preset.head.stabilization = 0.35f;

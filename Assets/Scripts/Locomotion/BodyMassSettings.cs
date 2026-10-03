@@ -6,10 +6,11 @@ using UnityEngine;
 public struct BodyMassSettings {
     [Tooltip("Carries the body along its anchor: lags a little at speed and surges with the steps.")]
     public SpringSettings horizontalSpring;
-    [Tooltip("Carries the body's height: well above the step rate (about 3 per second running), so it follows the gait's " +
-             "bob closely instead of being driven near its own frequency into an uncontrolled bounce.")]
+    [Tooltip("Carries the body's height: firm and well damped, above the step rate (about 3.5 per second running), so the " +
+             "gait's bob makes the motion instead of the spring resonating. The bob is aimed ahead by this spring's lag.")]
     public SpringSettings verticalSpring;
-    [Tooltip("Share of the leg length a supporting leg may extend to; the pelvis never rises higher than its planted legs reach.")]
+    [Tooltip("Share of the leg length a supporting leg may extend to; the pelvis never rises higher than its planted legs " +
+             "reach. Below 1, so the knees always keep some bend in reserve.")]
     [Range(0.8f, 1f)] public float legExtension;
     [Tooltip("Most the leg-reach limit may lower the pelvis below its gait height; a foot further away is about to step anyway.")]
     public float maxReachDrop;
@@ -22,8 +23,8 @@ public struct BodyMassSettings {
     public float maxSupportOffset;
 
     public static BodyMassSettings Default => new BodyMassSettings {
-        horizontalSpring = new SpringSettings(3f, 0.7f, 1f),
-        verticalSpring = new SpringSettings(6f, 0.7f, 1f),
-        legExtension = 0.99f, maxReachDrop = 0.35f, maxPlantImpulse = 1.2f, supportCoupling = 0.6f, maxSupportOffset = 0.3f,
+        horizontalSpring = new SpringSettings(4f, 0.9f, 0.3f),
+        verticalSpring = new SpringSettings(6f, 0.9f, 0.2f),
+        legExtension = 0.95f, maxReachDrop = 0.23f, maxPlantImpulse = 0.7f, supportCoupling = 0.6f, maxSupportOffset = 0.3f,
     };
 }

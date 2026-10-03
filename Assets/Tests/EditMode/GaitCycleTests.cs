@@ -84,7 +84,7 @@ public class GaitCycleTests {
         float walkCadence = Walk.speed / GaitTiming.StepLength(Walk.speed, Walk);
         float runCadence = GaitProfile.Run.speed / GaitTiming.StepLength(GaitProfile.Run.speed, GaitProfile.Run);
         Assert.That(walkCadence, Is.InRange(1.7f, 2.3f), "about two steps per second walking");
-        Assert.That(runCadence, Is.InRange(2.5f, 3.2f), "about three steps per second running");
+        Assert.That(runCadence, Is.InRange(2.5f, 3.8f), "three to four quick steps per second running, the feet kept under the body");
         Assert.That(GaitTiming.SwingDuration(Walk.speed, Walk), Is.InRange(0.3f, 0.45f));
     }
 

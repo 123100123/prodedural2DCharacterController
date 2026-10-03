@@ -49,24 +49,24 @@ public struct GaitProfile {
     [Range(0f, 1f)] public float armBend;
 
     public static GaitProfile Walk => new GaitProfile {
-        speed = 3.5f, acceleration = 10f, deceleration = 14f,
-        dutyFactor = 0.62f, stepLengthPerRootSpeed = 0.9f, minStepLength = 0.45f, maxStepLength = 2.2f,
-        minSwingDuration = 0.25f, maxSwingDuration = 0.55f, liftHeight = 0.4f,
-        pelvisDrop = 0.17f, bobAmplitude = 0.1f, lowAfterContact = 0.06f, surge = 0.05f, plantImpulse = 0.1f, pushOffImpulse = 0f,
-        lean = 5f, pitchOscillation = 1f, armSwing = 25f, armBend = 0.15f,
+        speed = 3.5f, acceleration = 9f, deceleration = 13f,
+        dutyFactor = 0.62f, stepLengthPerRootSpeed = 0.84f, minStepLength = 0.45f, maxStepLength = 2.2f,
+        minSwingDuration = 0.25f, maxSwingDuration = 0.55f, liftHeight = 0.32f,
+        pelvisDrop = 0.14f, bobAmplitude = 0.09f, lowAfterContact = 0.06f, surge = 0.05f, plantImpulse = 0.08f, pushOffImpulse = 0f,
+        lean = 3.5f, pitchOscillation = 0.6f, armSwing = 25f, armBend = 0.15f,
     };
 
-    // Quick steps, about three a second, each foot down for a third of the cycle, so both feet leave the ground between
-    // steps. The bounce is a bob locked to the cycle, lowest at mid-stance as the leg compresses and highest in flight;
-    // the body's vertical spring is stiff enough to follow it closely. Plants and push-offs only add a little firmness,
-    // so the run is elastic without uncontrolled hops. A modest pelvis drop keeps the body tall and propelled forward
-    // rather than crouched.
+    // A readable jog rather than a sprint: short, quick steps keep the feet under the body (no long scissor split), and
+    // each foot stays down for a little under half the cycle, so the legs have time to form clear support poses while
+    // both feet still leave the ground between steps. The bounce is a bob locked to the cycle, lowest at mid-stance as
+    // the leg compresses and highest in flight; plants and push-offs only accent it. The forward line comes mostly from
+    // the pelvis travelling over its support foot, so the lean itself stays modest.
     public static GaitProfile Run => new GaitProfile {
-        speed = 8.5f, acceleration = 18f, deceleration = 30f,
-        dutyFactor = 0.36f, stepLengthPerRootSpeed = 0.92f, minStepLength = 0.8f, maxStepLength = 3.6f,
-        minSwingDuration = 0.25f, maxSwingDuration = 0.55f, liftHeight = 0.45f,
-        pelvisDrop = 0.18f, bobAmplitude = 0.08f, lowAfterContact = 0.18f, surge = 0.02f, plantImpulse = 0.15f, pushOffImpulse = 0.6f,
-        lean = 14f, pitchOscillation = 1.5f, armSwing = 45f, armBend = 0.6f,
+        speed = 8.25f, acceleration = 12f, deceleration = 18f,
+        dutyFactor = 0.43f, stepLengthPerRootSpeed = 0.8f, minStepLength = 0.55f, maxStepLength = 2.7f,
+        minSwingDuration = 0.18f, maxSwingDuration = 0.42f, liftHeight = 0.28f,
+        pelvisDrop = 0.21f, bobAmplitude = 0.15f, lowAfterContact = 0.215f, surge = 0.09f, plantImpulse = 0.08f, pushOffImpulse = 0.25f,
+        lean = 8f, pitchOscillation = 0.8f, armSwing = 38f, armBend = 0.48f,
     };
 
     public static GaitProfile Blend((GaitProfile walk, GaitProfile run) profiles, float runShare) {

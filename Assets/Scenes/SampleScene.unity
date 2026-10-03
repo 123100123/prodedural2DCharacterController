@@ -526,7 +526,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 251587947}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: 0.9010144, w: 0.4337893}
+  m_LocalRotation: {x: -0, y: -0, z: 0.9010144, w: 0.43378934}
   m_LocalPosition: {x: 1.2184755, y: -0.019262383, z: 0.022460938}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -1012,7 +1012,7 @@ MonoBehaviour:
   frontLeg: {fileID: 1346135902}
   backLeg: {fileID: 738148327}
   strideTarget: {fileID: 219368120}
-  bodyHeight: 2.58
+  bodyHeight: 2.4
   footholdLimits:
     maxStepUp: 1
     maxStepDown: 1.3
@@ -1034,46 +1034,46 @@ MonoBehaviour:
     settleLiftHeight: 0.25
   walk:
     speed: 3.5
-    acceleration: 10
-    deceleration: 14
+    acceleration: 9
+    deceleration: 13
     dutyFactor: 0.62
-    stepLengthPerRootSpeed: 0.9
+    stepLengthPerRootSpeed: 0.84
     minStepLength: 0.45
     maxStepLength: 2.2
     minSwingDuration: 0.25
     maxSwingDuration: 0.55
-    liftHeight: 0.4
-    pelvisDrop: 0.17
-    bobAmplitude: 0.1
+    liftHeight: 0.32
+    pelvisDrop: 0.14
+    bobAmplitude: 0.09
     lowAfterContact: 0.06
     surge: 0.05
-    plantImpulse: 0.1
+    plantImpulse: 0.08
     pushOffImpulse: 0
-    lean: 5
-    pitchOscillation: 1
+    lean: 3.5
+    pitchOscillation: 0.6
     armSwing: 25
     armBend: 0.15
   run:
-    speed: 8.5
-    acceleration: 18
-    deceleration: 30
-    dutyFactor: 0.36
-    stepLengthPerRootSpeed: 0.92
-    minStepLength: 0.8
-    maxStepLength: 3.6
-    minSwingDuration: 0.25
-    maxSwingDuration: 0.55
-    liftHeight: 0.45
-    pelvisDrop: 0.18
-    bobAmplitude: 0.08
-    lowAfterContact: 0.18
-    surge: 0.02
-    plantImpulse: 0.15
-    pushOffImpulse: 0.6
-    lean: 14
-    pitchOscillation: 1.5
-    armSwing: 45
-    armBend: 0.6
+    speed: 8.25
+    acceleration: 12
+    deceleration: 18
+    dutyFactor: 0.43
+    stepLengthPerRootSpeed: 0.8
+    minStepLength: 0.55
+    maxStepLength: 2.7
+    minSwingDuration: 0.18
+    maxSwingDuration: 0.42
+    liftHeight: 0.28
+    pelvisDrop: 0.21
+    bobAmplitude: 0.15
+    lowAfterContact: 0.215
+    surge: 0.09
+    plantImpulse: 0.08
+    pushOffImpulse: 0.25
+    lean: 8
+    pitchOscillation: 0.8
+    armSwing: 38
+    armBend: 0.48
   transitions:
     startSpeed: 0.35
     stopSpeed: 0.15
@@ -1157,16 +1157,16 @@ MonoBehaviour:
           time: 0
           value: 0
           inSlope: 0
-          outSlope: 0.8
+          outSlope: 1
           tangentMode: 0
           weightedMode: 0
           inWeight: 0
           outWeight: 0
         - serializedVersion: 3
           time: 0.5
-          value: 0.58
-          inSlope: 1.4
-          outSlope: 1.4
+          value: 0.6
+          inSlope: 1.3
+          outSlope: 1.3
           tangentMode: 0
           weightedMode: 0
           inWeight: 0
@@ -1174,7 +1174,7 @@ MonoBehaviour:
         - serializedVersion: 3
           time: 1
           value: 1
-          inSlope: 0.5
+          inSlope: 0.6
           outSlope: 0
           tangentMode: 0
           weightedMode: 0
@@ -1190,13 +1190,13 @@ MonoBehaviour:
           time: 0
           value: 0
           inSlope: 0
-          outSlope: 1.2
+          outSlope: 1.6
           tangentMode: 0
           weightedMode: 0
           inWeight: 0
           outWeight: 0
         - serializedVersion: 3
-          time: 0.55
+          time: 0.45
           value: 1
           inSlope: 0
           outSlope: 0
@@ -1218,16 +1218,18 @@ MonoBehaviour:
         m_RotationOrder: 4
   body:
     horizontalSpring:
-      frequency: 3
-      damping: 0.7
-      response: 1
+      frequency: 4
+      damping: 0.9
+      response: 0.3
     verticalSpring:
       frequency: 6
-      damping: 0.7
-      response: 1
-    legExtension: 0.99
-    maxReachDrop: 0.35
-    maxPlantImpulse: 1.2
+      damping: 0.9
+      response: 0.2
+    legExtension: 0.95
+    maxReachDrop: 0.23
+    maxPlantImpulse: 0.7
+    supportCoupling: 0.6
+    maxSupportOffset: 0.3
 --- !u!1 &738148323
 GameObject:
   m_ObjectHideFlags: 0
@@ -3588,7 +3590,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2036602653}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: -0.979125, w: 0.20325905}
+  m_LocalRotation: {x: 0, y: 0, z: -0.97912496, w: 0.20325914}
   m_LocalPosition: {x: -0.2687417, y: 0.06101937, z: 0}
   m_LocalScale: {x: 1.0000001, y: 1.0000001, z: 1}
   m_ConstrainProportionsScale: 0
@@ -3604,7 +3606,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2036602655}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: -0.47118932, w: 0.88203216}
+  m_LocalRotation: {x: 0, y: 0, z: -0.47118938, w: 0.8820321}
   m_LocalPosition: {x: 1.1187927, y: 0.000000094599756, z: 0}
   m_LocalScale: {x: 1.0000001, y: 1.0000001, z: 1}
   m_ConstrainProportionsScale: 0
@@ -4069,7 +4071,7 @@ MonoBehaviour:
         frequency: 4
         damping: 0.9
         response: 0
-      stabilization: 0.8
+      stabilization: 0.6
       stabilizationFade: 0.2
     maxLevelCorrection: 40
     crownDistance: 0.63
@@ -4078,9 +4080,9 @@ MonoBehaviour:
   posture:
     settings:
       idleLean: 0
-      leanPerAcceleration: 0.5
-      maxAccelerationLean: 8
-      maxTotalLean: 22
+      leanPerAcceleration: 0.18
+      maxAccelerationLean: 3
+      maxTotalLean: 11.5
       spring:
         frequency: 1.6
         damping: 1

@@ -111,6 +111,8 @@ public static class LocomotionTuningSchema {
             new TuningParameter(("Height and reach", "Leg extension", Share), (0.8f, 1f), (p => p.body.legExtension, (p, v) => p.body.legExtension = v)),
             new TuningParameter(("Height and reach", "Max reach drop", Units), (0f, 1f), (p => p.body.maxReachDrop, (p, v) => p.body.maxReachDrop = v)),
             new TuningParameter(("Height and reach", "Max plant impulse", UnitsPerSecond), (0f, 5f), (p => p.body.maxPlantImpulse, (p, v) => p.body.maxPlantImpulse = v)),
+            new TuningParameter(("Pelvis over support", "Support coupling", Share), (0f, 1f), (p => p.body.supportCoupling, (p, v) => p.body.supportCoupling = v)),
+            new TuningParameter(("Pelvis over support", "Max support offset", Units), (0f, 1f), (p => p.body.maxSupportOffset, (p, v) => p.body.maxSupportOffset = v)),
         };
         parameters.AddRange(Spring(("Horizontal spring", (p => p.body.horizontalSpring, (p, s) => p.body.horizontalSpring = s))));
         parameters.AddRange(Spring(("Vertical spring", (p => p.body.verticalSpring, (p, s) => p.body.verticalSpring = s))));

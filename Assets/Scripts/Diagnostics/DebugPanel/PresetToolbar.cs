@@ -20,6 +20,7 @@ public sealed class PresetToolbar {
 
         AddButton(("Reset section", ResetSection));
         AddButton(("Reset all", editor.ResetAll));
+        AddButton(("Code defaults", LoadCodeDefaults));
         presetName = new TextField { value = "my-preset" };
         presetName.AddToClassList("loco-toolbar__name");
         Root.Add(presetName);
@@ -45,6 +46,12 @@ public sealed class PresetToolbar {
         }
         editor.ResetSection(section);
         status.text = $"Reset {section.Title}.";
+    }
+
+    // Reset restores the values the session started with (the scene's); this loads what the code defines instead.
+    private void LoadCodeDefaults() {
+        editor.Load(LocomotionPreset.CodeDefaults());
+        status.text = "Loaded the code defaults (not saved to the scene).";
     }
 
     private void SavePreset() {

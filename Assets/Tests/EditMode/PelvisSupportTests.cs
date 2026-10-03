@@ -106,13 +106,16 @@ public class PelvisSupportTests {
         Assert.That(float.IsNaN(PelvisSupportMotion.CentredHipX(SupportStance.Unsupported)), Is.False);
     }
 
-    // The surge slows the body over the support leg: it falls behind most at mid-stance and has caught up by toe-off,
-    // so the pelvis target is continuous when the next foot takes over.
+    // The surge is the body's speed over its support, slowest at mid-stance: a little ahead early in the stance, right
+    // over the foot at mid-stance, a little behind late in it, and zero at contact and toe-off so the pelvis target is
+    // continuous when the next foot takes over.
     [Test]
-    public void TheSurgeFallsBehindAtMidStanceAndIsZeroAtBothEnds([Values(1f, -1f)] float direction) {
+    public void TheSurgeLeadsEarlyTrailsLateAndIsZeroAtContactMidStanceAndToeOff([Values(1f, -1f)] float direction) {
         const float amplitude = 0.1f;
         Assert.That(PelvisSupportMotion.Surge(Stance((0f, direction, 0f)), amplitude), Is.EqualTo(0f).Within(0.0001f));
-        Assert.That(PelvisSupportMotion.Surge(Stance((0f, direction, 0.5f)), amplitude), Is.EqualTo(-direction * amplitude).Within(0.0001f));
+        Assert.That(PelvisSupportMotion.Surge(Stance((0f, direction, 0.25f)), amplitude), Is.EqualTo(direction * amplitude).Within(0.0001f));
+        Assert.That(PelvisSupportMotion.Surge(Stance((0f, direction, 0.5f)), amplitude), Is.EqualTo(0f).Within(0.0001f));
+        Assert.That(PelvisSupportMotion.Surge(Stance((0f, direction, 0.75f)), amplitude), Is.EqualTo(-direction * amplitude).Within(0.0001f));
         Assert.That(PelvisSupportMotion.Surge(Stance((0f, direction, 0.9999f)), amplitude), Is.EqualTo(0f).Within(0.001f));
     }
 

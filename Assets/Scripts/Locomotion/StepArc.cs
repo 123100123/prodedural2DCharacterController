@@ -16,11 +16,12 @@ public class StepCurves {
         lift = new AnimationCurve(new Keyframe(0f, 0f, 0f, 4f), new Keyframe(0.38f, 1f, 0f, 0f), new Keyframe(1f, 0f, -1.2f, 0f)),
     };
 
-    // The foot follows the body forward from push-off and stays low until it is under the hip, so the shin never folds
-    // back flat behind the body; it rises with the knee drive and comes down hard into the plant.
+    // Early swing the foot leaves the floor and follows the body forward, low, so the shin never folds up flat behind
+    // the thigh; mid-swing the knee drives forward and the foot passes under the body at the top of its arc; late swing
+    // the lower leg reaches out to the landing point and comes down firmly into the plant.
     public static StepCurves Run => new StepCurves {
-        travel = new AnimationCurve(new Keyframe(0f, 0f, 0f, 0.8f), new Keyframe(0.5f, 0.58f, 1.4f, 1.4f), new Keyframe(1f, 1f, 0.5f, 0f)),
-        lift = new AnimationCurve(new Keyframe(0f, 0f, 0f, 1.2f), new Keyframe(0.55f, 1f, 0f, 0f), new Keyframe(1f, 0f, -3.5f, 0f)),
+        travel = new AnimationCurve(new Keyframe(0f, 0f, 0f, 1f), new Keyframe(0.5f, 0.6f, 1.3f, 1.3f), new Keyframe(1f, 1f, 0.6f, 0f)),
+        lift = new AnimationCurve(new Keyframe(0f, 0f, 0f, 1.6f), new Keyframe(0.45f, 1f, 0f, 0f), new Keyframe(1f, 0f, -3.5f, 0f)),
     };
 }
 

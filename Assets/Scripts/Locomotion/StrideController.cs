@@ -22,8 +22,13 @@ public class StrideController : MonoBehaviour {
     [Tooltip("Debug marker showing where the gait is carrying the body.")]
     [SerializeField] private Transform strideTarget;
 
-    [Tooltip("Height of the body pivot above the feet when standing, with the legs nearly straight.")]
-    [SerializeField] private float bodyHeight = 2.58f;
+    // Standing height of the inverseRobo rig: its legs are 2.34 long and its hips 0.27 below the pivot, so the legs stand
+    // at about 0.92 of their length, knees slightly bent.
+    public const float DefaultBodyHeight = 2.4f;
+
+    [Tooltip("Height of the body pivot above the feet when standing. Keep the standing legs a little short of straight " +
+             "(about 0.9 of their length) so the knees never lock.")]
+    [SerializeField] private float bodyHeight = DefaultBodyHeight;
     [SerializeField] private FootholdLimits footholdLimits = FootholdLimits.Default;
     [Tooltip("How far the body may lean past its feet before the character falls.")]
     [SerializeField] private float edgeOverhang = 0.7f;
@@ -538,8 +543,12 @@ public class StrideController : MonoBehaviour {
     }
 
     // Standing height over the feet with the step's bob, sunk lower the faster the gait moves and by any held crouch.
+    // The bob is aimed ahead by the vertical spring's lag at the bob's rate, so the body's low point lands where the gait
+    // puts it (just after contact walking, mid-stance running) rather than late.
     private float GaitHeight() {
-        float bob = GaitWaves.BodyBob((scheduler.Phase, LowestPhase)) * CurrentGait.bobAmplitude * Pace.Moving;
+        float bobRate = 2f / Mathf.Max(0.05f, CyclePeriod);
+        float aimedPhase = scheduler.Phase + body.verticalSpring.PhaseLagCycles(bobRate) / 2f;
+        float bob = GaitWaves.BodyBob((aimedPhase, LowestPhase)) * CurrentGait.bobAmplitude * Pace.Moving;
         return StanceHeight + bodyHeight + bob - CurrentGait.pelvisDrop * Pace.Moving - HeldCrouch;
     }
 

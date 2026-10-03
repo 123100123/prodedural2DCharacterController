@@ -7,11 +7,12 @@ using UnityEngine;
 // small and never dominate the silhouette.
 [Serializable]
 public class TorsoMotion {
+    public static readonly SpringSettings DefaultSpring = new SpringSettings(3f, 0.8f, 0f);
     // Fades breathing in and out as the character stops and moves off, so the chest never jumps.
     private static readonly SpringSettings BreathFade = new SpringSettings(2f, 1f, 0f);
 
     [Tooltip("How the chest follows its flex and absorbs recoil kicks.")]
-    [SerializeField] private SpringSettings spring = new SpringSettings(3f, 0.8f, 0f);
+    [SerializeField] private SpringSettings spring = DefaultSpring;
 
     [SerializeField] private BreathingSettings breathing = BreathingSettings.Default;
 

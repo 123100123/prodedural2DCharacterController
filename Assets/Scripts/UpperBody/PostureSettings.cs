@@ -17,7 +17,7 @@ public struct PostureSettings {
     public SpringSettings spring;
 
     public static PostureSettings Default => new PostureSettings {
-        idleLean = 0f, leanPerAcceleration = 0.5f, maxAccelerationLean = 8f, maxTotalLean = 22f,
+        idleLean = 0f, leanPerAcceleration = 0.18f, maxAccelerationLean = 3f, maxTotalLean = 11.5f,
         spring = new SpringSettings(1.6f, 1f, 0f),
     };
 }

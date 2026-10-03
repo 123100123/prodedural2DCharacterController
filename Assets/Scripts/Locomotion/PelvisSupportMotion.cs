@@ -6,8 +6,10 @@ using UnityEngine;
 //   over it at mid-stance, ahead of it at toe-off), so a foot that landed a little off its plan still carries the body
 //   instead of stretching away from it. It fades in and out over the stance, so it is zero at contact, at toe-off and in
 //   flight, and the pelvis target stays continuous when the support changes;
-// - the surge is the body's speed change over its support: it slows as the leg takes the weight (falling a little
-//   behind the anchor by mid-stance) and catches up through push-off, again zero at contact and toe-off.
+// - the surge is the body's speed change over its support: fastest at contact, slowest at mid-stance as the leg takes
+//   the weight, fast again through push-off. As a position around the anchor that is a little ahead in early stance and
+//   a little behind in late stance, and zero at contact, mid-stance and toe-off, so the pelvis is right over its foot at
+//   mid-stance.
 public static class PelvisSupportMotion {
     // Where the hip would be over a centred stance at the stance's progress.
     public static float CentredHipX(SupportStance stance) {
@@ -26,13 +28,12 @@ public static class PelvisSupportMotion {
         return Mathf.Clamp(offset, -limits.maxOffset, limits.maxOffset);
     }
 
-    // Signed along the world x axis: negative is behind for a body moving right.
+    // Signed along the world x axis: positive is ahead for a body moving right.
     public static float Surge(SupportStance stance, float amplitude) {
         if (!stance.HasSupport || stance.Progress >= 1f) {
             return 0f;
         }
-        float behind = amplitude * (1f - Mathf.Cos(2f * Mathf.PI * stance.Progress)) / 2f;
-        return -stance.Direction * behind;
+        return stance.Direction * amplitude * Mathf.Sin(2f * Mathf.PI * stance.Progress);
     }
 
     // 0 at contact and toe-off, 1 at mid-stance.

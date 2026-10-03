@@ -22,6 +22,15 @@ public struct SpringSettings {
     public float TrackingLag(float targetSpeed) {
         return targetSpeed * damping * (2f - response) / (2f * Mathf.PI * Mathf.Max(0.01f, frequency));
     }
+
+    // How far the value's oscillation trails a target oscillating at the given frequency, in cycles: the phase of the
+    // spring's response, less the lead its response term adds.
+    public float PhaseLagCycles(float drivingFrequency) {
+        float ratio = drivingFrequency / Mathf.Max(0.01f, frequency);
+        float springLag = Mathf.Atan2(2f * damping * ratio, 1f - ratio * ratio);
+        float responseLead = Mathf.Atan(response * damping * ratio);
+        return (springLag - responseLead) / (2f * Mathf.PI);
+    }
 }
 
 // A value that follows a moving target like a mass on a spring, giving procedural motion inertia, overshoot and settle.

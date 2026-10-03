@@ -3,22 +3,7 @@ using System.Linq;
 using NUnit.Framework;
 
 public class LocomotionTuningSchemaTests {
-    private static LocomotionPreset Defaults() {
-        return new LocomotionPreset {
-            walk = GaitProfile.Walk,
-            run = GaitProfile.Run,
-            transitions = GaitTransitionSettings.Default,
-            balance = BalanceSettings.Default,
-            idle = IdleStanceSettings.Default,
-            bodyHeight = 2.58f,
-            body = BodyMassSettings.Default,
-            posture = PostureSettings.Default,
-            chestSpring = new SpringSettings(3f, 0.8f, 0f),
-            breathing = BreathingSettings.Default,
-            head = HeadMotionSettings.Default,
-            arms = ArmSwingSettings.Default,
-        };
-    }
+    private static LocomotionPreset Defaults() => LocomotionPreset.CodeDefaults();
 
     private static IEnumerable<(string section, TuningParameter parameter)> AllParameters() {
         return LocomotionTuningSchema.Build().SelectMany(section => section.Parameters.Select(parameter => (section.Title, parameter)));
