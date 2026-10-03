@@ -50,6 +50,30 @@ public class LocomotionInspectorTests {
     }
 
     [UnityTest]
+    public IEnumerator TheTelemetryReportsTheSupportHeightAndLegsOfARun() {
+        LocomotionInspector inspector = stage.Character.Inspector;
+        inspector.Preview = new GaitPreview((GaitPreview.Mode.Run, null));
+        yield return Frames(120);
+
+        (bool planted, bool flight) seen = (false, false);
+        for (int frame = 0; frame < 60; frame++) {
+            yield return null;
+            LocomotionTelemetry t = inspector.ReadTelemetry();
+            seen = (seen.planted || t.Support.IsPlanted, seen.flight || (t.Support.HasSupport && !t.Support.IsPlanted));
+            Assert.That(t.BodyHeights.ceiling, Is.GreaterThanOrEqualTo(t.BodyTarget.y - 0.001f), "the target never exceeds the reach ceiling");
+            Assert.That(t.BodyHeights.gait - t.BodyHeights.baseline, Is.InRange(-t.Gait.bobAmplitude - 0.001f, t.Gait.bobAmplitude + 0.001f), "the bob stays within its amplitude");
+            Assert.That(t.Front.Length, Is.EqualTo(stage.Stride.FrontLeg.LegLength), "the leg length is the measured one");
+            if (t.Support.IsPlanted) {
+                LocomotionTelemetry.Leg carrying = t.Support.SupportLeg == SupportStance.Leg.Front ? t.Front : t.Back;
+                Assert.That(carrying.IsGrounded, Is.True, "the support leg is a planted one");
+                Assert.That(carrying.Extension, Is.InRange(0.5f, 1.05f));
+            }
+        }
+        Assert.That(seen.planted && seen.flight, Is.True, "a run shows both support and flight");
+        inspector.Preview = GaitPreview.Off;
+    }
+
+    [UnityTest]
     public IEnumerator TuningTakesEffectWhilePlaying() {
         LocomotionInspector inspector = stage.Character.Inspector;
         LocomotionPreset tuned = inspector.Tuning.Capture();

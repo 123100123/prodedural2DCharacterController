@@ -2,17 +2,19 @@ using System.Collections.Generic;
 using UnityEngine;
 
 // What the grounded locomotion is doing, read once per refresh for the debug tools: input, speed and pace, the gait
-// clock, the posture, both legs, contact timing and recent events. Read-only; refreshing it changes nothing.
+// clock, the posture, the support and pelvis, both legs, contact timing and recent events. Read-only; refreshing it changes nothing.
 public sealed class LocomotionTelemetry {
     public enum Mode { Idle, Walk, Run, Transition }
 
     public readonly struct Leg {
-        public Leg((bool isGrounded, float stepProgress, float secondsSincePlant, Vector2 footTarget, Vector2 solver) leg) {
-            IsGrounded = leg.isGrounded;
-            StepProgress = leg.stepProgress;
-            SecondsSincePlant = leg.secondsSincePlant;
-            FootTarget = leg.footTarget;
-            Solver = leg.solver;
+        public Leg((bool isGrounded, float stepProgress, float secondsSincePlant) state, (Vector2 footTarget, Vector2 solver, Vector2 hip, float length) geometry) {
+            IsGrounded = state.isGrounded;
+            StepProgress = state.stepProgress;
+            SecondsSincePlant = state.secondsSincePlant;
+            FootTarget = geometry.footTarget;
+            Solver = geometry.solver;
+            Hip = geometry.hip;
+            Length = geometry.length;
         }
 
         public bool IsGrounded { get; }
@@ -21,6 +23,12 @@ public sealed class LocomotionTelemetry {
         // Where the foot is headed (its planned foothold while swinging) and where its IK target is now.
         public Vector2 FootTarget { get; }
         public Vector2 Solver { get; }
+        public Vector2 Hip { get; }
+        // Measured from the rig's bones.
+        public float Length { get; }
+        public float HipToFoot => Vector2.Distance(Hip, FootTarget);
+        // Hip-to-foot distance as a share of the leg's length (1: fully straight).
+        public float Extension => Length > 0f ? HipToFoot / Length : 0f;
     }
 
     // A walk/run blend this close to either end counts as that gait.
@@ -58,9 +66,15 @@ public sealed class LocomotionTelemetry {
     public Vector2 PostureUp { get; private set; }
 
     public Vector2 BodyPosition { get; private set; }
+    // Where the pelvis was at the previous refresh, for drawing its path.
+    public Vector2 PreviousBodyPosition { get; private set; }
     public Vector2 BodyTarget { get; private set; }
     public float StrideAnchorX { get; private set; }
     public float StanceHeight { get; private set; }
+    public SupportStance Support { get; private set; }
+    public bool BothFeetPlanted { get; private set; }
+    public (float support, float surge) PelvisOffsets { get; private set; }
+    public (float baseline, float gait, float ceiling) BodyHeights { get; private set; }
     public Leg Front { get; private set; }
     public Leg Back { get; private set; }
     public bool LastPlantWasFront { get; private set; }
@@ -120,10 +134,15 @@ public sealed class LocomotionTelemetry {
 
     private void ReadBodyAndLegs(float time) {
         GaitDiagnostics diagnostics = stride.Diagnostics;
+        PreviousBodyPosition = BodyPosition;
         BodyPosition = stride.transform.position;
         BodyTarget = stride.BodyTarget;
         StrideAnchorX = stride.StrideAnchorX;
         StanceHeight = stride.StanceHeight;
+        Support = stride.Support;
+        BothFeetPlanted = stride.FrontLeg.IsGrounded && stride.BackLeg.IsGrounded;
+        PelvisOffsets = stride.PelvisOffsets;
+        BodyHeights = stride.BodyHeights;
         Front = ReadLeg((stride.FrontLeg, time - diagnostics.LastFrontPlant));
         Back = ReadLeg((stride.BackLeg, time - diagnostics.LastBackPlant));
         LastPlantWasFront = diagnostics.LastPlantWasFront;
@@ -132,7 +151,8 @@ public sealed class LocomotionTelemetry {
     }
 
     private static Leg ReadLeg((LegStepper leg, float secondsSincePlant) read) {
-        return new Leg((read.leg.IsGrounded, read.leg.StepProgress, read.secondsSincePlant, read.leg.FootTarget, read.leg.transform.position));
+        LegStepper leg = read.leg;
+        return new Leg((leg.IsGrounded, leg.StepProgress, read.secondsSincePlant), (leg.FootTarget, leg.transform.position, leg.HipPosition, leg.LegLength));
     }
 
     private void ReadEvents(float time) {

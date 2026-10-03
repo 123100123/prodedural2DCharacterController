@@ -55,6 +55,7 @@ public class StrideController : MonoBehaviour {
     private (float front, float back) plannedIntent;
     private Vector2 bodyTarget;
     private (float support, float surge) pelvisOffsets;
+    private (float baseline, float gait, float ceiling) bodyHeights;
     private bool lastStepFoundNoFoothold;
     private int lastGaitFrame = -10;
     private BodyCarriage carriage;
@@ -109,6 +110,9 @@ public class StrideController : MonoBehaviour {
     // The pelvis target's horizontal shifts from the anchor: toward a stance centred over the support foot, and the
     // body's speed change over its support.
     public (float support, float surge) PelvisOffsets => pelvisOffsets;
+    // The pelvis heights this frame: the gait's baseline (standing height less the gait's drop), the gait height with its
+    // bob, and the ceiling the planted legs' reach allows.
+    public (float baseline, float gait, float ceiling) BodyHeights => bodyHeights;
     // Ground spots the last planned step chose its foothold from.
     public IReadOnlyList<Vector2> FootholdCandidates => footholdCandidates;
     // True while a grounded state ticks the gait this frame (false in the air, rolling or climbing).
@@ -509,7 +513,9 @@ public class StrideController : MonoBehaviour {
         AbsorbFootPlant(frontLeg);
         AbsorbFootPlant(backLeg);
 
-        (float target, float ceiling) height = BodyHeightLimits();
+        float gaitHeight = GaitHeight();
+        (float target, float ceiling) height = BodyHeightLimits(gaitHeight);
+        bodyHeights = (BaselineHeight, gaitHeight, height.ceiling);
         bodyTarget = new Vector2(BodyTargetX(), height.target);
         Carriage.Carry((bodyTarget, frame.deltaTime), (body.horizontalSpring, body.verticalSpring, frame.bodySpan, height.ceiling));
     }
@@ -559,8 +565,7 @@ public class StrideController : MonoBehaviour {
     // overshoot. The reach is measured from where the body is: its springs trail the anchor a little at speed, and
     // measuring from the anchor would make a trailing foot seem further behind than it is. A foot so far away that
     // reaching it would sink the body more than the reach drop is about to step anyway, and does not hold it down.
-    private (float target, float ceiling) BodyHeightLimits() {
-        float gaitHeight = GaitHeight();
+    private (float target, float ceiling) BodyHeightLimits(float gaitHeight) {
         float pelvisX = transform.position.x;
         float reachable = Mathf.Min(HighestPelvisOver((frontLeg, pelvisX)), HighestPelvisOver((backLeg, pelvisX)));
         float ceiling = Mathf.Max(reachable, gaitHeight - body.maxReachDrop);
@@ -574,8 +579,10 @@ public class StrideController : MonoBehaviour {
         float bobRate = 2f / Mathf.Max(0.05f, CyclePeriod);
         float aimedPhase = scheduler.Phase + body.verticalSpring.PhaseLagCycles(bobRate) / 2f;
         float bob = GaitWaves.BodyBob((aimedPhase, LowestPhase)) * CurrentGait.bobAmplitude * Pace.Moving;
-        return StanceHeight + bodyHeight + bob - CurrentGait.pelvisDrop * Pace.Moving - HeldCrouch;
+        return BaselineHeight + bob;
     }
+
+    private float BaselineHeight => StanceHeight + bodyHeight - CurrentGait.pelvisDrop * Pace.Moving - HeldCrouch;
 
     private float LowestPhase => GaitWaves.LowestPhase((CurrentGait.dutyFactor, CurrentGait.lowAfterContact));
 
