@@ -14,8 +14,9 @@ public class CharacterDriver : MonoBehaviour {
     [SerializeField] private HeadLook head = new HeadLook();
     [Tooltip("Upper-spine bone that flexes with each step and curls forward during a roll.")]
     [SerializeField] private Transform chest;
-    [Tooltip("Parent of the chest at its pivot, not a bone: it carries the sustained forward lean of the locomotion " +
-             "posture, so the kinematic body pivot itself never tilts.")]
+    [Tooltip("The pelvis bone: the skeleton's root under the kinematic body (the StrideController's transform). It carries " +
+             "the sustained forward lean of the locomotion posture, so the whole torso leans from the hips while the " +
+             "kinematic body pivot and the world-space foot targets never tilt.")]
     [SerializeField] private Transform postureRoot;
     [SerializeField] private LocomotionPosture posture = new LocomotionPosture();
     [SerializeField] private TorsoMotion torsoMotion = new TorsoMotion();
@@ -58,7 +59,15 @@ public class CharacterDriver : MonoBehaviour {
 
     private void OnDestroy() => input?.Dispose();
 
+    // Reports a broken rig while editing, as soon as the references change.
+    private void OnValidate() {
+        if (stride != null && chest != null) {
+            ReportRigProblems();
+        }
+    }
+
     private void ComposeCharacter() {
+        ReportRigProblems();
         input = new PlayerInputReader();
         machine = new CharacterStateMachine();
         Events = new CharacterEvents();
@@ -118,6 +127,19 @@ public class CharacterDriver : MonoBehaviour {
             new RollState(context, roll),
             new ClimbState(context, climb)));
         return built;
+    }
+
+    private void ReportRigProblems() {
+        if (stride == null || stride.FrontLeg == null || stride.BackLeg == null) {
+            Debug.LogWarning($"{name}: the stride controller or its legs are not assigned.", this);
+            return;
+        }
+        (Transform foothold, Transform solver) front = stride.FrontLeg.WorldSpaceTargets;
+        (Transform foothold, Transform solver) back = stride.BackLeg.WorldSpaceTargets;
+        Transform[] worldSpaceTargets = { front.foothold, front.solver, back.foothold, back.solver };
+        foreach (string problem in RigValidation.Problems((stride.transform, postureRoot, chest, worldSpaceTargets))) {
+            Debug.LogWarning($"{name} rig: {problem}", this);
+        }
     }
 
     private LocomotionInspector BuildInspector() {

@@ -119,38 +119,6 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!1 &85695339
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 85695340}
-  m_Layer: 0
-  m_Name: posture
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &85695340
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 85695339}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.44788742, y: -0.00000014276652, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children:
-  - {fileID: 2036566789}
-  m_Father: {fileID: 2036566835}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &98850140
 GameObject:
   m_ObjectHideFlags: 0
@@ -996,6 +964,270 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &715054843
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 715054844}
+  - component: {fileID: 715054845}
+  m_Layer: 0
+  m_Name: body
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &715054844
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 715054843}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: -0.6961117, y: 2.2992163, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 2036566835}
+  m_Father: {fileID: 2036566821}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &715054845
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 715054843}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a8ec55e3e88aa63419aff1053515998d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  frontLeg: {fileID: 1346135902}
+  backLeg: {fileID: 738148327}
+  strideTarget: {fileID: 219368120}
+  bodyHeight: 2.58
+  footholdLimits:
+    maxStepUp: 1
+    maxStepDown: 1.3
+    maxReachStretch: 1.2
+    searchRadius: 0.8
+    searchStep: 0.05
+    heightWeight: 0.5
+    minStepLength: 0.15
+    groundMask:
+      serializedVersion: 2
+      m_Bits: 4294967291
+  edgeOverhang: 0.7
+  stoppingOverhang: 0.3
+  idle:
+    stanceHalfWidth: 0.22
+    stanceLead: 0.1
+    footTolerance: 0.18
+    settleStepDuration: 0.22
+    settleLiftHeight: 0.25
+  walk:
+    speed: 3.5
+    acceleration: 10
+    deceleration: 14
+    dutyFactor: 0.62
+    stepLengthPerRootSpeed: 0.9
+    minStepLength: 0.45
+    maxStepLength: 2.2
+    minSwingDuration: 0.25
+    maxSwingDuration: 0.55
+    liftHeight: 0.4
+    pelvisDrop: 0.17
+    bobAmplitude: 0.1
+    lowAfterContact: 0.06
+    surge: 0.05
+    plantImpulse: 0.1
+    pushOffImpulse: 0
+    lean: 5
+    pitchOscillation: 1
+    armSwing: 25
+    armBend: 0.15
+  run:
+    speed: 8.5
+    acceleration: 18
+    deceleration: 30
+    dutyFactor: 0.36
+    stepLengthPerRootSpeed: 0.92
+    minStepLength: 0.8
+    maxStepLength: 3.6
+    minSwingDuration: 0.25
+    maxSwingDuration: 0.55
+    liftHeight: 0.45
+    pelvisDrop: 0.18
+    bobAmplitude: 0.08
+    lowAfterContact: 0.18
+    surge: 0.02
+    plantImpulse: 0.15
+    pushOffImpulse: 0.6
+    lean: 14
+    pitchOscillation: 1.5
+    armSwing: 45
+    armBend: 0.6
+  transitions:
+    startSpeed: 0.35
+    stopSpeed: 0.15
+    runBlendStart: 0.1
+    runBlendEnd: 0.8
+    runBlendRate: 4
+    swingShareChangePerCycle: 0.15
+    settingOffShare: 0.65
+    walkLiftOverlap: 0.8
+    runLiftOverlap: 0.5
+  balance:
+    catchUpMargin: 0.1
+    catchUpGain: 2
+    maxCatchUp: 1.6
+    emergencyMargin: 0.7
+    emergencyCooldown: 0.4
+  stepArc:
+    walk:
+      travel:
+        serializedVersion: 2
+        m_Curve:
+        - serializedVersion: 3
+          time: 0
+          value: 0
+          inSlope: 0
+          outSlope: 0.3
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        - serializedVersion: 3
+          time: 1
+          value: 1
+          inSlope: 0
+          outSlope: 0
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        m_PreInfinity: 2
+        m_PostInfinity: 2
+        m_RotationOrder: 4
+      lift:
+        serializedVersion: 2
+        m_Curve:
+        - serializedVersion: 3
+          time: 0
+          value: 0
+          inSlope: 0
+          outSlope: 4
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        - serializedVersion: 3
+          time: 0.38
+          value: 1
+          inSlope: 0
+          outSlope: 0
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        - serializedVersion: 3
+          time: 1
+          value: 0
+          inSlope: -1.2
+          outSlope: 0
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        m_PreInfinity: 2
+        m_PostInfinity: 2
+        m_RotationOrder: 4
+    run:
+      travel:
+        serializedVersion: 2
+        m_Curve:
+        - serializedVersion: 3
+          time: 0
+          value: 0
+          inSlope: 0
+          outSlope: 0.8
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        - serializedVersion: 3
+          time: 0.5
+          value: 0.58
+          inSlope: 1.4
+          outSlope: 1.4
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        - serializedVersion: 3
+          time: 1
+          value: 1
+          inSlope: 0.5
+          outSlope: 0
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        m_PreInfinity: 2
+        m_PostInfinity: 2
+        m_RotationOrder: 4
+      lift:
+        serializedVersion: 2
+        m_Curve:
+        - serializedVersion: 3
+          time: 0
+          value: 0
+          inSlope: 0
+          outSlope: 1.2
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        - serializedVersion: 3
+          time: 0.55
+          value: 1
+          inSlope: 0
+          outSlope: 0
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        - serializedVersion: 3
+          time: 1
+          value: 0
+          inSlope: -3.5
+          outSlope: 0
+          tangentMode: 0
+          weightedMode: 0
+          inWeight: 0
+          outWeight: 0
+        m_PreInfinity: 2
+        m_PostInfinity: 2
+        m_RotationOrder: 4
+  body:
+    horizontalSpring:
+      frequency: 3
+      damping: 0.7
+      response: 1
+    verticalSpring:
+      frequency: 6
+      damping: 0.7
+      response: 1
+    legExtension: 0.99
+    maxReachDrop: 0.35
+    maxPlantImpulse: 1.2
 --- !u!1 &738148323
 GameObject:
   m_ObjectHideFlags: 0
@@ -3059,15 +3291,15 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2036602725}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0.14347482, w: 0.98965394}
-  m_LocalPosition: {x: -0.000000029802322, y: 0.00000017256885, z: 0}
+  m_LocalRotation: {x: -0, y: -0, z: -0.14347485, w: 0.989654}
+  m_LocalPosition: {x: 0.44788742, y: -0.00000032782555, z: 0}
   m_LocalScale: {x: 1.0000001, y: 1.0000001, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 2036566791}
   - {fileID: 2036566787}
   - {fileID: 2036566799}
-  m_Father: {fileID: 85695340}
+  m_Father: {fileID: 2036566835}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: -16.498001}
 --- !u!4 &2036566791
 Transform:
@@ -3160,7 +3392,7 @@ Transform:
   m_Children:
   - {fileID: 2036566823}
   - {fileID: 2036566817}
-  - {fileID: 2036566835}
+  - {fileID: 715054844}
   - {fileID: 2036566819}
   - {fileID: 2036566829}
   - {fileID: 2036566831}
@@ -3276,15 +3508,15 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2036602643}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0.67032564, w: 0.74206716}
-  m_LocalPosition: {x: -0.6961113, y: 2.2992163, z: 0}
+  m_LocalRotation: {x: -0, y: -0, z: 0.67032564, w: 0.74206716}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 2036566845}
   - {fileID: 2036566841}
-  - {fileID: 85695340}
-  m_Father: {fileID: 2036566821}
+  - {fileID: 2036566789}
+  m_Father: {fileID: 715054844}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!4 &2036566837
 Transform:
@@ -3551,7 +3783,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2036566835}
-  - component: {fileID: 2036602644}
   - component: {fileID: 2036602646}
   m_Layer: 0
   m_Name: bone_abs
@@ -3560,237 +3791,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &2036602644
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2036602643}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a8ec55e3e88aa63419aff1053515998d, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  frontLeg: {fileID: 1346135902}
-  backLeg: {fileID: 738148327}
-  strideTarget: {fileID: 219368120}
-  bodyHeight: 2.58
-  footholdLimits:
-    maxStepUp: 1
-    maxStepDown: 1.3
-    maxReachStretch: 1.2
-    searchRadius: 0.8
-    searchStep: 0.05
-    heightWeight: 0.5
-    minStepLength: 0.15
-    groundMask:
-      serializedVersion: 2
-      m_Bits: 4294967291
-  edgeOverhang: 0.7
-  stoppingOverhang: 0.3
-  idle:
-    stanceHalfWidth: 0.22
-    stanceLead: 0.1
-    footTolerance: 0.18
-    settleStepDuration: 0.22
-    settleLiftHeight: 0.25
-  walk:
-    speed: 3.5
-    acceleration: 10
-    deceleration: 14
-    dutyFactor: 0.62
-    stepLengthPerRootSpeed: 0.9
-    minStepLength: 0.45
-    maxStepLength: 2.2
-    minSwingDuration: 0.25
-    maxSwingDuration: 0.55
-    liftHeight: 0.4
-    pelvisDrop: 0.17
-    bobAmplitude: 0.1
-    lowAfterContact: 0.06
-    surge: 0.05
-    plantImpulse: 0.1
-    pushOffImpulse: 0
-    lean: 5
-    pitchOscillation: 1
-    armSwing: 25
-    armBend: 0.15
-  run:
-    speed: 8.5
-    acceleration: 18
-    deceleration: 30
-    dutyFactor: 0.36
-    stepLengthPerRootSpeed: 0.92
-    minStepLength: 0.8
-    maxStepLength: 3.6
-    minSwingDuration: 0.25
-    maxSwingDuration: 0.55
-    liftHeight: 0.45
-    pelvisDrop: 0.18
-    bobAmplitude: 0.08
-    lowAfterContact: 0.18
-    surge: 0.02
-    plantImpulse: 0.15
-    pushOffImpulse: 0.6
-    lean: 14
-    pitchOscillation: 1.5
-    armSwing: 45
-    armBend: 0.6
-  transitions:
-    startSpeed: 0.35
-    stopSpeed: 0.15
-    runBlendStart: 0.1
-    runBlendEnd: 0.8
-    runBlendRate: 4
-    swingShareChangePerCycle: 0.15
-    settingOffShare: 0.65
-    walkLiftOverlap: 0.8
-    runLiftOverlap: 0.5
-  balance:
-    catchUpMargin: 0.1
-    catchUpGain: 2
-    maxCatchUp: 1.6
-    emergencyMargin: 0.7
-    emergencyCooldown: 0.4
-  stepArc:
-    walk:
-      travel:
-        serializedVersion: 2
-        m_Curve:
-        - serializedVersion: 3
-          time: 0
-          value: 0
-          inSlope: 0
-          outSlope: 0.3
-          tangentMode: 0
-          weightedMode: 0
-          inWeight: 0
-          outWeight: 0
-        - serializedVersion: 3
-          time: 1
-          value: 1
-          inSlope: 0
-          outSlope: 0
-          tangentMode: 0
-          weightedMode: 0
-          inWeight: 0
-          outWeight: 0
-        m_PreInfinity: 2
-        m_PostInfinity: 2
-        m_RotationOrder: 4
-      lift:
-        serializedVersion: 2
-        m_Curve:
-        - serializedVersion: 3
-          time: 0
-          value: 0
-          inSlope: 0
-          outSlope: 4
-          tangentMode: 0
-          weightedMode: 0
-          inWeight: 0
-          outWeight: 0
-        - serializedVersion: 3
-          time: 0.38
-          value: 1
-          inSlope: 0
-          outSlope: 0
-          tangentMode: 0
-          weightedMode: 0
-          inWeight: 0
-          outWeight: 0
-        - serializedVersion: 3
-          time: 1
-          value: 0
-          inSlope: -1.2
-          outSlope: 0
-          tangentMode: 0
-          weightedMode: 0
-          inWeight: 0
-          outWeight: 0
-        m_PreInfinity: 2
-        m_PostInfinity: 2
-        m_RotationOrder: 4
-    run:
-      travel:
-        serializedVersion: 2
-        m_Curve:
-        - serializedVersion: 3
-          time: 0
-          value: 0
-          inSlope: 0
-          outSlope: 0.8
-          tangentMode: 0
-          weightedMode: 0
-          inWeight: 0
-          outWeight: 0
-        - serializedVersion: 3
-          time: 0.5
-          value: 0.58
-          inSlope: 1.4
-          outSlope: 1.4
-          tangentMode: 0
-          weightedMode: 0
-          inWeight: 0
-          outWeight: 0
-        - serializedVersion: 3
-          time: 1
-          value: 1
-          inSlope: 0.5
-          outSlope: 0
-          tangentMode: 0
-          weightedMode: 0
-          inWeight: 0
-          outWeight: 0
-        m_PreInfinity: 2
-        m_PostInfinity: 2
-        m_RotationOrder: 4
-      lift:
-        serializedVersion: 2
-        m_Curve:
-        - serializedVersion: 3
-          time: 0
-          value: 0
-          inSlope: 0
-          outSlope: 1.2
-          tangentMode: 0
-          weightedMode: 0
-          inWeight: 0
-          outWeight: 0
-        - serializedVersion: 3
-          time: 0.55
-          value: 1
-          inSlope: 0
-          outSlope: 0
-          tangentMode: 0
-          weightedMode: 0
-          inWeight: 0
-          outWeight: 0
-        - serializedVersion: 3
-          time: 1
-          value: 0
-          inSlope: -3.5
-          outSlope: 0
-          tangentMode: 0
-          weightedMode: 0
-          inWeight: 0
-          outWeight: 0
-        m_PreInfinity: 2
-        m_PostInfinity: 2
-        m_RotationOrder: 4
-  body:
-    horizontalSpring:
-      frequency: 3
-      damping: 0.7
-      response: 1
-    verticalSpring:
-      frequency: 6
-      damping: 0.7
-      response: 1
-    legExtension: 0.99
-    maxReachDrop: 0.35
-    maxPlantImpulse: 1.2
 --- !u!1 &2036602645
 GameObject:
   m_ObjectHideFlags: 0
@@ -4036,7 +4036,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 74c33a78a6723bf4b8cbf40d19072637, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CharacterDriver
-  stride: {fileID: 2036602644}
+  stride: {fileID: 715054845}
   authoredFacingSign: 1
   motor:
     hullSize: {x: 0.8, y: 2.45}
@@ -4074,7 +4074,7 @@ MonoBehaviour:
     maxLevelCorrection: 40
     crownDistance: 0.63
   chest: {fileID: 2036566789}
-  postureRoot: {fileID: 85695340}
+  postureRoot: {fileID: 2036566835}
   posture:
     settings:
       idleLean: 0

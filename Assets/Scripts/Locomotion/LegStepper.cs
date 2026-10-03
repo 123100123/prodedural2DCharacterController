@@ -20,6 +20,8 @@ public class LegStepper : MonoBehaviour {
 
     public bool IsGrounded => swing.IsGrounded;
     public Vector2 FootTarget => footTarget.position;
+    // The world-space target transforms the IK chases (for rig validation): the planted foothold and the solver target.
+    public (Transform foothold, Transform solver) WorldSpaceTargets => (footTarget, transform);
     public Vector2 HipPosition => hip.position;
     public float LegLength { get; private set; }
 

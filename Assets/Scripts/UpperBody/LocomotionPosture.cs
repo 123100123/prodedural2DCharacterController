@@ -1,10 +1,12 @@
 using System;
 using UnityEngine;
 
-// Leans the upper body forward about the posture root as the character moves: a stable base lean that grows with the
-// pace (stronger running than walking) and a lean into acceleration, through a slow, critically damped spring so the
-// posture carries the body's inertia instead of following individual steps. When the gait is not driving (airborne,
-// rolling, climbing) it relaxes upright. The chest's per-step flex rides on top of it (TorsoMotion).
+// Leans the torso forward from the hips as the character moves, by turning the posture root (the pelvis bone, so the
+// whole torso tilts as one line rather than bending at the waist): a modest base lean that grows with the pace and a
+// lean into acceleration, through a slow, critically damped spring so the posture carries the body's inertia instead
+// of following individual steps. Most of the forward body line comes from the pelvis travelling over its support foot
+// (StrideController); this lean only adds to it. When the gait is not driving (airborne, rolling, climbing) it relaxes
+// upright. The chest's per-step flex rides on top of it (TorsoMotion).
 [Serializable]
 public class LocomotionPosture {
     [SerializeField] private PostureSettings settings = PostureSettings.Default;

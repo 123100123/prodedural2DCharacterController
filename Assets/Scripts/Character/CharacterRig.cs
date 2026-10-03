@@ -24,7 +24,7 @@ public sealed class CharacterRig {
     public ArmLimb BackArm { get; }
     public HeadLook Head { get; }
     public Transform Chest { get; }
-    // Parent of the chest that carries the sustained locomotion lean; the chest's own motion rides on top of it.
+    // The pelvis bone, which carries the sustained locomotion lean; the chest's own motion rides on top of it.
     public Transform PostureRoot { get; }
     public Transform Body => Stride.transform;
 
