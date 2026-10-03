@@ -11,9 +11,6 @@ public class StrideController : MonoBehaviour {
     private const float MinWallLookAhead = 2.5f;
     // Long frames (hitches) are split into gait steps no longer than this, so the feet keep up with the body.
     private const float MaxGaitStep = 1f / 30f;
-    // Swings are timed for at least this share of the intended speed while speeding up, as people do when setting off:
-    // the first steps are a little quicker than full ones rather than a shuffle.
-    private const float SettingOffShare = 0.65f;
     // Feet settle into a stance once the body has come to rest above them (horizontal speed below this), so the stance
     // spots no longer move and one settling step per foot is enough.
     private const float SettledBodySpeed = 0.2f;
@@ -250,7 +247,7 @@ public class StrideController : MonoBehaviour {
     private float SwingTimingSpeed() {
         bool isSpeedingUp = intendedSpeed * groundSpeed > 0f && Mathf.Abs(intendedSpeed) > Mathf.Abs(groundSpeed);
         float speed = Mathf.Abs(groundSpeed);
-        return isSpeedingUp ? Mathf.Max(speed, SettingOffShare * Mathf.Abs(intendedSpeed)) : speed;
+        return isSpeedingUp ? Mathf.Max(speed, transitions.settingOffShare * Mathf.Abs(intendedSpeed)) : speed;
     }
 
     // A planted foot trailing the hip further than a normal stance ends quickens the cadence; one far behind takes an

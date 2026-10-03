@@ -24,6 +24,9 @@ public struct GaitTransitionSettings {
              "contacts, and a steady ramp moves them by the same small amount every step instead of stretching one " +
              "interval into a limp.")]
     [Range(0.02f, 1f)] public float swingShareChangePerCycle;
+    [Tooltip("Speeding up, swings are timed for at least this share of the intended speed, as people do when setting " +
+             "off: the first steps are a little quicker than full ones rather than a shuffle.")]
+    [Range(0f, 1f)] public float settingOffShare;
 
     [Header("Overlap")]
     [Tooltip("How far through its swing a walking foot must be before the other foot may lift: late, so a foot is always down.")]
@@ -33,7 +36,7 @@ public struct GaitTransitionSettings {
 
     public static GaitTransitionSettings Default => new GaitTransitionSettings {
         startSpeed = 0.35f, stopSpeed = 0.15f,
-        runBlendStart = 0.1f, runBlendEnd = 0.8f, runBlendRate = 4f, swingShareChangePerCycle = 0.15f,
+        runBlendStart = 0.1f, runBlendEnd = 0.8f, runBlendRate = 4f, swingShareChangePerCycle = 0.15f, settingOffShare = 0.65f,
         walkLiftOverlap = 0.8f, runLiftOverlap = 0.5f,
     };
 }

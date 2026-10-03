@@ -1,0 +1,184 @@
+.loco-panel {
+    position: absolute;
+    left: 8px;
+    top: 8px;
+    width: 520px;
+    max-width: 96%;
+    max-height: 94%;
+    padding: 6px;
+    background-color: rgba(16, 18, 24, 0.93);
+    border-radius: 6px;
+    color: rgb(222, 226, 232);
+    font-size: 12px;
+}
+
+.loco-header {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.loco-title {
+    flex-grow: 1;
+    -unity-font-style: bold;
+    font-size: 14px;
+}
+
+.loco-header__button {
+    width: 24px;
+}
+
+.loco-badge {
+    display: none;
+    padding: 1px 6px;
+    margin-right: 6px;
+    border-radius: 3px;
+    background-color: rgb(230, 140, 30);
+    color: rgb(20, 20, 20);
+    -unity-font-style: bold;
+}
+
+.loco-badge--visible {
+    display: flex;
+}
+
+.loco-scroll {
+    max-height: 560px;
+}
+
+.loco-group {
+    margin-top: 2px;
+}
+
+.loco-heading {
+    margin-top: 6px;
+    -unity-font-style: bold;
+    color: rgb(150, 200, 255);
+}
+
+.loco-row {
+    flex-direction: row;
+    align-items: center;
+    min-height: 20px;
+}
+
+.loco-row__label {
+    width: 180px;
+    overflow: hidden;
+}
+
+.loco-row__slider {
+    flex-grow: 1;
+    min-width: 80px;
+}
+
+.loco-row__field {
+    width: 64px;
+}
+
+.loco-row__unit {
+    width: 72px;
+    font-size: 10px;
+    color: rgb(150, 156, 168);
+}
+
+.loco-live-row {
+    flex-direction: row;
+}
+
+.loco-live-row__label {
+    width: 220px;
+    color: rgb(160, 166, 178);
+}
+
+.loco-live-row__value {
+    flex-grow: 1;
+}
+
+.loco-flags {
+    flex-direction: row;
+    flex-wrap: wrap;
+    margin: 4px 0;
+}
+
+.loco-flag {
+    padding: 2px 6px;
+    margin-right: 4px;
+    border-radius: 3px;
+    background-color: rgb(52, 56, 66);
+    color: rgb(150, 156, 168);
+}
+
+.loco-flag--active {
+    background-color: rgb(215, 60, 50);
+    color: rgb(255, 255, 255);
+    -unity-font-style: bold;
+}
+
+.loco-preview {
+    margin-bottom: 4px;
+    padding: 4px;
+    border-radius: 4px;
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.loco-toolbar {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-top: 4px;
+}
+
+.loco-toolbar__name {
+    width: 110px;
+}
+
+.loco-toolbar__presets {
+    width: 120px;
+}
+
+.loco-toolbar__status {
+    width: 100%;
+    font-size: 10px;
+    color: rgb(150, 156, 168);
+    white-space: normal;
+}
+
+.loco-hint {
+    white-space: normal;
+    color: rgb(150, 156, 168);
+    margin-bottom: 4px;
+}
+
+.loco-panel .unity-tab-view__header-container {
+    flex-wrap: wrap;
+    background-color: rgb(30, 33, 40);
+}
+
+.loco-panel .unity-tab__header {
+    background-color: rgb(30, 33, 40);
+}
+
+.loco-panel .unity-tab__header-label {
+    color: rgb(200, 205, 215);
+}
+
+.loco-panel .unity-base-text-field__input,
+.loco-panel .unity-base-popup-field__input {
+    background-color: rgb(38, 42, 52);
+    border-color: rgb(72, 78, 92);
+    color: rgb(235, 238, 242);
+}
+
+.loco-panel .unity-button {
+    background-color: rgb(58, 64, 78);
+    border-color: rgb(82, 88, 102);
+    color: rgb(235, 238, 242);
+}
+
+.loco-panel .unity-label,
+.loco-panel .unity-toggle__label,
+.loco-panel .unity-radio-button__label,
+.loco-panel .unity-foldout__text {
+    color: rgb(222, 226, 232);
+}
