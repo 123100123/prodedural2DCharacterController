@@ -3,7 +3,8 @@ using UnityEngine;
 
 // Poses the arms when they are not aiming. Walking and running, they swing opposite to the legs on the gait cycle, the
 // hand dragging a little behind the shoulder and the elbow flexing on the forward swing; the size of the swing and the
-// elbow bend come from the gait. Winding up a jump they swing back; in the air they rise for balance.
+// elbow bend come from the gait. They swing about plumb, like pendulums, so leaning the torso into a run does not carry
+// the swing back with it. Winding up a jump they swing back; in the air they rise for balance.
 [Serializable]
 public class ArmSwing {
     [SerializeField] private ArmSwingSettings settings = ArmSwingSettings.Default;
@@ -19,12 +20,15 @@ public class ArmSwing {
 
     public ArmSwingSettings Settings { get => settings; set => settings = value; }
     private (Vector2 front, Vector2 back) restHandsInChest;
+    // Degrees each rest arm hangs forward of plumb with the torso upright.
+    private (float front, float back) uprightHang;
     private (SecondOrderDynamics front, SecondOrderDynamics back) swing;
     private (SecondOrderDynamics front, SecondOrderDynamics back) bend;
 
     public void Initialize(CharacterRig characterRig) {
         rig = characterRig;
         restHandsInChest = (rig.Chest.InverseTransformPoint(rig.FrontArm.HandPosition), rig.Chest.InverseTransformPoint(rig.BackArm.HandPosition));
+        uprightHang = (ForwardOfPlumb(rig.FrontArm.HandPosition - rig.FrontArm.ShoulderPosition), ForwardOfPlumb(rig.BackArm.HandPosition - rig.BackArm.ShoulderPosition));
         swing = (new SecondOrderDynamics(0f), new SecondOrderDynamics(0f));
         bend = (new SecondOrderDynamics(0f), new SecondOrderDynamics(0f));
     }
@@ -36,8 +40,8 @@ public class ArmSwing {
         float frontBend = bend.front.Update((pose.elbows.front, deltaTime), settings.spring);
         float backBend = bend.back.Update((pose.elbows.back, deltaTime), settings.spring);
 
-        rig.FrontArm.ReachToward(SwungHand((rig.FrontArm, restHandsInChest.front), (frontAngle, frontBend)));
-        rig.BackArm.ReachToward(SwungHand((rig.BackArm, restHandsInChest.back), (backAngle, backBend)));
+        rig.FrontArm.ReachToward(SwungHand((rig.FrontArm, restHandsInChest.front, uprightHang.front), (frontAngle, frontBend)));
+        rig.BackArm.ReachToward(SwungHand((rig.BackArm, restHandsInChest.back, uprightHang.back), (backAngle, backBend)));
     }
 
     // The back arm is opposite the front leg: it reaches forward as the front leg lands; the front arm mirrors it.
@@ -68,12 +72,17 @@ public class ArmSwing {
     }
 
     // Turns the hanging rest hand about the shoulder (positive swings toward the facing direction) and draws it in
-    // and forward as the elbow bends.
-    private Vector2 SwungHand((ArmLimb arm, Vector2 restHandInChest) limb, (float forwardDegrees, float elbowBend) pose) {
+    // and forward as the elbow bends. The torso's tilt is turned out of the rest arm first, so the swing centres on
+    // plumb whatever the lean.
+    private Vector2 SwungHand((ArmLimb arm, Vector2 restHandInChest, float uprightHang) limb, (float forwardDegrees, float elbowBend) pose) {
         Vector2 shoulder = limb.arm.ShoulderPosition;
-        Vector2 restHand = rig.Chest.TransformPoint(limb.restHandInChest);
-        float worldDegrees = (pose.forwardDegrees + pose.elbowBend * settings.bentArmForwardAngle) * rig.Facing.Sign;
-        Vector2 shortenedArm = (restHand - shoulder) * (1f - pose.elbowBend * settings.bentArmShortening);
-        return shoulder + (Vector2)(Quaternion.Euler(0f, 0f, worldDegrees) * shortenedArm);
+        Vector2 restArm = (Vector2)rig.Chest.TransformPoint(limb.restHandInChest) - shoulder;
+        float torsoTilt = ForwardOfPlumb(restArm) - limb.uprightHang;
+        float forwardDegrees = pose.forwardDegrees + pose.elbowBend * settings.bentArmForwardAngle - torsoTilt;
+        Vector2 shortenedArm = restArm * (1f - pose.elbowBend * settings.bentArmShortening);
+        return shoulder + (Vector2)(Quaternion.Euler(0f, 0f, forwardDegrees * rig.Facing.Sign) * shortenedArm);
     }
+
+    // Degrees an arm points forward (toward the facing) of straight down.
+    private float ForwardOfPlumb(Vector2 arm) => Mathf.Atan2(arm.x * rig.Facing.Sign, -arm.y) * Mathf.Rad2Deg;
 }
