@@ -16,9 +16,6 @@ public static class GaitWaves {
     // -1 at the low point, +1 at the high point, twice per stride.
     public static float BodyBob((float phase, float lowestPhase) at) => -Mathf.Cos(2f * FullTurn * (at.phase - at.lowestPhase));
 
-    // Forward body offset: the body is fastest coming through the low point and slowest over the top of each step.
-    public static float Surge((float phase, float lowestPhase) at) => Mathf.Sin(2f * FullTurn * (at.phase - at.lowestPhase));
-
     // +1 flexing forward as the weight is taken, -1 extending upright over the single supporting leg.
     public static float TorsoPitch((float phase, float lowestPhase) at) => Mathf.Cos(2f * FullTurn * (at.phase - at.lowestPhase));
 

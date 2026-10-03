@@ -86,6 +86,17 @@ public sealed class GaitMetrics {
     public float FlightShare => samples.Count == 0 ? 0f : samples.Count(sample => !sample.FrontGrounded && !sample.BackGrounded) / (float)samples.Count;
     public float WorstPlantedFootGap => samples.Count == 0 ? 0f : samples.Max(sample => sample.PlantedFootGap);
     public float MeanSpeed => samples.Count == 0 ? 0f : samples.Average(sample => Mathf.Abs(sample.GroundSpeed));
+    // Mean distance of the pelvis ahead of its support foot around mid-stance, in units: 0 is right
+    // over the foot, as a body travelling through its legs should be.
+    public float MidStancePelvisOffset {
+        get {
+            List<GaitRecorder.Sample> midStance = samples.Where(sample => sample.SupportProgress >= 0.4f && sample.SupportProgress <= 0.6f).ToList();
+            return midStance.Count == 0 ? 0f : midStance.Average(sample => sample.PelvisOverSupport);
+        }
+    }
+    public float WorstSupportExtension => SupportSamples.Count == 0 ? 0f : SupportSamples.Max(sample => sample.SupportExtension);
+    public float MeanSupportExtension => SupportSamples.Count == 0 ? 0f : SupportSamples.Average(sample => sample.SupportExtension);
+    public float MeanCatchUp => samples.Count == 0 ? 1f : samples.Average(sample => sample.CatchUp);
     public int BalanceSteps => CountOver(sample => sample.BalanceSteps);
     public int PhaseResyncs => CountOver(sample => sample.PhaseResyncs);
     public int FootholdFailures => CountOver(sample => sample.FootholdFailures);
@@ -95,9 +106,12 @@ public sealed class GaitMetrics {
                $"contactAsym={WorstContactAsymmetry:F2} contactInterval={MeanContactInterval:F3} phaseJumps={PhaseJumps} " +
                $"lean={MeanLean:F1} bodyAboveStance={MeanBodyAboveStance:F2} flight={FlightShare:F2} " +
                $"headDev={HeadAngleDeviation:F2} chestDev={ChestAngleDeviation:F2} footGap={WorstPlantedFootGap:F3} " +
-               $"balanceSteps={BalanceSteps} resyncs={PhaseResyncs} footholdFailures={FootholdFailures}" +
+               $"balanceSteps={BalanceSteps} resyncs={PhaseResyncs} footholdFailures={FootholdFailures} " +
+               $"midStancePelvis={MidStancePelvisOffset:F2} supportExt={MeanSupportExtension:F2}/{WorstSupportExtension:F2} catchUp={MeanCatchUp:F2}" +
                (RepeatedLegLifts > 0 ? $" lifts: {LiftSequence}" : "");
     }
+
+    private List<GaitRecorder.Sample> SupportSamples => samples.Where(sample => !float.IsNaN(sample.SupportExtension)).ToList();
 
     private string LiftSequence => string.Join(" ", Lifts.Select(lift => $"{(lift.Front ? "F" : "B")}{lift.Time:F2}"));
 

@@ -43,11 +43,13 @@ public class StrideController : MonoBehaviour {
     private readonly List<Vector2> footholdCandidates = new List<Vector2>();
     private readonly StepScheduler scheduler = new StepScheduler();
     private readonly GaitDiagnostics diagnostics = new GaitDiagnostics();
+    private readonly SupportLegResolver supportResolver = new SupportLegResolver();
     private float supportCatchUp = 1f;
     private float lastBalanceStepTime = float.NegativeInfinity;
     // The intended speed each leg's step in the air was planned for.
     private (float front, float back) plannedIntent;
     private Vector2 bodyTarget;
+    private (float support, float surge) pelvisOffsets;
     private bool lastStepFoundNoFoothold;
     private int lastGaitFrame = -10;
     private BodyCarriage carriage;
@@ -97,6 +99,11 @@ public class StrideController : MonoBehaviour {
     public float SwingShare => scheduler.SwingShare;
     public float StrideAnchorX => anchorX;
     public Vector2 BodyTarget => bodyTarget;
+    // The leg carrying the body and how far through its stance the body is.
+    public SupportStance Support => supportResolver.Current;
+    // The pelvis target's horizontal shifts from the anchor: toward a stance centred over the support foot, and the
+    // body's speed change over its support.
+    public (float support, float surge) PelvisOffsets => pelvisOffsets;
     // Ground spots the last planned step chose its foothold from.
     public IReadOnlyList<Vector2> FootholdCandidates => footholdCandidates;
     // True while a grounded state ticks the gait this frame (false in the air, rolling or climbing).
@@ -128,7 +135,10 @@ public class StrideController : MonoBehaviour {
     }
 
     // The feet were just placed in a stance (spawning, landing, after a roll or a climb): the gait starts afresh from it.
-    public void RestartGaitFromStance() => scheduler.RestartFromStance();
+    public void RestartGaitFromStance() {
+        scheduler.RestartFromStance();
+        supportResolver.Reset();
+    }
 
     // feetSpan bounds where feet may go (up to wall faces); bodySpan bounds the body pivot so its hull stays out of walls.
     public void TickWalk(float deltaTime, (float direction, bool running, (float min, float max) feetSpan, (float min, float max) bodySpan) intent) {
@@ -149,6 +159,7 @@ public class StrideController : MonoBehaviour {
         ReplanSwingsOnIntentChange(intent.feetSpan);
         SettleFeetWhenIdle();
         TickLegs(deltaTime);
+        TrackSupport();
         CarryBodyOverFeet((deltaTime, intent.bodySpan));
         strideTarget.position = new Vector2(anchorX, StanceHeight);
     }
@@ -494,10 +505,24 @@ public class StrideController : MonoBehaviour {
         events?.RaiseFootPlanted((leg.FootTarget, impactSpeed));
     }
 
-    // The moving anchor plus the step's surge: the body runs slightly ahead coming through each low point.
+    // The moving anchor carries the body through the world; the support foot shifts the pelvis around it, so the pelvis
+    // travels through the legs instead of on a rail above them (PelvisSupportMotion). Both shifts fade out as the
+    // character slows to a stand.
     private float BodyTargetX() {
-        float surge = GaitWaves.Surge((scheduler.Phase, LowestPhase)) * CurrentGait.surge * Pace.Moving;
-        return anchorX + Mathf.Sign(groundSpeed) * surge;
+        SupportStance stance = supportResolver.Current;
+        float support = PelvisSupportMotion.SupportOffset((stance, ExpectedPelvisX()), (body.supportCoupling, body.maxSupportOffset));
+        float surge = PelvisSupportMotion.Surge(stance, CurrentGait.surge);
+        pelvisOffsets = (support * Pace.Moving, surge * Pace.Moving);
+        return anchorX + pelvisOffsets.support + pelvisOffsets.surge;
+    }
+
+    // Where the pelvis will be riding its anchor: it trails it by its spring's tracking lag. Centring the pelvis over its
+    // support has to compare the foot with the pelvis, not with the target it chases.
+    private float ExpectedPelvisX() => anchorX - Mathf.Sign(groundSpeed) * body.horizontalSpring.TrackingLag(Mathf.Abs(groundSpeed));
+
+    private void TrackSupport() {
+        float stanceTravel = 2f * GaitTiming.LandingLead(groundSpeed, CurrentGait);
+        supportResolver.Track((frontLeg.IsGrounded, backLeg.IsGrounded), (frontLeg.FootTarget.x, backLeg.FootTarget.x), (anchorX, Mathf.Sign(groundSpeed), stanceTravel));
     }
 
     // The gait's height, never higher than the planted legs reach: the spring's target, and the ceiling it may not

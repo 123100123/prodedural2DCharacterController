@@ -20,6 +20,12 @@ public sealed class GaitRecorder {
         public readonly int BalanceSteps;
         public readonly int PhaseResyncs;
         public readonly int FootholdFailures;
+        public readonly float CatchUp;
+        // Pelvis ahead of its planted support foot along the motion, at the stance's progress (NaN without support).
+        public readonly float PelvisOverSupport;
+        public readonly float SupportProgress;
+        // Hip-to-foot distance of the planted support leg as a share of the leg's length.
+        public readonly float SupportExtension;
 
         public Sample(GaitRecorder recorder, float time) {
             StrideController stride = recorder.stride;
@@ -39,6 +45,13 @@ public sealed class GaitRecorder {
             BalanceSteps = stride.Diagnostics.BalanceSteps;
             PhaseResyncs = stride.Diagnostics.PhaseResyncs;
             FootholdFailures = stride.Diagnostics.FootholdFailures;
+            CatchUp = stride.Diagnostics.CatchUp;
+            SupportStance support = stride.Support;
+            bool isSupported = support.HasSupport && support.IsPlanted && stride.IsMoving;
+            SupportProgress = isSupported ? support.Progress : float.NaN;
+            PelvisOverSupport = isSupported ? (stride.transform.position.x - support.FootX) * support.Direction : float.NaN;
+            LegStepper supportLeg = support.SupportLeg == SupportStance.Leg.Back ? stride.BackLeg : stride.FrontLeg;
+            SupportExtension = isSupported ? Vector2.Distance(supportLeg.HipPosition, supportLeg.FootTarget) / supportLeg.LegLength : float.NaN;
         }
     }
 
