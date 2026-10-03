@@ -18,6 +18,7 @@ Open `Assets/Scenes/SampleScene.unity` and press Play.
 | Roll toward the facing direction (disabled by default) | C | East button |
 | Shooting mode: face and aim at the pointer | Hold right mouse button | Left trigger |
 | Fire (in shooting mode; logs a debug message) | Left mouse button | Right trigger |
+| Open or close the locomotion tuning panel | F1 | |
 
 ## Project layout
 ```
@@ -29,24 +30,30 @@ Assets/
     Character/         CharacterDriver (composition root), facing, kinematic motor, rig
     Character/States/  Walk, JumpWindup, Airborne, Roll, Climb and their settings
     Climbing/          ledge detection and grab rules
-    Input/             PlayerInputReader (actions defined in code), PlayerCommands
-    Locomotion/        stride gait, leg steppers, foothold planning
-    UpperBody/         two-bone arm IK, head look, shooting stance, pistol
-  Tests/EditMode/      tests for the pure policies
+    Diagnostics/       locomotion inspector (tuning, telemetry, preview), presets, debug lines
+    Diagnostics/DebugPanel/  the runtime Game View tuning panel (UI Toolkit)
+    Input/             PlayerInputReader (actions defined in code), PlayerCommands, UiInputCapture
+    Locomotion/        stride gait, gait clock and scheduler, leg steppers, foothold planning
+    UpperBody/         locomotion posture, chest motion, head look, arm swing, two-bone arm IK, shooting
+  Resources/LocomotionDebug/  the panel's theme and stylesheet
+  Tests/EditMode/      tests for the pure policies and the gait timing
+  Tests/PlayMode/      locomotion scenarios driven through virtual input devices
 ```
 
 ### How a frame runs
 `CharacterDriver` (on the `inverseRobo` root) is the only component with an `Update`:
 1. It reads one `PlayerCommands` snapshot from `PlayerInputReader`.
 2. It ticks the active **full-body state**: Walk, JumpWindup, Airborne, Roll or Climb.
-3. If that state allows it, it ticks the **shooting stance** on top: aiming, head look and firing.
-4. In `LateUpdate`, it applies this frame's arm and head pose requests. Any limb nobody posed eases back to its authored rest pose.
+3. It ticks the **locomotion posture**: the sustained forward lean of the upper body.
+4. If the state allows it, it ticks the **upper body** on top: the shooting stance (aiming, head look, firing) or the arm swing and level head, then the chest's secondary motion.
+5. In `LateUpdate`, it applies this frame's arm and head pose requests. Any limb nobody posed eases back to its authored rest pose.
 
-The full-body states switch through `CharacterStateMachine`. Each state receives a `StateContext` holding the machine, the `CharacterRig` (stride, facing, motor, arms, head, chest) and its sibling states.
+The full-body states switch through `CharacterStateMachine`. Each state receives a `StateContext` holding the machine, the `CharacterRig` (stride, facing, motor, arms, head, chest, posture root) and its sibling states.
 
 | Piece | Responsibility |
 |---|---|
-| [StrideController](Assets/Scripts/Locomotion/StrideController.cs) | Walking gait: moves the stride target, plans the next foothold, steps one leg at a time and keeps the body over the feet. |
+| [StrideController](Assets/Scripts/Locomotion/StrideController.cs) | Grounded gait: moves the body at the ground speed, plans each foothold, steps the legs and carries the body over the feet. |
+| [StepScheduler](Assets/Scripts/Locomotion/StepScheduler.cs) | The gait clock: when each leg lifts, how fast swings progress, starting and stopping. |
 | [LegStepper](Assets/Scripts/Locomotion/LegStepper.cs) | Moves one leg's IK target: a lift-then-settle step arc, settling after a landing, or a free swing while airborne. |
 | [FootholdPlanner](Assets/Scripts/Locomotion/FootholdPlanner.cs) / [FootholdProbe](Assets/Scripts/Locomotion/FootholdProbe.cs) | Pure scoring of foothold candidates / the physics queries that collect them. |
 | [KinematicBodyMotor](Assets/Scripts/Character/KinematicBodyMotor.cs) | Moves the body by velocity while a hips-to-head capsule slides along walls and ceilings. |
@@ -96,15 +103,18 @@ The full-body states switch through `CharacterStateMachine`. Each state receives
   _We know the lengths and positions of all the bones and line segments, so we can calculate the angle between the red and blue bones that reaches the target point._
 
 ## 6. Walking and running
-  The body leads and the feet follow, timed by one gait cycle ([GaitCycle](Assets/Scripts/Locomotion/GaitCycle.cs)):
-  - **One clock for both legs:** a phase in [0, 1) advances by distance travelled over a stride. The front leg lifts at phase 0 and the back leg at 0.5, so steps always alternate evenly. Without this shared clock, independent legs drift into a limp of alternating long and short steps.
+  The body leads and the feet follow, timed by one gait clock ([StepScheduler](Assets/Scripts/Locomotion/StepScheduler.cs) over [GaitCycle](Assets/Scripts/Locomotion/GaitCycle.cs)):
+  - **One clock for the lifts and the swings:** a phase in [0, 1) advances by distance travelled over a stride. The front leg is cued at phase 0 and the back leg at 0.5. Each swing also advances on that clock ([SwingTiming](Assets/Scripts/Locomotion/SwingTiming.cs)), through one shared swing share of the cycle, so a cued foot is always down by its cue, whatever the cadence does. Steps therefore alternate evenly through speed changes and walk/run changes. When a leg's own timer ran its swing instead, a change of cadence ended swings early or late, a delayed lift made one interval short and the next long, and the gait limped.
   - **Speed sets step length and cadence:** both grow with the square root of speed ([GaitTiming](Assets/Scripts/Locomotion/GaitTiming.cs)), as people keep step length over cadence roughly constant (the "walk ratio"). That gives short, slow steps when starting and stopping, about two steps a second walking and about three running.
-  - **Stance and swing:** each foot spends a duty-factor share of the cycle on the ground: about 0.6 walking, so a foot is always down, and a third running, so both feet leave the ground between steps. A foot lands where the hip will be at touchdown, plus half its stance travel ahead, so the stance is centred under the body.
-  - **Setting off and catching up:** the first step is planned for most of the intended speed, so it isn't a shuffle. If the body outruns a planted foot while speeding up, that foot takes a balance step and the cycle re-syncs to it.
-  - **Standing:** the robot stands tall on nearly straight legs (`bodyHeight`). Walking sinks the pelvis a little and running more (`pelvisDrop`). When it stops, the feet take settling steps into a stance centred under the torso, slightly ahead of the pelvis (`stanceLead`).
+  - **Stance and swing:** each foot spends a duty-factor share of the cycle on the ground: about 0.6 walking, so a foot is always down, and about a third running, so both feet leave the ground between steps. Going from one to the other, the swing share ramps steadily per cycle (`swingShareChangePerCycle`), so every contact interval shifts by the same small amount instead of one interval stretching. The other foot may lift once a swing is far enough along: late when walking, mid-swing when running. That release point is fixed for each step when it lifts.
+  - **The gait follows the speed:** the run input only raises the target speed. The walk/run blend ([LocomotionPace](Assets/Scripts/Locomotion/LocomotionPace.cs)) follows the speed the body actually reaches, over a band of the walk-to-run speed range. So run timing never applies at walking speed, and posture, bob and arm swing grow with the pace (`Moving`) on a fixed scale: full walk is the walk profile and full run is the run profile.
+  - **Planning a step:** [SwingForecast](Assets/Scripts/Locomotion/SwingForecast.cs) replays the speed ramp and the clock-driven swing from the lift. The foot then lands where the hip will be at touchdown, plus half its stance travel ahead, whether the body is speeding up, cruising or stopping. A step already in the air is re-planned when the intended speed changes, so releasing the run key mid-stride doesn't land the foot far ahead of the stopping body. A stopping step lands on the stance spot the other foot left free.
+  - **Keeping up:** a planted foot trailing a little further than a normal stance quickens the cadence (`catchUp`), so the next steps come sooner while the legs stay half a cycle apart. Only a foot far behind (`emergencyMargin`) takes an out-of-turn balance step, which re-phases the clock when it lifts, and never twice within `emergencyCooldown` ([SupportRecovery](Assets/Scripts/Locomotion/SupportRecovery.cs)).
+  - **Starting and stopping:** stepping starts above `startSpeed` and stops below the lower `stopSpeed`, so a speed hovering near a threshold can't restart the gait every frame. From a stance the trailing foot steps first. After a brief stop or a turn, the leg that did not step last continues the rhythm. Walking always begins from the stance the feet were just placed in (spawning, landing, after a roll or a climb).
+  - **Standing:** the robot stands tall on nearly straight legs (`bodyHeight`). Walking sinks the pelvis a little and running more (`pelvisDrop`). Once the body has come to rest, the feet take settling steps into a stance centred under the torso, slightly ahead of the pelvis (`stanceLead`). If both feet are off their spots, the leg that did not step last goes first.
   - **Edges:** a foot that finds no foothold ahead leaves the body leaning past its feet, and it falls. Stopping near a ledge keeps it on the ledge.
 
-  Walk and run are each a [GaitProfile](Assets/Scripts/Locomotion/GaitProfile.cs) on `StrideController`, with their own acceleration and braking: walking eases in, running starts and stops sharply. Holding run blends from the walk profile to the run profile over about 0.4 s (`runBlendRate`), and every motion scales with the current speed, so idle, walking and running flow into each other.
+  Walk and run are each a [GaitProfile](Assets/Scripts/Locomotion/GaitProfile.cs) on `StrideController`, with their own acceleration and braking: walking eases in, running starts and stops sharply. The timing of transitions is in [GaitTransitionSettings](Assets/Scripts/Locomotion/GaitTransitionSettings.cs) and [BalanceSettings](Assets/Scripts/Locomotion/BalanceSettings.cs).
 
   ![Alt Text](https://media.giphy.com/media/UWcRcLwcw8LyuvL7qL/giphy.gif)
 
@@ -135,29 +145,44 @@ The full-body states switch through `CharacterStateMachine`. Each state receives
   ![Alt Text](https://media.giphy.com/media/H62vdwLXLRo3sMCKaL/giphy.gif)
 
 ## 8. Weight and feel
-  The body and upper body move in step with the legs, all from the same gait phase ([GaitWaves](Assets/Scripts/Locomotion/GaitWaves.cs)):
-  - **Bob:** twice per stride. When walking, the body is lowest just after each foot lands (the knee takes the weight) and highest passing over the supporting leg. When running, the bounce comes from the foot plants and push-offs: lowest mid-stance, highest in flight. The leg-reach limit stops the hips rising beyond what the planted legs reach.
+  The body moves in step with the legs, from the same gait phase ([GaitWaves](Assets/Scripts/Locomotion/GaitWaves.cs)), while the upper body carries its inertia:
+  - **Bob:** twice per stride. When walking, the body is lowest just after each foot lands (the knee takes the weight) and highest passing over the supporting leg. When running, it is lowest mid-stance and highest in flight. The planted legs' reach is a hard ceiling: the hips never rise beyond what the planted legs reach.
   - **Surge:** the body runs slightly ahead coming through each low point and drops back over the top.
-  - **Torso** ([TorsoMotion](Assets/Scripts/UpperBody/TorsoMotion.cs)):
-    - the chest flexes forward as weight is taken and extends upright over the supporting leg;
-    - it leans with speed (more when running) and into starts, and rocks back on stops;
+  - **Posture** ([LocomotionPosture](Assets/Scripts/UpperBody/LocomotionPosture.cs)): a `posture` transform between the body pivot (`bone_abs`) and the chest carries the sustained forward lean. The lean grows with the pace from the idle lean to the walk's (5°) and the run's (14°), plus a lean into acceleration (back when braking), within a cap. It follows through a slow, critically damped spring, so it never pumps with the steps, and it relaxes upright in the air, rolling or climbing. The kinematic body pivot itself never tilts.
+  - **Chest** ([TorsoMotion](Assets/Scripts/UpperBody/TorsoMotion.cs)), small secondary motion on top of the posture:
+    - it flexes forward as weight is taken and extends over the supporting leg (1° walking, 1.5° running);
     - when standing still it breathes ([Breathing](Assets/Scripts/UpperBody/Breathing.cs)): each in-breath raises the chest along the spine and extends it, lifting the shoulders, arms and head, and the out-breath is slower;
     - it kicks back with recoil.
+  - **Head** ([HeadLook](Assets/Scripts/UpperBody/HeadLook.cs)): holding level or aiming, it cancels a share of the torso's tilt at once (`stabilization`: 0 rides the torso, 1 stays level), so it stays steady while the body leans and flexes. Only the requested look or tuck goes through a spring.
   - **Arms** ([ArmSwing](Assets/Scripts/UpperBody/ArmSwing.cs)):
     - they swing opposite to the legs, the hand dragging a little behind the shoulder;
     - the elbows flex on the forward swing; when running they stay bent and pump;
     - winding up a jump they swing back, and in the air they rise for balance.
-  - **Mass:** the body follows its target through [SecondOrderDynamics](Assets/Scripts/Locomotion/SecondOrderDynamics.cs) springs ([BodyCarriage](Assets/Scripts/Locomotion/BodyCarriage.cs)), with three perceptual parameters (t3ssel8r's formulation): `frequency`, `damping` and `response`. Foot plants push it down, and a landing's speed becomes the squash and rebound.
+  - **Mass:** the body follows its target through [SecondOrderDynamics](Assets/Scripts/Locomotion/SecondOrderDynamics.cs) springs ([BodyCarriage](Assets/Scripts/Locomotion/BodyCarriage.cs)), with three perceptual parameters (t3ssel8r's formulation): `frequency`, `damping` and `response`. The vertical spring (6 Hz) sits well above the running step rate (about 3 a second), so it follows the bob closely rather than being driven near its own frequency into an uncontrolled bounce. Foot plants and push-offs add only a little firmness, and a landing's speed becomes the squash and rebound.
   - **Steps:** the foot follows [StepArc](Assets/Scripts/Locomotion/StepArc.cs) curves, one set for walking and one for running:
     - walking, the toe clears early in the swing, the foot passes under the hip near the top, then lowers gently and comes to rest as it touches down;
     - running, the foot stays low until it's under the hip, so the shin never folds back flat behind the body, then rises with the knee drive and comes down hard.
   - **Air:** falls are heavier than rises, with a brief hang at the apex.
   - **Camera and events:** [FollowCamera](Assets/Scripts/Character/FollowCamera.cs) follows with spring lag and look-ahead and kicks on landings. [CharacterEvents](Assets/Scripts/Character/CharacterEvents.cs) (`FootPlanted`, `Landed`, `Jumped`, `Fired`) are the place to attach sound and VFX.
 
-## 9. Tests
-  Open the Test Runner (Window ▸ General ▸ Test Runner) and run the **EditMode** tests. They cover the pure policies: foothold planning, two-bone IK, ledge grab rules, jump math, frame-rate easing, the gait cycle and timing, step arcs and breathing.
+## 9. Runtime tuning panel
+  Press **F1** in Play Mode to open the locomotion panel in the Game View. Press it again to close it, or use **–** to collapse it to its header. The `LocomotionDebugPanel` object in the scene holds the key and the character reference. Hidden, the panel only waits for its key. Open, clicks over it and typing into its fields don't reach gameplay. A field holds the keyboard only after you click into it, and clicking outside gives it back.
+  - **LIVE:** what the gait is doing: classification (IDLE, WALK, RUN or TRANSITION), input, ground and intended speed, pace, run blend, gait phase, cadence, swing share, catch-up, the posture's target and actual lean, the acceleration lean, chest pitch, head stabilization, body height and target, both legs, and the front-to-back and back-to-front contact intervals. Flags light up for 1.5 s after a **BALANCE STEP**, a **PHASE RESYNC** or a **FOOTHOLD FAILED**. The preview at the top (Auto, Idle, Walk, Run, with an optional speed) drives the gait without input. Auto is the normal game, and a badge in the header shows while a preview is active.
+  - **IDLE:** the stance, settling steps, idle lean, breathing and the start and stop thresholds.
+  - **WALK / RUN:** every value of that gait profile: speed, timing, pelvis and body, base lean, secondary pitch and arm swing.
+  - **TRANSITIONS:** the walk/run blend band and rate, the swing share ramp (cadence transition), the setting-off planning share, the lift overlaps, balance recovery (catch-up and emergency step), the posture's acceleration response and blend speed, and the idle thresholds.
+  - **BODY:** body height, leg extension, reach drop, the plant impulse cap and the horizontal and vertical springs.
+  - **UPPER BODY:** the walk and run leans and secondary pitch, the acceleration lean and caps, head stabilization, arm swing and the posture, chest, head and arm springs.
+  - **DEBUG:** toggles for lines showing the foot and IK targets, planned footholds, body target, stride anchor, support range, pelvis, posture direction, ground probes, support legs and gait phase. The lines show in the Scene view, and in the Game view while its **Gizmos** toggle is on.
 
-## 10. Todo
+  Each value has a slider, its exact value, a number field and its unit, and changes take effect at once. **Reset section** and **Reset all** restore the values the session started with. **Save preset** and **Load preset** write and read JSON files in `Application.persistentDataPath/LocomotionPresets` (on Windows, `%USERPROFILE%/AppData/LocalLow/<company>/<product>/LocomotionPresets`). **Copy current config** puts the JSON on the clipboard. Tuning never touches assets: in the Editor the changes end with Play Mode, so to keep values, copy them into the scene's `StrideController` and `CharacterDriver` settings. Debug tools reach all of this through `CharacterDriver.Inspector`; the locomotion never reads it back.
+
+## 10. Tests
+  Open the Test Runner (Window ▸ General ▸ Test Runner).
+  - **EditMode** tests cover the pure policies: foothold planning, two-bone IK, ledge grab rules, jump math, frame-rate easing, the gait cycle, timing and pace, step arcs, breathing, springs, posture lean, presets and the tuning schema. Simulations through the production timing classes check that walk to run and run to walk, from any point of either swing, keep the legs alternating, lift on cue and land evenly.
+  - **PlayMode** tests load the sample scene on a long test track and drive the character with a virtual keyboard and mouse at a fixed 60 fps. They cover idle, walk and run, transitions at every point of the stride, run toggles, starts and stops, reversals, the full run, uneven ground, jumps, landings, climbing, aiming, the panel and the preview. Each scenario writes its measurements to `Temp/LocomotionScenarios/<test>.txt`: contact evenness, phase jumps, balance steps, lean, body height, flight, head steadiness and planted-foot reach.
+
+## 11. Todo
   - [ ] Character and ground prefabs
   - [ ] Footstep and landing sounds and dust on `CharacterEvents`
   - [ ] Projectiles and hit reactions for the pistol
