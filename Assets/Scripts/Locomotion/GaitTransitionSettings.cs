@@ -25,7 +25,8 @@ public struct GaitTransitionSettings {
              "interval into a limp.")]
     [Range(0.02f, 1f)] public float swingShareChangePerCycle;
     [Tooltip("Speeding up, swings are timed for at least this share of the intended speed, as people do when setting " +
-             "off: the first steps are a little quicker than full ones rather than a shuffle.")]
+             "off: the first steps already take the target gait's rhythm rather than a shuffle. Below 1, a run's first " +
+             "swings land early and the stances after them run longer than the legs reach.")]
     [Range(0f, 1f)] public float settingOffShare;
 
     [Header("Overlap")]
@@ -36,7 +37,7 @@ public struct GaitTransitionSettings {
 
     public static GaitTransitionSettings Default => new GaitTransitionSettings {
         startSpeed = 0.35f, stopSpeed = 0.15f,
-        runBlendStart = 0.1f, runBlendEnd = 0.8f, runBlendRate = 4f, swingShareChangePerCycle = 0.15f, settingOffShare = 0.65f,
+        runBlendStart = 0.1f, runBlendEnd = 0.8f, runBlendRate = 4f, swingShareChangePerCycle = 0.15f, settingOffShare = 1f,
         walkLiftOverlap = 0.8f, runLiftOverlap = 0.5f,
     };
 }

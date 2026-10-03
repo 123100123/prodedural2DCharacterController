@@ -7,7 +7,7 @@ public class PelvisSupportTests {
     private static readonly (float coupling, float maxOffset) Limits = (0.6f, 0.3f);
 
     private static SupportStance Stance((float footX, float direction, float progress) stance) {
-        return new SupportStance((SupportStance.Leg.Front, true), (stance.footX, stance.direction, Travel, stance.progress));
+        return new SupportStance((SupportStance.Leg.Front, true), (stance.footX, stance.direction, (Travel, 0.5f), stance.progress));
     }
 
     // ---- Support leg ----------------------------------------------------------------------------------------------
@@ -15,7 +15,7 @@ public class PelvisSupportTests {
     [Test]
     public void TheOnlyPlantedFootCarriesTheBody() {
         SupportLegResolver resolver = new SupportLegResolver();
-        resolver.Track((true, false), (1f, 0f), (0f, 1f, Travel));
+        resolver.Track((true, false), (1f, 0f), (0f, 1f, (Travel, 0.5f)));
         Assert.That(resolver.Current.SupportLeg, Is.EqualTo(SupportStance.Leg.Front));
         Assert.That(resolver.Current.IsPlanted, Is.True);
     }
@@ -23,8 +23,8 @@ public class PelvisSupportTests {
     [Test]
     public void WithBothFeetDownTheFootThatLandedLastCarriesTheBody() {
         SupportLegResolver resolver = new SupportLegResolver();
-        resolver.Track((true, false), (1f, 0f), (0f, 1f, Travel));
-        resolver.Track((true, true), (1f, 2.5f), (0.8f, 1f, Travel));
+        resolver.Track((true, false), (1f, 0f), (0f, 1f, (Travel, 0.5f)));
+        resolver.Track((true, true), (1f, 2.5f), (0.8f, 1f, (Travel, 0.5f)));
         Assert.That(resolver.Current.SupportLeg, Is.EqualTo(SupportStance.Leg.Back));
         Assert.That(resolver.Current.FootX, Is.EqualTo(2.5f));
     }
@@ -33,21 +33,21 @@ public class PelvisSupportTests {
     [Test]
     public void TheSupportDoesNotSwitchWhileBothFeetStayDown() {
         SupportLegResolver resolver = new SupportLegResolver();
-        resolver.Track((true, false), (1f, 0f), (0f, 1f, Travel));
-        resolver.Track((true, true), (1f, 2.5f), (0.8f, 1f, Travel));
+        resolver.Track((true, false), (1f, 0f), (0f, 1f, (Travel, 0.5f)));
+        resolver.Track((true, true), (1f, 2.5f), (0.8f, 1f, (Travel, 0.5f)));
         for (int tick = 0; tick < 10; tick++) {
-            resolver.Track((true, true), (1f, 2.5f), (0.8f + 0.05f * tick, 1f, Travel));
+            resolver.Track((true, true), (1f, 2.5f), (0.8f + 0.05f * tick, 1f, (Travel, 0.5f)));
             Assert.That(resolver.Current.SupportLeg, Is.EqualTo(SupportStance.Leg.Back));
         }
-        resolver.Track((true, false), (1f, 2.5f), (1.4f, 1f, Travel));
+        resolver.Track((true, false), (1f, 2.5f), (1.4f, 1f, (Travel, 0.5f)));
         Assert.That(resolver.Current.SupportLeg, Is.EqualTo(SupportStance.Leg.Front), "the back foot lifted, the front one still down");
     }
 
     [Test]
     public void InFlightTheLastSupportCarriesOn() {
         SupportLegResolver resolver = new SupportLegResolver();
-        resolver.Track((true, false), (1f, 0f), (0f, 1f, Travel));
-        resolver.Track((false, false), (1f, 0f), (1.7f, 1f, Travel));
+        resolver.Track((true, false), (1f, 0f), (0f, 1f, (Travel, 0.5f)));
+        resolver.Track((false, false), (1f, 0f), (1.7f, 1f, (Travel, 0.5f)));
         Assert.That(resolver.Current.SupportLeg, Is.EqualTo(SupportStance.Leg.Front));
         Assert.That(resolver.Current.IsPlanted, Is.False);
         Assert.That(resolver.Current.Progress, Is.GreaterThan(1f), "past toe-off");
@@ -56,8 +56,8 @@ public class PelvisSupportTests {
     [Test]
     public void StanceProgressIsTheBodysTravelOverTheFoot([Values(1f, -1f)] float direction) {
         SupportLegResolver resolver = new SupportLegResolver();
-        resolver.Track((true, false), (direction * 0.8f, 0f), (0f, direction, Travel));
-        resolver.Track((true, false), (direction * 0.8f, 0f), (direction * 0.8f, direction, Travel));
+        resolver.Track((true, false), (direction * 0.8f, 0f), (0f, direction, (Travel, 0.5f)));
+        resolver.Track((true, false), (direction * 0.8f, 0f), (direction * 0.8f, direction, (Travel, 0.5f)));
         Assert.That(resolver.Current.Progress, Is.EqualTo(0.5f).Within(0.0001f), "mid-stance after half the travel, either way");
     }
 
@@ -69,6 +69,15 @@ public class PelvisSupportTests {
         Assert.That(PelvisSupportMotion.CentredHipX(Stance((foot, 1f, 0f))), Is.EqualTo(foot - Travel / 2f), "contact: behind the foot");
         Assert.That(PelvisSupportMotion.CentredHipX(Stance((foot, 1f, 0.5f))), Is.EqualTo(foot), "mid-stance: over it");
         Assert.That(PelvisSupportMotion.CentredHipX(Stance((foot, 1f, 1f))), Is.EqualTo(foot + Travel / 2f), "toe-off: ahead of it");
+    }
+
+    // A runner lands close under the body and pushes off far behind: the hip passes over the foot early in the stance.
+    [Test]
+    public void AnUnevenStanceRunsFromTheContactLeadToTheToeOffLag() {
+        SupportStance stance = new SupportStance((SupportStance.Leg.Front, true), (5f, 1f, (Travel, 0.35f), 0f));
+        Assert.That(PelvisSupportMotion.CentredHipX(stance), Is.EqualTo(5f - 0.35f * Travel).Within(0.0001f), "contact");
+        SupportStance toeOff = new SupportStance((SupportStance.Leg.Front, true), (5f, 1f, (Travel, 0.35f), 1f));
+        Assert.That(PelvisSupportMotion.CentredHipX(toeOff), Is.EqualTo(5f + 0.65f * Travel).Within(0.0001f), "toe-off");
     }
 
     [Test]

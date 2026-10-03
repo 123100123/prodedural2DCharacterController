@@ -16,12 +16,13 @@ public class StepCurves {
         lift = new AnimationCurve(new Keyframe(0f, 0f, 0f, 4f), new Keyframe(0.38f, 1f, 0f, 0f), new Keyframe(1f, 0f, -1.2f, 0f)),
     };
 
-    // Early swing the foot leaves the floor and follows the body forward, low, so the shin never folds up flat behind
-    // the thigh; mid-swing the knee drives forward and the foot passes under the body at the top of its arc; late swing
-    // the lower leg reaches out to the landing point and comes down firmly into the plant.
+    // The running knee drive: after push-off the heel rises gently while the foot still trails (so the shin never folds
+    // up flat behind the thigh), the foot swings forward with the knee and passes under the hip at the top of its arc,
+    // where a lift of about a quarter of the leg folds the knee up in front of the body; late in the swing the lower
+    // leg extends forward and down to land close ahead of the hip.
     public static StepCurves Run => new StepCurves {
-        travel = new AnimationCurve(new Keyframe(0f, 0f, 0f, 1f), new Keyframe(0.5f, 0.6f, 1.3f, 1.3f), new Keyframe(1f, 1f, 0.6f, 0f)),
-        lift = new AnimationCurve(new Keyframe(0f, 0f, 0f, 1.6f), new Keyframe(0.45f, 1f, 0f, 0f), new Keyframe(1f, 0f, -3.5f, 0f)),
+        travel = new AnimationCurve(new Keyframe(0f, 0f, 0f, 1.1f), new Keyframe(0.55f, 0.585f, 1.1f, 1.1f), new Keyframe(1f, 1f, 0.75f, 0f)),
+        lift = new AnimationCurve(new Keyframe(0f, 0f, 0f, 1f), new Keyframe(0.55f, 1f, 0f, 0f), new Keyframe(1f, 0f, -3f, 0f)),
     };
 }
 

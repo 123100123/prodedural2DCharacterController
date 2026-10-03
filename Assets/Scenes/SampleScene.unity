@@ -1037,6 +1037,7 @@ MonoBehaviour:
     acceleration: 9
     deceleration: 13
     dutyFactor: 0.62
+    contactLeadShare: 0.5
     stepLengthPerRootSpeed: 0.84
     minStepLength: 0.45
     maxStepLength: 2.2
@@ -1054,26 +1055,27 @@ MonoBehaviour:
     armSwing: 25
     armBend: 0.15
   run:
-    speed: 8.25
-    acceleration: 12
+    speed: 9
+    acceleration: 14
     deceleration: 18
-    dutyFactor: 0.43
-    stepLengthPerRootSpeed: 0.8
+    dutyFactor: 0.36
+    contactLeadShare: 0.35
+    stepLengthPerRootSpeed: 0.92
     minStepLength: 0.55
-    maxStepLength: 2.7
+    maxStepLength: 3.2
     minSwingDuration: 0.18
-    maxSwingDuration: 0.42
-    liftHeight: 0.28
-    pelvisDrop: 0.21
-    bobAmplitude: 0.15
-    lowAfterContact: 0.215
-    surge: 0.09
+    maxSwingDuration: 0.45
+    liftHeight: 0.65
+    pelvisDrop: 0.16
+    bobAmplitude: 0.12
+    lowAfterContact: 0.13
+    surge: 0.08
     plantImpulse: 0.08
-    pushOffImpulse: 0.25
-    lean: 8
-    pitchOscillation: 0.8
-    armSwing: 38
-    armBend: 0.48
+    pushOffImpulse: 0.3
+    lean: 17
+    pitchOscillation: 1
+    armSwing: 45
+    armBend: 0.5
   transitions:
     startSpeed: 0.35
     stopSpeed: 0.15
@@ -1081,7 +1083,7 @@ MonoBehaviour:
     runBlendEnd: 0.8
     runBlendRate: 4
     swingShareChangePerCycle: 0.15
-    settingOffShare: 0.65
+    settingOffShare: 1
     walkLiftOverlap: 0.8
     runLiftOverlap: 0.5
   balance:
@@ -1157,16 +1159,16 @@ MonoBehaviour:
           time: 0
           value: 0
           inSlope: 0
-          outSlope: 1
+          outSlope: 1.1
           tangentMode: 0
           weightedMode: 0
           inWeight: 0
           outWeight: 0
         - serializedVersion: 3
-          time: 0.5
-          value: 0.6
-          inSlope: 1.3
-          outSlope: 1.3
+          time: 0.55
+          value: 0.585
+          inSlope: 1.1
+          outSlope: 1.1
           tangentMode: 0
           weightedMode: 0
           inWeight: 0
@@ -1174,7 +1176,7 @@ MonoBehaviour:
         - serializedVersion: 3
           time: 1
           value: 1
-          inSlope: 0.6
+          inSlope: 0.75
           outSlope: 0
           tangentMode: 0
           weightedMode: 0
@@ -1190,13 +1192,13 @@ MonoBehaviour:
           time: 0
           value: 0
           inSlope: 0
-          outSlope: 1.6
+          outSlope: 1
           tangentMode: 0
           weightedMode: 0
           inWeight: 0
           outWeight: 0
         - serializedVersion: 3
-          time: 0.45
+          time: 0.55
           value: 1
           inSlope: 0
           outSlope: 0
@@ -1207,7 +1209,7 @@ MonoBehaviour:
         - serializedVersion: 3
           time: 1
           value: 0
-          inSlope: -3.5
+          inSlope: -3
           outSlope: 0
           tangentMode: 0
           weightedMode: 0
@@ -1225,7 +1227,7 @@ MonoBehaviour:
       frequency: 6
       damping: 0.9
       response: 0.2
-    legExtension: 0.95
+    legExtension: 0.97
     maxReachDrop: 0.23
     maxPlantImpulse: 0.7
     supportCoupling: 0.6
@@ -4071,7 +4073,7 @@ MonoBehaviour:
         frequency: 4
         damping: 0.9
         response: 0
-      stabilization: 0.6
+      stabilization: 0.35
       stabilizationFade: 0.2
     maxLevelCorrection: 40
     crownDistance: 0.63
@@ -4082,7 +4084,7 @@ MonoBehaviour:
       idleLean: 0
       leanPerAcceleration: 0.18
       maxAccelerationLean: 3
-      maxTotalLean: 11.5
+      maxTotalLean: 22
       spring:
         frequency: 1.6
         damping: 1
@@ -4105,7 +4107,7 @@ MonoBehaviour:
       swingLag: 0.06
       forwardElbowFlex: 0.35
       bentArmShortening: 0.45
-      bentArmForwardAngle: 35
+      bentArmForwardAngle: 15
     windupSwing: 40
     airborneRaise: {x: 80, y: 45}
     airborneElbowBend: 0.3

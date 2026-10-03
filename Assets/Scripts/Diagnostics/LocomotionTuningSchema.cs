@@ -64,6 +64,7 @@ public static class LocomotionTuningSchema {
             GaitParameter(isRun, ((("Speed", "Acceleration", UnitsPerSecondSquared), (1f, 60f)), (g => g.acceleration, (ref GaitProfile g, float v) => g.acceleration = v))),
             GaitParameter(isRun, ((("Speed", "Deceleration", UnitsPerSecondSquared), (1f, 80f)), (g => g.deceleration, (ref GaitProfile g, float v) => g.deceleration = v))),
             GaitParameter(isRun, ((("Timing", "Duty factor", Share), (0.2f, 0.8f)), (g => g.dutyFactor, (ref GaitProfile g, float v) => g.dutyFactor = v))),
+            GaitParameter(isRun, ((("Timing", "Contact lead (share of stance ahead)", Share), (0.2f, 0.6f)), (g => g.contactLeadShare, (ref GaitProfile g, float v) => g.contactLeadShare = v))),
             GaitParameter(isRun, ((("Timing", "Step length per √speed", Multiple), (0.3f, 2f)), (g => g.stepLengthPerRootSpeed, (ref GaitProfile g, float v) => g.stepLengthPerRootSpeed = v))),
             GaitParameter(isRun, ((("Timing", "Min step length", Units), (0.1f, 2f)), (g => g.minStepLength, (ref GaitProfile g, float v) => g.minStepLength = v))),
             GaitParameter(isRun, ((("Timing", "Max step length", Units), (0.5f, 5f)), (g => g.maxStepLength, (ref GaitProfile g, float v) => g.maxStepLength = v))),

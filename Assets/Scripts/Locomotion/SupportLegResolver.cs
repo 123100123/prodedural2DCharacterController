@@ -11,6 +11,7 @@ public sealed class SupportLegResolver {
         public float AnchorAtPlant;
         public float Direction;
         public float StanceTravel;
+        public float ContactLeadShare;
     }
 
     private Plant front;
@@ -20,9 +21,9 @@ public sealed class SupportLegResolver {
 
     public SupportStance Current => StanceOf(support);
 
-    // Called once per gait tick, after the feet moved. expectedStanceTravel: how far the body travels over a planted foot
-    // at the current speed (the gait's stance length).
-    public void Track((bool front, bool back) planted, (float frontX, float backX) feet, (float anchorX, float direction, float expectedStanceTravel) motion) {
+    // Called once per gait tick, after the feet moved. stance: how far the body travels over a planted foot at the current
+    // speed (the gait's stance length), and the share of it a foot lands ahead of the hip.
+    public void Track((bool front, bool back) planted, (float frontX, float backX) feet, (float anchorX, float direction, (float travel, float contactLeadShare) stance) motion) {
         anchorX = motion.anchorX;
         bool frontLanded = UpdatePlant(ref front, (planted.front, feet.frontX), motion);
         bool backLanded = UpdatePlant(ref back, (planted.back, feet.backX), motion);
@@ -37,13 +38,14 @@ public sealed class SupportLegResolver {
     }
 
     // Returns true on the tick the foot lands.
-    private static bool UpdatePlant(ref Plant plant, (bool isPlanted, float footX) foot, (float anchorX, float direction, float expectedStanceTravel) motion) {
+    private static bool UpdatePlant(ref Plant plant, (bool isPlanted, float footX) foot, (float anchorX, float direction, (float travel, float contactLeadShare) stance) motion) {
         bool landed = foot.isPlanted && !plant.IsPlanted;
         if (landed) {
             plant.FootX = foot.footX;
             plant.AnchorAtPlant = motion.anchorX;
             plant.Direction = motion.direction;
-            plant.StanceTravel = Mathf.Max(0.01f, motion.expectedStanceTravel);
+            plant.StanceTravel = Mathf.Max(0.01f, motion.stance.travel);
+            plant.ContactLeadShare = motion.stance.contactLeadShare;
         }
         plant.IsPlanted = foot.isPlanted;
         return landed;
@@ -69,6 +71,6 @@ public sealed class SupportLegResolver {
         }
         Plant plant = leg == SupportStance.Leg.Front ? front : back;
         float progress = Mathf.Max(0f, (anchorX - plant.AnchorAtPlant) * plant.Direction / plant.StanceTravel);
-        return new SupportStance((leg, plant.IsPlanted), (plant.FootX, plant.Direction, plant.StanceTravel, progress));
+        return new SupportStance((leg, plant.IsPlanted), (plant.FootX, plant.Direction, (plant.StanceTravel, plant.ContactLeadShare), progress));
     }
 }

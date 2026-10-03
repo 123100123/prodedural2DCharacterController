@@ -17,6 +17,9 @@ public sealed class GaitCycle {
         return (HasCrossed((start, end), FrontLegLiftPhase), HasCrossed((start, end), BackLegLiftPhase));
     }
 
+    // Share of a stride left before the given leg's lift phase comes round.
+    public float StridesUntilLift(bool frontLeg) => Mathf.Repeat((frontLeg ? FrontLegLiftPhase : BackLegLiftPhase) - Phase, 1f);
+
     // Puts the cycle exactly at the given leg's lift, after that leg was made to step (e.g. a balance step), so the
     // other leg follows half a cycle later and the alternation stays even.
     public void SyncToLift(bool frontLeg) => Phase = frontLeg ? FrontLegLiftPhase : BackLegLiftPhase;

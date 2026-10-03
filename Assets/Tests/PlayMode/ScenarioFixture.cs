@@ -49,6 +49,8 @@ public abstract class ScenarioFixture {
         return metrics;
     }
 
+    protected void Report(string line) => report.Add(line);
+
     protected static void AssertEvenGait((GaitMetrics metrics, float maxAsymmetry) check) {
         string label = $"[{check.metrics.Window.start:F2}, {check.metrics.Window.end:F2}]";
         Assert.That(check.metrics.RepeatedLegLifts, Is.Zero, $"legs alternate in {label}");

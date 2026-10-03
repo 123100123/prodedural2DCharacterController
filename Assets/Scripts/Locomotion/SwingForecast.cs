@@ -39,19 +39,26 @@ public static class SwingForecast {
         public float LandingSpeed { get; }
     }
 
+    // The foot lifts after the body has already moved this tick, and the swing still advances once in the same tick:
+    // that first step moves the foot but not the body.
     public static Prediction Predict(Request request) {
         float speed = request.Speed;
-        (float elapsed, float travel, float progress) swing = (0f, 0f, request.StartProgress);
-        SwingTiming timing = SwingTiming.OnClock((request.LongestDuration, 1f));
+        float liftTickProgress = SwingStep((speed, request));
+        (float elapsed, float travel, float progress) swing = (0f, 0f, request.StartProgress + liftTickProgress);
         float longestRemaining = (1f - request.StartProgress) * request.LongestDuration;
         while (swing.progress < 1f && swing.elapsed < longestRemaining) {
-            GaitProfile gait = GaitAt(speed, request.Gaits);
-            speed = GroundSpeedRamp.Step((speed, request.IntendedSpeed, gait), ForecastStep);
-            float strides = Mathf.Abs(speed) * ForecastStep / GaitTiming.StrideLength(speed, gait);
-            float clockProgress = strides / Mathf.Max(0.05f, request.SwingShare);
-            swing = (swing.elapsed + ForecastStep, swing.travel + speed * ForecastStep, swing.progress + timing.ProgressOver((clockProgress, ForecastStep)));
+            speed = GroundSpeedRamp.Step((speed, request.IntendedSpeed, GaitAt(speed, request.Gaits)), ForecastStep);
+            swing = (swing.elapsed + ForecastStep, swing.travel + speed * ForecastStep, swing.progress + SwingStep((speed, request)));
         }
         return new Prediction((swing.elapsed, swing.travel, speed));
+    }
+
+    // Swing progress over one step at a speed: the clock's advance through the swing share, at least the time ceiling's.
+    private static float SwingStep((float speed, Request request) at) {
+        GaitProfile gait = GaitAt(at.speed, at.request.Gaits);
+        float strides = Mathf.Abs(at.speed) * ForecastStep / GaitTiming.StrideLength(at.speed, gait);
+        float clockProgress = strides / Mathf.Max(0.05f, at.request.SwingShare);
+        return SwingTiming.OnClock((at.request.LongestDuration, 1f)).ProgressOver((clockProgress, ForecastStep));
     }
 
     // The walk/run blend the gait settles on at a speed.

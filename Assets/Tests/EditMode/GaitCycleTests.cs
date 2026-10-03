@@ -49,7 +49,7 @@ public class GaitCycleTests {
         // Each foot lands where the hip will be at touchdown plus the landing lead.
         float speed = Walk.speed;
         float swing = GaitTiming.SwingDuration(speed, Walk);
-        float lead = GaitTiming.LandingLead(speed, Walk);
+        float lead = GaitTiming.ContactLead(speed, Walk);
         List<float> footprints = new List<float>();
         foreach ((float time, bool _) lift in SimulateLifts((speed, 5f))) {
             footprints.Add(speed * (lift.time + swing) + lead);
@@ -62,11 +62,20 @@ public class GaitCycleTests {
     }
 
     [Test]
+    public void TheStanceSplitsIntoTheContactLeadAheadAndTheToeOffLagBehind() {
+        GaitProfile run = GaitProfile.Run;
+        float travel = GaitTiming.StanceTravel(run.speed, run);
+        Assert.That(GaitTiming.ContactLead(run.speed, run) + GaitTiming.ToeOffLag(run.speed, run), Is.EqualTo(travel).Within(0.0001f));
+        Assert.That(GaitTiming.ContactLead(run.speed, run), Is.LessThan(GaitTiming.ToeOffLag(run.speed, run)), "a runner lands closer than it pushes off");
+        Assert.That(GaitTiming.ContactLead(Walk.speed, Walk), Is.EqualTo(GaitTiming.ToeOffLag(Walk.speed, Walk)).Within(0.0001f), "a walker centres its stance");
+    }
+
+    [Test]
     public void StepLandsWhereTheHipWillBeAtTouchdownPlusTheLead() {
         GaitProfile run = GaitProfile.Run;
         float swing = GaitTiming.SwingDuration(run.speed, run);
         float reach = GaitTiming.LandingReach(run.speed, run);
-        Assert.That(reach, Is.EqualTo(run.speed * swing + GaitTiming.LandingLead(run.speed, run)).Within(0.0001f));
+        Assert.That(reach, Is.EqualTo(run.speed * swing + GaitTiming.ContactLead(run.speed, run)).Within(0.0001f));
         Assert.That(GaitTiming.LandingReach(-run.speed, run), Is.EqualTo(reach).Within(0.0001f), "the same either way");
     }
 
@@ -96,10 +105,11 @@ public class GaitCycleTests {
         Assert.That(GaitWaves.BodyBob((walkLow, walkLow)), Is.EqualTo(-1f).Within(0.0001f));
         Assert.That(GaitWaves.BodyBob((walkLow + 0.25f, walkLow)), Is.EqualTo(1f).Within(0.0001f), "highest a quarter cycle later, over the support leg");
 
+        // Running, the body is lowest as the hip passes over the foot, a contact-lead share into the stance.
         GaitProfile run = GaitProfile.Run;
         float runLow = GaitWaves.LowestPhase((run.dutyFactor, run.lowAfterContact));
-        float runMidStance = GaitWaves.FrontLegContact(run.dutyFactor) + run.dutyFactor / 2f;
-        Assert.That(runLow, Is.EqualTo(Mathf.Repeat(runMidStance, 1f)).Within(0.01f));
+        float hipOverFoot = GaitWaves.FrontLegContact(run.dutyFactor) + run.dutyFactor * run.contactLeadShare;
+        Assert.That(runLow, Is.EqualTo(Mathf.Repeat(hipOverFoot, 1f)).Within(0.01f));
     }
 
     [Test]

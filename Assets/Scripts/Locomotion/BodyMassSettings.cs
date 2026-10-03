@@ -10,7 +10,7 @@ public struct BodyMassSettings {
              "gait's bob makes the motion instead of the spring resonating. The bob is aimed ahead by this spring's lag.")]
     public SpringSettings verticalSpring;
     [Tooltip("Share of the leg length a supporting leg may extend to; the pelvis never rises higher than its planted legs " +
-             "reach. Below 1, so the knees always keep some bend in reserve.")]
+             "reach. Just below 1: a push-off leg straightens behind the body, yet never locks out completely.")]
     [Range(0.8f, 1f)] public float legExtension;
     [Tooltip("Most the leg-reach limit may lower the pelvis below its gait height; a foot further away is about to step anyway.")]
     public float maxReachDrop;
@@ -25,6 +25,6 @@ public struct BodyMassSettings {
     public static BodyMassSettings Default => new BodyMassSettings {
         horizontalSpring = new SpringSettings(4f, 0.9f, 0.3f),
         verticalSpring = new SpringSettings(6f, 0.9f, 0.2f),
-        legExtension = 0.95f, maxReachDrop = 0.23f, maxPlantImpulse = 0.7f, supportCoupling = 0.6f, maxSupportOffset = 0.3f,
+        legExtension = 0.97f, maxReachDrop = 0.23f, maxPlantImpulse = 0.7f, supportCoupling = 0.6f, maxSupportOffset = 0.3f,
     };
 }

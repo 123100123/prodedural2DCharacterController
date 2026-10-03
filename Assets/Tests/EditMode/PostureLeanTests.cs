@@ -17,7 +17,7 @@ public class PostureLeanTests {
         float walking = BaseLeanAt(Gaits.walk.speed);
         float running = BaseLeanAt(Gaits.run.speed);
         Assert.That(walking, Is.GreaterThan(idle + 2f), "walking visibly leans forward");
-        Assert.That(running, Is.GreaterThan(walking + 3f), "running leans further; the pelvis over its support makes the rest of the forward line");
+        Assert.That(running, Is.GreaterThan(walking + 8f), "running leans into one forward body line");
     }
 
     // The base lean depends on speed alone, so it moves smoothly through idle, walk and run and back.

@@ -16,6 +16,6 @@ public struct ArmSwingSettings {
 
     public static ArmSwingSettings Default => new ArmSwingSettings {
         spring = new SpringSettings(3f, 0.5f, 0f), swingLag = 0.06f, forwardElbowFlex = 0.35f,
-        bentArmShortening = 0.45f, bentArmForwardAngle = 35f,
+        bentArmShortening = 0.45f, bentArmForwardAngle = 15f,
     };
 }

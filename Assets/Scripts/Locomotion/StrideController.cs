@@ -228,10 +228,10 @@ public class StrideController : MonoBehaviour {
         CurrentGait = GaitProfile.Blend((walk, run), running);
     }
 
-    // Walls always bound the body; without movement input, so does the stopping margin past the leading foot. Only the
+    // Walls always bound the body; while stopping (no target speed), so does the stopping margin past the leading foot. Only the
     // side the body moves toward is bounded: a running body is often still behind feet landing ahead of it.
     private (float min, float max) AnchorSpan((float direction, bool running, (float min, float max) feetSpan, (float min, float max) bodySpan) intent) {
-        if (!Mathf.Approximately(intent.direction, 0f) || Mathf.Approximately(groundSpeed, 0f)) {
+        if (!IsStopping || Mathf.Approximately(groundSpeed, 0f)) {
             return intent.bodySpan;
         }
         if (groundSpeed > 0f) {
@@ -279,7 +279,7 @@ public class StrideController : MonoBehaviour {
         }
 
         (float excess, LegStepper leg) trailing = FurthestTrailingPlantedFoot();
-        SupportRecovery.Response response = SupportRecovery.Assess((trailing.excess, Time.time - lastBalanceStepTime), balance);
+        SupportRecovery.Response response = SupportRecovery.Assess((trailing.excess, ProjectedTrailExcess(), Time.time - lastBalanceStepTime), balance);
         supportCatchUp = response.CatchUp;
         diagnostics.RecordCatchUp(supportCatchUp);
 
@@ -293,15 +293,36 @@ public class StrideController : MonoBehaviour {
 
     // How much further behind the hip than a normal stance ends the furthest planted foot is (negative: within it).
     private (float excess, LegStepper leg) FurthestTrailingPlantedFoot() {
-        float normalLag = GaitTiming.LandingLead(groundSpeed, CurrentGait);
+        float normalLag = GaitTiming.ToeOffLag(groundSpeed, CurrentGait);
         float frontExcess = TrailingLag(frontLeg) - normalLag;
         float backExcess = TrailingLag(backLeg) - normalLag;
         return frontExcess >= backExcess ? (frontExcess, frontLeg) : (backExcess, backLeg);
     }
 
-    private float TrailingLag(LegStepper leg) {
-        return leg.IsGrounded ? (transform.position.x - leg.FootTarget.x) * Mathf.Sign(groundSpeed) : float.NegativeInfinity;
+    // How far beyond its leg's reach a planted foot will trail when the clock cues it, if the cadence does not change;
+    // the larger of the two feet. A stance only a little long is left to the measured trail.
+    private float ProjectedTrailExcess() {
+        float strideLength = GaitTiming.StrideLength(groundSpeed, CurrentGait);
+        return Mathf.Max(ProjectedTrailBeyondReach((frontLeg, true), strideLength), ProjectedTrailBeyondReach((backLeg, false), strideLength));
     }
+
+    private float ProjectedTrailBeyondReach((LegStepper leg, bool isFront) planted, float strideLength) {
+        if (!planted.leg.IsGrounded) {
+            return float.NegativeInfinity;
+        }
+        float projectedLag = TrailingLag(planted.leg) + scheduler.StridesUntilCue(planted.isFront) * strideLength;
+        float hipHeight = planted.leg.HipPosition.y - planted.leg.FootTarget.y;
+        float reachableLag = Mathf.Sqrt(Mathf.Max(0f, planted.leg.LegLength * planted.leg.LegLength - hipHeight * hipHeight));
+        return projectedLag - reachableLag;
+    }
+
+    private float TrailingLag(LegStepper leg) {
+        return leg.IsGrounded ? (leg.HipPosition.x - leg.FootTarget.x) * Mathf.Sign(groundSpeed) : float.NegativeInfinity;
+    }
+
+    // How far the leg's hip joint sits ahead of the body pivot; the stance is measured from the hip, and leaning the
+    // pelvis swings the hips behind the pivot.
+    private float HipOffsetX(LegStepper leg) => leg.HipPosition.x - transform.position.x;
 
     // A cued leg lifts as soon as it is planted and the other foot lets it; until then the cue stays pending.
     private void LiftFeetOnCue((float min, float max) feetSpan) {
@@ -321,7 +342,7 @@ public class StrideController : MonoBehaviour {
         scheduler.ConsumeCue(isFrontLeg);
 
         float direction = Mathf.Sign(groundSpeed);
-        (float landingHipX, float desiredX, float duration) landing = ForecastLanding((direction, 0f, legs.other.FootTarget.x, feetSpan));
+        (float landingHipX, float desiredX, float duration) landing = ForecastLanding((direction, 0f, (legs.other.FootTarget.x, HipOffsetX(legs.stepping)), feetSpan));
         SwingTiming timing = GaitSwingTiming(landing.duration);
         lastStepFoundNoFoothold = !TryStepToward((legs.stepping, legs.other, landing.desiredX, direction), (landing.landingHipX, timing, CurrentGait.liftHeight, Pace.Running));
         if (lastStepFoundNoFoothold) {
@@ -348,7 +369,7 @@ public class StrideController : MonoBehaviour {
         RememberPlannedIntent(isFrontLeg);
 
         float progress = legs.stepping.StepProgress;
-        (float landingHipX, float desiredX, float duration) landing = ForecastLanding((Mathf.Sign(groundSpeed), progress, legs.other.FootTarget.x, feetSpan));
+        (float landingHipX, float desiredX, float duration) landing = ForecastLanding((Mathf.Sign(groundSpeed), progress, (legs.other.FootTarget.x, HipOffsetX(legs.stepping)), feetSpan));
         if (!TryPlanFoothold((legs.stepping, legs.other, landing.desiredX), landing.landingHipX, out Vector2 foothold)) {
             return;
         }
@@ -365,16 +386,17 @@ public class StrideController : MonoBehaviour {
     private bool IsStopping => Mathf.Approximately(intendedSpeed, 0f);
 
     // Where the hip will be when the rest of the swing ends, where the foot should land and how long that takes. Moving
-    // on, the foot lands half a stance ahead of the hip; stopping, on a stance spot where the hip stops.
-    private (float landingHipX, float desiredX, float duration) ForecastLanding((float direction, float startProgress, float otherFootX, (float min, float max) feetSpan) step) {
+    // on, the foot lands its contact lead ahead of the hip; stopping, on a stance spot where the hip stops.
+    // legs: where the other foot stands, and how far the stepping leg's hip sits ahead of the body pivot.
+    private (float landingHipX, float desiredX, float duration) ForecastLanding((float direction, float startProgress, (float otherFootX, float hipOffsetX) legs, (float min, float max) feetSpan) step) {
         // A stopping clock would stretch the last step into slow motion: it is held to a natural swing at the current speed.
         float longestDuration = IsStopping ? GaitTiming.SwingDuration(groundSpeed, CurrentGait) : CurrentGait.maxSwingDuration;
         SwingForecast.Request request = new SwingForecast.Request((groundSpeed, intendedSpeed, scheduler.SwingShare, longestDuration, step.startProgress), (walk, run, transitions));
         SwingForecast.Prediction swing = SwingForecast.Predict(request);
-        float landingHipX = transform.position.x + swing.Travel + LagRecoveredBy(swing.LandingSpeed);
+        float landingHipX = PelvisRidingAnchor((anchorX + swing.Travel, swing.LandingSpeed)) + step.legs.hipOffsetX;
         float landingX = IsStopping
-            ? StoppingSpot((landingHipX, step.direction, step.otherFootX))
-            : landingHipX + step.direction * GaitTiming.LandingLead(swing.LandingSpeed, SwingForecast.GaitAt(swing.LandingSpeed, (walk, run, transitions)));
+            ? StoppingSpot((landingHipX, step.direction, step.legs.otherFootX))
+            : landingHipX + step.direction * GaitTiming.ContactLead(swing.LandingSpeed, SwingForecast.GaitAt(swing.LandingSpeed, (walk, run, transitions)));
         return (landingHipX, Mathf.Clamp(landingX, step.feetSpan.min, step.feetSpan.max), swing.Duration);
     }
 
@@ -385,14 +407,6 @@ public class StrideController : MonoBehaviour {
         float frontSpot = center + stop.direction * idle.stanceHalfWidth;
         float backSpot = center - stop.direction * idle.stanceHalfWidth;
         return Mathf.Abs(stop.otherFootX - frontSpot) >= Mathf.Abs(stop.otherFootX - backSpot) ? frontSpot : backSpot;
-    }
-
-    // The body trails its anchor by a spring lag that shrinks as it slows: slowing to the landing speed, it catches up by
-    // the difference (all of it when stopping). Speeding up gains nothing, the lag only grows.
-    private float LagRecoveredBy(float landingSpeed) {
-        float lagNow = (anchorX - transform.position.x) * Mathf.Sign(groundSpeed);
-        float lagAtLanding = body.horizontalSpring.TrackingLag(Mathf.Abs(landingSpeed));
-        return Mathf.Sign(groundSpeed) * Mathf.Max(0f, lagNow - lagAtLanding);
     }
 
     // The swing runs on the gait clock, finishing within a little more than its forecast duration if the clock stalls;
@@ -515,19 +529,30 @@ public class StrideController : MonoBehaviour {
     // character slows to a stand.
     private float BodyTargetX() {
         SupportStance stance = supportResolver.Current;
-        float support = PelvisSupportMotion.SupportOffset((stance, ExpectedPelvisX()), (body.supportCoupling, body.maxSupportOffset));
+        float supportHipX = PelvisRidingAnchor((anchorX, groundSpeed)) + SupportHipOffsetX(stance);
+        float support = PelvisSupportMotion.SupportOffset((stance, supportHipX), (body.supportCoupling, body.maxSupportOffset));
         float surge = PelvisSupportMotion.Surge(stance, CurrentGait.surge);
         pelvisOffsets = (support * Pace.Moving, surge * Pace.Moving);
         return anchorX + pelvisOffsets.support + pelvisOffsets.surge;
     }
 
-    // Where the pelvis will be riding its anchor: it trails it by its spring's tracking lag. Centring the pelvis over its
-    // support has to compare the foot with the pelvis, not with the target it chases.
-    private float ExpectedPelvisX() => anchorX - Mathf.Sign(groundSpeed) * body.horizontalSpring.TrackingLag(Mathf.Abs(groundSpeed));
+    // Where the pelvis rides an anchor at the given speed: it trails it by its spring's steady tracking lag. The support
+    // offset and surge are zero at contact, so this is also where the pelvis lands a step. Comparing feet with the
+    // pelvis rather than with the target it chases keeps the stance where the gait plans it.
+    private float PelvisRidingAnchor((float anchorX, float speed) motion) {
+        return motion.anchorX - Mathf.Sign(groundSpeed) * body.horizontalSpring.TrackingLag(Mathf.Abs(motion.speed));
+    }
+
+    private float SupportHipOffsetX(SupportStance stance) {
+        if (!stance.HasSupport) {
+            return 0f;
+        }
+        return HipOffsetX(stance.SupportLeg == SupportStance.Leg.Front ? frontLeg : backLeg);
+    }
 
     private void TrackSupport() {
-        float stanceTravel = 2f * GaitTiming.LandingLead(groundSpeed, CurrentGait);
-        supportResolver.Track((frontLeg.IsGrounded, backLeg.IsGrounded), (frontLeg.FootTarget.x, backLeg.FootTarget.x), (anchorX, Mathf.Sign(groundSpeed), stanceTravel));
+        float stanceTravel = GaitTiming.StanceTravel(groundSpeed, CurrentGait);
+        supportResolver.Track((frontLeg.IsGrounded, backLeg.IsGrounded), (frontLeg.FootTarget.x, backLeg.FootTarget.x), (anchorX, Mathf.Sign(groundSpeed), (stanceTravel, CurrentGait.contactLeadShare)));
     }
 
     // The gait's height, never higher than the planted legs reach: the spring's target, and the ceiling it may not

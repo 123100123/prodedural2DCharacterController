@@ -58,6 +58,9 @@ public sealed class StepScheduler {
 
     public bool IsCued(bool frontLeg) => frontLeg ? cues.front : cues.back;
 
+    // Share of a stride left before the leg is cued; none while its cue is pending.
+    public float StridesUntilCue(bool frontLeg) => IsCued(frontLeg) ? 0f : cycle.StridesUntilLift(frontLeg);
+
     // The cue has come, the leg is planted, and the other foot is down or far enough through its swing.
     public bool MayLiftNow(bool frontLeg, (bool isPlanted, bool otherLetsLift) legs) {
         return IsCued(frontLeg) && legs.isPlanted && legs.otherLetsLift;

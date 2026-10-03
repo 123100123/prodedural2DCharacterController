@@ -71,27 +71,44 @@ public class GaitWeightTests {
     public void RunningFootStaysLowWhileItTrailsTheBody() {
         SwingAtFullSpeed swing = new SwingAtFullSpeed(GaitProfile.Run, 1f);
         for (float progress = 0f; progress <= 1f; progress += 0.01f) {
-            if (swing.FootBehindHip(progress) > swing.Lead / 2f) {
+            if (swing.FootBehindHip(progress) > swing.Lag / 2f) {
                 Assert.That(swing.Foot(progress).y, Is.LessThan(0.6f * GaitProfile.Run.liftHeight), $"at progress {progress:F2}");
             }
         }
     }
 
-    // A full-speed swing on flat ground, measured from where the hip was at lift-off: the foot lifts a landing lead
-    // behind the hip and lands a landing lead ahead of where the hip is at touchdown.
+    // The knee drive: the running foot is highest as it passes under the hip, about a quarter of a leg up, which folds
+    // the knee up in front of the body.
+    [Test]
+    public void RunningFootPeaksUnderTheHipForTheKneeDrive() {
+        SwingAtFullSpeed swing = new SwingAtFullSpeed(GaitProfile.Run, 1f);
+        float peakProgress = 0f;
+        for (float progress = 0f; progress <= 1f; progress += 0.01f) {
+            if (swing.Foot(progress).y > swing.Foot(peakProgress).y) {
+                peakProgress = progress;
+            }
+        }
+        Assert.That(Mathf.Abs(swing.FootBehindHip(peakProgress)), Is.LessThan(0.3f), "under the hip at the top of the arc");
+        Assert.That(swing.Foot(peakProgress).y, Is.GreaterThan(0.25f * 2.337f), "a quarter of the leg high");
+    }
+
+    // A full-speed swing on flat ground, measured from where the hip was at lift-off: the foot lifts its toe-off lag
+    // behind the hip and lands its contact lead ahead of where the hip is at touchdown.
     private readonly struct SwingAtFullSpeed {
         private readonly (Vector2 start, Vector2 end) step;
         private readonly (StepArcShape shape, float liftHeight, float runShare) arc;
         private readonly float hipTravel;
 
         public SwingAtFullSpeed(GaitProfile gait, float runShare) {
-            Lead = GaitTiming.LandingLead(gait.speed, gait);
+            Lead = GaitTiming.ContactLead(gait.speed, gait);
+            Lag = GaitTiming.ToeOffLag(gait.speed, gait);
             hipTravel = gait.speed * GaitTiming.SwingDuration(gait.speed, gait);
-            step = (new Vector2(-Lead, 0f), new Vector2(hipTravel + Lead, 0f));
+            step = (new Vector2(-Lag, 0f), new Vector2(hipTravel + Lead, 0f));
             arc = (new StepArcShape(), gait.liftHeight, runShare);
         }
 
         public float Lead { get; }
+        public float Lag { get; }
 
         public Vector2 Foot(float progress) => StepArc.Evaluate((step.start, step.end, progress), arc);
 

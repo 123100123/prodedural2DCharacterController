@@ -5,16 +5,16 @@ public class SupportRecoveryTests {
 
     [Test]
     public void FeetKeepingUpNeedNothing() {
-        SupportRecovery.Response response = SupportRecovery.Assess((Balance.catchUpMargin, 10f), Balance);
+        SupportRecovery.Response response = SupportRecovery.Assess((Balance.catchUpMargin, float.NegativeInfinity, 10f), Balance);
         Assert.That(response.CatchUp, Is.EqualTo(1f));
         Assert.That(response.NeedsBalanceStep, Is.False);
     }
 
     [Test]
     public void TrailingABitQuickensTheCadenceWithinItsLimit() {
-        float slightly = SupportRecovery.Assess((Balance.catchUpMargin + 0.1f, 10f), Balance).CatchUp;
-        float more = SupportRecovery.Assess((Balance.catchUpMargin + 0.2f, 10f), Balance).CatchUp;
-        float far = SupportRecovery.Assess((Balance.catchUpMargin + 0.55f, 10f), Balance).CatchUp;
+        float slightly = SupportRecovery.Assess((Balance.catchUpMargin + 0.1f, float.NegativeInfinity, 10f), Balance).CatchUp;
+        float more = SupportRecovery.Assess((Balance.catchUpMargin + 0.2f, float.NegativeInfinity, 10f), Balance).CatchUp;
+        float far = SupportRecovery.Assess((Balance.catchUpMargin + 0.55f, float.NegativeInfinity, 10f), Balance).CatchUp;
         Assert.That(slightly, Is.GreaterThan(1f));
         Assert.That(more, Is.GreaterThan(slightly));
         Assert.That(far, Is.EqualTo(Balance.maxCatchUp));
@@ -22,14 +22,21 @@ public class SupportRecoveryTests {
 
     [Test]
     public void OnlyAFootFarBehindTakesABalanceStep() {
-        Assert.That(SupportRecovery.Assess((Balance.emergencyMargin - 0.01f, 10f), Balance).NeedsBalanceStep, Is.False);
-        Assert.That(SupportRecovery.Assess((Balance.emergencyMargin + 0.01f, 10f), Balance).NeedsBalanceStep, Is.True);
+        Assert.That(SupportRecovery.Assess((Balance.emergencyMargin - 0.01f, float.NegativeInfinity, 10f), Balance).NeedsBalanceStep, Is.False);
+        Assert.That(SupportRecovery.Assess((Balance.emergencyMargin + 0.01f, float.NegativeInfinity, 10f), Balance).NeedsBalanceStep, Is.True);
+    }
+
+    [Test]
+    public void AStanceRunningLongQuickensTheCadenceButTakesNoBalanceStep() {
+        SupportRecovery.Response response = SupportRecovery.Assess((0f, Balance.emergencyMargin + 0.5f, 10f), Balance);
+        Assert.That(response.CatchUp, Is.EqualTo(Balance.maxCatchUp));
+        Assert.That(response.NeedsBalanceStep, Is.False);
     }
 
     [Test]
     public void NoSecondBalanceStepWithinTheCooldown() {
         float justAfter = Balance.emergencyCooldown - 0.01f;
-        Assert.That(SupportRecovery.Assess((Balance.emergencyMargin + 1f, justAfter), Balance).NeedsBalanceStep, Is.False);
+        Assert.That(SupportRecovery.Assess((Balance.emergencyMargin + 1f, float.NegativeInfinity, justAfter), Balance).NeedsBalanceStep, Is.False);
     }
 
     [Test]
