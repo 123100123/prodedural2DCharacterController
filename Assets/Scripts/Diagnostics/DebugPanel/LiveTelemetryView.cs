@@ -18,6 +18,7 @@ public sealed class LiveTelemetryView {
         AddSection(("Gait", GaitReadouts()));
         AddSection(("Crouch", CrouchReadouts()));
         AddSection(("Airborne", AirborneReadouts()));
+        AddSection(("Landing", LandingReadouts()));
         AddSection(("Timing", TimingReadouts()));
         AddSection(("Support", SupportReadouts()));
         AddSection(("Height", HeightReadouts()));
@@ -61,6 +62,13 @@ public sealed class LiveTelemetryView {
         yield return ("Pose blend: rising / hang / falling", t => t.Air.IsAirborne ? $"{t.Air.Ascent:0.00} / {t.Air.Apex:0.00} / {t.Air.Descent:0.00}" : "-");
         yield return ("Running pose share", t => t.Air.IsAirborne ? $"{t.Air.RunningPoseShare:0.00}" : "-");
         yield return ("Fall flail strength", t => t.Air.IsAirborne ? $"{t.Air.FlailStrength:0.00}" : "-");
+    }
+
+    private static IEnumerable<(string label, Func<LocomotionTelemetry, string> format)> LandingReadouts() {
+        yield return ("Reaching for the ground", t => t.Air.IsAirborne ? $"{t.Air.LandingPrep:0.00}" : "-");
+        yield return ("Predicted ground", t => t.Air.IsAirborne && t.Air.HasPredictedGround ? $"{t.Air.PredictedGround.x:0.00}, {t.Air.PredictedGround.y:0.00}" : "-");
+        yield return ("Last impact speed", t => $"{t.Air.LastImpactSpeed:0.0} u/s");
+        yield return ("Landing compression held", t => $"{t.LandingCompression:0.000} u");
     }
 
     private static string AirPhaseText(LocomotionTelemetry t) {

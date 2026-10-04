@@ -117,7 +117,20 @@ public static class MovementTuningSchema {
             new Parameter(("Prolonged fall: legs and torso", "Forward pitch", Degrees), (0f, 25f), (p => p.fallSecondary.forwardPitch, (p, v) => p.fallSecondary.forwardPitch = v)),
             new Parameter(("Prolonged fall: landing and aiming", "Damped on approaching the ground", Share), (0f, 1f), (p => p.fallSecondary.landingDamping, (p, v) => p.fallSecondary.landingDamping = v)),
             new Parameter(("Prolonged fall: landing and aiming", "Aim blend time", Seconds), (0.02f, 1f), (p => p.fallSecondary.aimBlendTime, (p, v) => p.fallSecondary.aimBlendTime = v)),
+            new Parameter(("Landing: reaching", "Starts reaching before touchdown", Seconds), (0.05f, 1f), (p => p.landing.prepTime, (p, v) => p.landing.prepTime = v)),
+            new Parameter(("Landing: reaching", "Looks for the ground at least", Units), (0.1f, 3f), (p => p.landing.lookAheadMin, (p, v) => p.landing.lookAheadMin = v)),
+            new Parameter(("Landing: impact", "Light impact speed", UnitsPerSecond), (0f, 20f), (p => p.landing.lightImpactSpeed, (p, v) => p.landing.lightImpactSpeed = v)),
+            new Parameter(("Landing: impact", "Hard impact speed", UnitsPerSecond), (1f, 60f), (p => p.landing.hardImpactSpeed, (p, v) => p.landing.hardImpactSpeed = v)),
+            new Parameter(("Landing: squash", "Sink at a light landing", Units), (0f, 1.5f), (p => p.landing.sinkLight, (p, v) => p.landing.sinkLight = v)),
+            new Parameter(("Landing: squash", "Sink at a hard landing", Units), (0f, 1.5f), (p => p.landing.sinkHard, (p, v) => p.landing.sinkHard = v)),
+            new Parameter(("Landing: squash", "Landing speed into the squash", Share), (0f, 1f), (p => p.landing.speedCarry, (p, v) => p.landing.speedCarry = v)),
+            new Parameter(("Landing: squash", "Most speed into the squash", UnitsPerSecond), (0f, 30f), (p => p.landing.maxCarriedSpeed, (p, v) => p.landing.maxCarriedSpeed = v)),
+            new Parameter(("Landing: squash", "Held compression at a hard landing", Units), (0f, 1.5f), (p => p.landing.compressionHard, (p, v) => p.landing.compressionHard = v)),
+            new Parameter(("Landing: squash", "Torso fold at a hard landing", "°/s kick"), (0f, 400f), (p => p.landing.torsoFoldKick, (p, v) => p.landing.torsoFoldKick = v)),
+            new Parameter(("Landing: momentum", "Speed lost at a hard landing", Share), (0f, 1f), (p => p.landing.speedLossHard, (p, v) => p.landing.speedLossHard = v)),
+            new Parameter(("Landing: momentum", "Gait carries on above", "share of walk speed"), (0f, 1f), (p => p.landing.movingLandingShare, (p, v) => p.landing.movingLandingShare = v)),
         });
+        parameters.AddRange(Spring(("Landing: compression recovery", (p => p.landing.compressionSpring, (p, s) => p.landing.compressionSpring = s))));
         return parameters;
     }
 

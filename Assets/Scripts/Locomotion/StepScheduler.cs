@@ -56,6 +56,12 @@ public sealed class StepScheduler {
         StridesThisTick = 0f;
     }
 
+    // The feet were just placed where a moving gait has them (a running landing): the rhythm carries on, with the given
+    // leg stepping first, instead of starting afresh from a stance.
+    public void ContinueRhythm(bool frontLegStepsFirst) {
+        lastLift = (!frontLegStepsFirst, 0f);
+    }
+
     public bool IsCued(bool frontLeg) => frontLeg ? cues.front : cues.back;
 
     // Share of a stride left before the leg is cued; none while its cue is pending.

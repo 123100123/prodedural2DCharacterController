@@ -3,7 +3,7 @@ using UnityEngine;
 // The collaborators a composed character hands to tools that tune and inspect it. Plain references, so the
 // character knows nothing about who uses them: the tools depend on the character, never the other way round.
 public readonly struct CharacterParts {
-    public CharacterParts((StrideController stride, LocomotionPosture posture, TorsoMotion torso, HeadLook head, ArmSwing arms) movement, (CrouchController crouch, Transform postureRoot) body, (JumpSettings jump, AirborneSettings airborne, AirborneState airborneState, (AirPoseSettings pose, FallSecondarySettings fall) air) moves) {
+    public CharacterParts((StrideController stride, LocomotionPosture posture, TorsoMotion torso, HeadLook head, ArmSwing arms) movement, (CrouchController crouch, Transform postureRoot) body, (JumpSettings jump, AirborneSettings airborne, AirborneState airborneState, (AirPoseSettings pose, FallSecondarySettings fall) air, LandingSettings landing) moves) {
         Stride = movement.stride;
         Posture = movement.posture;
         Torso = movement.torso;
@@ -16,6 +16,7 @@ public readonly struct CharacterParts {
         AirborneState = moves.airborneState;
         AirPose = moves.air.pose;
         FallSecondary = moves.air.fall;
+        Landing = moves.landing;
     }
 
     public StrideController Stride { get; }
@@ -31,4 +32,5 @@ public readonly struct CharacterParts {
     public AirborneState AirborneState { get; }
     public AirPoseSettings AirPose { get; }
     public FallSecondarySettings FallSecondary { get; }
+    public LandingSettings Landing { get; }
 }

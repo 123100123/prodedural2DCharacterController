@@ -20,4 +20,10 @@ public struct AirSnapshot {
     public float RunningPoseShare;
     // How strongly the long-fall secondary motion (flailing arms, loose legs) is acting, 0 to 1.
     public float FlailStrength;
+    // How close touchdown is (0 far away, 1 at touchdown), the ground the flight is heading for, and the impact speed
+    // of the last landing (kept after it).
+    public float LandingPrep;
+    public bool HasPredictedGround;
+    public Vector2 PredictedGround;
+    public float LastImpactSpeed;
 }

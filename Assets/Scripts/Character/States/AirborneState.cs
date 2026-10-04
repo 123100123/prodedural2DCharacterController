@@ -4,7 +4,7 @@ using UnityEngine;
 // short by releasing the button, flight leg pose, coyote jump, buffered jump, ledge grabs and landing.
 public sealed class AirborneState : ICharacterState {
     private readonly StateContext context;
-    private readonly (AirborneSettings air, JumpSettings jump, AirPoseSettings pose, FallSecondarySettings fall) settings;
+    private readonly (AirborneSettings air, JumpSettings jump, AirPoseSettings pose, FallSecondarySettings fall, LandingSettings landing) settings;
     private readonly FallSecondaryMotion secondary;
 
     // Feet reach at most this share of the leg's length, so the knee never locks.
@@ -25,8 +25,14 @@ public sealed class AirborneState : ICharacterState {
     private float previousSpeedX;
     private bool hasPreviousSpeed;
     private float aimSuppression;
+    // The ground below, found by the one ray the flight casts each frame while falling: how close touchdown is (0 far
+    // away, 1 at touchdown) and the ground it is heading for.
+    private float landingPrep;
+    private bool hasPredictedGround;
+    private Vector2 predictedGround;
+    private float lastImpactSpeed;
 
-    public AirborneState(StateContext context, (AirborneSettings air, JumpSettings jump, AirPoseSettings pose, FallSecondarySettings fall) settings) {
+    public AirborneState(StateContext context, (AirborneSettings air, JumpSettings jump, AirPoseSettings pose, FallSecondarySettings fall, LandingSettings landing) settings) {
         this.context = context;
         this.settings = settings;
         secondary = new FallSecondaryMotion(settings.fall);
@@ -35,8 +41,14 @@ public sealed class AirborneState : ICharacterState {
     public bool AllowsUpperBodyActions => true;
     public bool AllowsCrouch => true;
 
-    // Read-only view of the flight for debug tools.
-    public AirSnapshot Snapshot => snapshot;
+    // Read-only view of the flight for debug tools (the impact speed of the last landing stays after it).
+    public AirSnapshot Snapshot {
+        get {
+            AirSnapshot view = snapshot;
+            view.LastImpactSpeed = lastImpactSpeed;
+            return view;
+        }
+    }
 
     // A jump: launched with its velocity, and how the jump button was held (releasing it early cuts the rise short).
     public void Launch(Vector2 velocity, (float fullHeight, float heldFor, bool isHeld) hold) {
@@ -68,6 +80,8 @@ public sealed class AirborneState : ICharacterState {
         jumpBufferLeft = 0f;
         hasPreviousSpeed = false;
         aimSuppression = 0f;
+        landingPrep = 0f;
+        hasPredictedGround = false;
         secondary.Begin(++flightCount);
         legs = context.Rig.Stride.LegsOrderedByFacing(context.Rig.Facing.Sign);
     }
@@ -88,7 +102,7 @@ public sealed class AirborneState : ICharacterState {
         CutJumpShortWhenReleased((commands.JumpHeld, deltaTime));
         SteerHorizontally((commands.MoveAxis, deltaTime));
         context.Rig.Motor.ApplyGravity(deltaTime);
-        if (TryTouchDown(deltaTime)) {
+        if (TryTouchDown(ProbeGroundBelow(deltaTime))) {
             return;
         }
 
@@ -132,7 +146,7 @@ public sealed class AirborneState : ICharacterState {
         hasPreviousSpeed = true;
         aimSuppression = Mathf.MoveTowards(aimSuppression, frame.isAiming ? 1f : 0f, frame.deltaTime / Mathf.Max(0.01f, settings.fall.aimBlendTime));
 
-        FallSecondaryMotion.Input input = new FallSecondaryMotion.Input((timeFalling, context.Rig.Motor.Velocity.y, forwardAcceleration), (0f, aimSuppression), frame.deltaTime);
+        FallSecondaryMotion.Input input = new FallSecondaryMotion.Input((timeFalling, context.Rig.Motor.Velocity.y, forwardAcceleration), (landingPrep, aimSuppression), frame.deltaTime);
         return secondary.Tick(input);
     }
 
@@ -142,6 +156,9 @@ public sealed class AirborneState : ICharacterState {
         snapshot.TimeAirborne = timeInAir;
         snapshot.TimeFalling = timeFalling;
         snapshot.TimeSinceLaunch = timeSinceLaunch;
+        snapshot.LandingPrep = landingPrep;
+        snapshot.HasPredictedGround = hasPredictedGround;
+        snapshot.PredictedGround = predictedGround;
     }
 
     public void Exit() {
@@ -193,20 +210,35 @@ public sealed class AirborneState : ICharacterState {
         jump.isSettled = true;
     }
 
-    // The legs follow the flight pose: the push-off, the tuck at the top and the reach down for the ground.
+    // The legs follow the flight pose: the push-off, the tuck at the top and the reach down for the ground. As the
+    // ground nears, they reach for the spots they will land on.
     private void PoseLegsForFlight(float deltaTime) {
         AirPose pose = context.Rig.AirPose.Pose;
         float ease = FrameRateEase.FractionForFrame(settings.air.legPoseEase, deltaTime);
-        legs.lead.SwingFreelyToward(FootTargetAboveGround((pose.leadFoot, legs.lead)), ease);
-        legs.trail.SwingFreelyToward(FootTargetAboveGround((pose.trailFoot, legs.trail)), ease);
+        (Vector2 lead, Vector2 trail) reach = LandingReach();
+        legs.lead.SwingFreelyToward(FootTargetAboveGround((pose.leadFoot, legs.lead), (reach.lead, landingPrep)), ease);
+        legs.trail.SwingFreelyToward(FootTargetAboveGround((pose.trailFoot, legs.trail), (reach.trail, landingPrep)), ease);
+    }
+
+    // Where the feet will land, on the ground the flight is heading for.
+    private (Vector2 lead, Vector2 trail) LandingReach() {
+        if (!hasPredictedGround || landingPrep <= 0f) {
+            return (Vector2.zero, Vector2.zero);
+        }
+        StrideController stride = context.Rig.Stride;
+        LandingStance.Columns columns = LandingStance.Of(
+            (context.Rig.Body.position.x, context.Rig.Facing.Sign, context.Rig.Motor.Velocity.x),
+            (stride.StanceHalfWidth, stride.Gaits, settings.landing.movingLandingShare));
+        return (new Vector2(columns.Lead, predictedGround.y), new Vector2(columns.Trail, predictedGround.y));
     }
 
     // Feet never aim below the ground they are reaching for, nor further from the hip than the leg is long.
-    private Vector2 FootTargetAboveGround((Vector2 offset, LegStepper leg) foot) {
+    private Vector2 FootTargetAboveGround((Vector2 offset, LegStepper leg) foot, (Vector2 landingSpot, float landingPrep) reach) {
         Vector2 body = context.Rig.Body.position;
         Vector2 offset = foot.offset;
         Vector2 hip = foot.leg.HipPosition;
         Vector2 requested = body + new Vector2(offset.x * context.Rig.Facing.Sign, offset.y);
+        requested = Vector2.Lerp(requested, reach.landingSpot, reach.landingPrep);
         Vector2 poseTarget = hip + Vector2.ClampMagnitude(requested - hip, foot.leg.LegLength * MaxLegExtension);
         Vector2 rayOrigin = new Vector2(poseTarget.x, body.y);
 
@@ -214,24 +246,55 @@ public sealed class AirborneState : ICharacterState {
         return hitsGround ? ground : poseTarget;
     }
 
-    // Swept landing: checks the whole fall of this frame so a long frame cannot carry the body through the ground.
-    // Part of the landing speed is handed to the grounded state, whose body spring turns it into the squash.
-    private bool TryTouchDown(float deltaTime) {
+    // The one ray of the flight, cast while falling: the ground below, how far the body can still fall before it stands
+    // on it, and how close the touchdown is. It looks further than this frame's fall, so the legs can reach in time.
+    private (bool found, Vector2 ground, float clearance, float fallThisFrame) ProbeGroundBelow(float deltaTime) {
         KinematicBodyMotor motor = context.Rig.Motor;
         StrideController stride = context.Rig.Stride;
-        float fallThisFrame = -motor.Velocity.y * deltaTime;
-        if (fallThisFrame < 0f || !stride.TryFindGroundBelowBody(fallThisFrame, out Vector2 ground)) {
+        float fallSpeed = -motor.Velocity.y;
+        float fallThisFrame = fallSpeed * deltaTime;
+        landingPrep = 0f;
+        hasPredictedGround = false;
+        if (fallThisFrame < 0f) {
+            return (false, default, 0f, fallThisFrame);
+        }
+
+        float depth = Mathf.Max(fallThisFrame, LandingMath.LookAhead(fallSpeed, settings.landing));
+        if (!stride.TryFindGroundBelowBody(depth, out Vector2 ground)) {
+            return (false, default, 0f, fallThisFrame);
+        }
+
+        float clearance = context.Rig.Body.position.y - ground.y - stride.BodyHeight;
+        float timeToImpact = LandingMath.TimeToImpact((clearance, fallSpeed), motor.CurrentGravity);
+        landingPrep = LandingMath.Prep(timeToImpact, settings.landing.prepTime);
+        hasPredictedGround = true;
+        predictedGround = ground;
+        return (true, ground, clearance, fallThisFrame);
+    }
+
+    // Swept landing: checks the whole fall of this frame so a long frame cannot carry the body through the ground. The
+    // feet take where the gait has them at this speed, the body is squashed by how hard it lands, a hard landing costs
+    // some speed, and the rest of the momentum is handed to the grounded state (whose body spring turns the landing speed
+    // into the squash and whose gait carries on from the landing feet).
+    private bool TryTouchDown((bool found, Vector2 ground, float clearance, float fallThisFrame) probe) {
+        if (!probe.found || probe.clearance > probe.fallThisFrame) {
             return false;
         }
-        if (!stride.TrySettleStance((context.Rig.Body.position.x, context.Rig.Facing.Sign, ground.y))) {
+        KinematicBodyMotor motor = context.Rig.Motor;
+        StrideController stride = context.Rig.Stride;
+        float speedX = motor.Velocity.x;
+        bool leadIsFront = legs.lead == stride.FrontLeg;
+        if (!stride.TrySettleLanding((context.Rig.Body.position.x, context.Rig.Facing.Sign, probe.ground.y), (speedX, leadIsFront, settings.landing.movingLandingShare))) {
             return false;
         }
 
         float impactSpeed = -motor.Velocity.y;
-        PlaceBodyAtTouchdown((ground.y + stride.BodyHeight - settings.air.touchdownSink, fallThisFrame));
-        float carriedFallSpeed = Mathf.Min(settings.air.maxCarriedLandingSpeed, impactSpeed * settings.air.landingSpeedCarry);
-        motor.Velocity = new Vector2(motor.Velocity.x, -carriedFallSpeed);
-        context.Rig.Events.RaiseLanded((ground, impactSpeed));
+        float impactShare = LandingMath.ImpactShare(impactSpeed, settings.landing);
+        PlaceBodyAtTouchdown((probe.ground.y + stride.BodyHeight - LandingMath.Sink(impactShare, settings.landing), probe.fallThisFrame));
+        motor.Velocity = new Vector2(LandingMath.SpeedAfter(speedX, impactShare, settings.landing), -LandingMath.CarriedFallSpeed(impactSpeed, settings.landing));
+        stride.ApplyLandingCompression((LandingMath.Compression(impactShare, stride.CrouchShare, settings.landing), settings.landing.compressionSpring));
+        lastImpactSpeed = impactSpeed;
+        context.Rig.Events.RaiseLanded((probe.ground, impactSpeed));
         ContinueAfterLanding();
         return true;
     }

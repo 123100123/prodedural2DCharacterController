@@ -25,6 +25,8 @@ public class KinematicBodyMotor {
 
     public Vector2 Velocity { get; set; }
     public float Gravity => gravity;
+    // The gravity acting right now, with the heavier fall and the hang near the apex.
+    public float CurrentGravity => gravity * GravityMultiplier();
     public LayerMask SolidMask => solidMask;
     public float HullHalfWidth => hullSize.x / 2f;
     // How far the top of the hull is lowered while crouching; the bottom stays where it is.

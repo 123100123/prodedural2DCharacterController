@@ -21,6 +21,7 @@ public static class LocomotionDebugDraw {
         PelvisPath = 1 << 11,
         SupportOffset = 1 << 12,
         CrouchHull = 1 << 13,
+        LandingPrediction = 1 << 14,
     }
 
     private const float MarkSize = 0.08f;
@@ -52,6 +53,19 @@ public static class LocomotionDebugDraw {
         if (Has(layers, Layers.CrouchHull)) {
             DrawHull(t);
         }
+        if (Has(layers, Layers.LandingPrediction)) {
+            DrawLandingPrediction(t);
+        }
+    }
+
+    // The ground a fall is heading for, joined to the body, brighter the closer the touchdown.
+    private static void DrawLandingPrediction(LocomotionTelemetry t) {
+        if (!t.Air.IsAirborne || !t.Air.HasPredictedGround) {
+            return;
+        }
+        Color color = Color.Lerp(Color.gray, Color.green, t.Air.LandingPrep);
+        Debug.DrawLine(t.BodyPosition, t.Air.PredictedGround, color);
+        Cross((t.Air.PredictedGround, color));
     }
 
     // The collision hull (shorter while crouched); red while a low ceiling holds the character crouched.

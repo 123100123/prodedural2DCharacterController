@@ -30,6 +30,7 @@ public class CharacterDriver : MonoBehaviour {
     [SerializeField] private JumpSettings jump = new JumpSettings();
     [SerializeField] private AirPoseSettings airPose = new AirPoseSettings();
     [SerializeField] private FallSecondarySettings fallSecondary = new FallSecondarySettings();
+    [SerializeField] private LandingSettings landing = new LandingSettings();
     [SerializeField] private RollSettings roll = new RollSettings();
     [SerializeField] private ClimbSettings climb = new ClimbSettings();
 
@@ -49,7 +50,7 @@ public class CharacterDriver : MonoBehaviour {
 
     public CharacterEvents Events { get; private set; }
     // What debug and tuning tools need; the character never reads anything back from them.
-    public CharacterParts Parts => new CharacterParts((stride, posture, torsoMotion, head, armSwing), (crouch, postureRoot), (jump, airborne, states?.Airborne, (airPose, fallSecondary)));
+    public CharacterParts Parts => new CharacterParts((stride, posture, torsoMotion, head, armSwing), (crouch, postureRoot), (jump, airborne, states?.Airborne, (airPose, fallSecondary), landing));
     public PlayerCommands LatestCommands => latestCommands;
 
     // Composes here rather than in Awake: a script recompile during play mode reloads the domain,
@@ -131,7 +132,7 @@ public class CharacterDriver : MonoBehaviour {
         built.Register((
             new WalkState(context),
             new JumpWindupState(context, (jump, airborne)),
-            new AirborneState(context, (airborne, jump, airPose, fallSecondary)),
+            new AirborneState(context, (airborne, jump, airPose, fallSecondary, landing)),
             new RollState(context, roll),
             new ClimbState(context, climb)));
         return built;
@@ -156,5 +157,6 @@ public class CharacterDriver : MonoBehaviour {
         armSwing.Initialize(rig);
         followCamera.Initialize(rig.Body, Events);
         Events.Fired += _ => torsoMotion.Kick(shooting.recoilTorsoKick);
+        Events.Landed += hit => torsoMotion.Kick(-LandingMath.ImpactShare(hit.impactSpeed, landing) * landing.torsoFoldKick);
     }
 }

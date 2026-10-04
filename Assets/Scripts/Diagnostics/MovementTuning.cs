@@ -11,6 +11,7 @@ public sealed class MovementTuning {
     private readonly AirborneSettings air;
     private readonly AirPoseSettings airPose;
     private readonly FallSecondarySettings fallSecondary;
+    private readonly LandingSettings landing;
 
     public MovementTuning(CharacterParts parts) {
         stride = parts.Stride;
@@ -23,6 +24,7 @@ public sealed class MovementTuning {
         air = parts.Airborne;
         airPose = parts.AirPose;
         fallSecondary = parts.FallSecondary;
+        landing = parts.Landing;
     }
 
     public MovementPreset Capture() {
@@ -35,6 +37,7 @@ public sealed class MovementTuning {
             air = air.Clone(),
             airPose = airPose.Clone(),
             fallSecondary = fallSecondary.Clone(),
+            landing = landing.Clone(),
             transitions = stride.Transitions,
             balance = stride.Balance,
             idle = stride.IdleStance,
@@ -57,6 +60,7 @@ public sealed class MovementTuning {
         air.CopyFrom(preset.air);
         airPose.CopyFrom(preset.airPose);
         fallSecondary.CopyFrom(preset.fallSecondary);
+        landing.CopyFrom(preset.landing);
         stride.Transitions = preset.transitions;
         stride.Balance = preset.balance;
         stride.IdleStance = preset.idle;

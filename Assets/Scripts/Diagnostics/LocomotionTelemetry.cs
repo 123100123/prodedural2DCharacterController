@@ -55,6 +55,8 @@ public sealed class LocomotionTelemetry {
     public float CrouchDrop { get; private set; }
     public float CrouchDepth { get; private set; }
     public Rect Hull { get; private set; }
+    // How much lower a hard landing is holding the pelvis, while it recovers.
+    public float LandingCompression { get; private set; }
     // The flight, as the airborne state last reported it (all zero on the ground).
     public AirSnapshot Air { get; private set; }
     // The gait counts as a crouch once more than half crouched.
@@ -148,6 +150,7 @@ public sealed class LocomotionTelemetry {
         CrouchDrop = stride.CrouchDrop;
         CrouchDepth = crouch.Settings.depth;
         Hull = crouch.Hull;
+        LandingCompression = stride.LandingCompression;
     }
 
     private void ReadUpperBody() {

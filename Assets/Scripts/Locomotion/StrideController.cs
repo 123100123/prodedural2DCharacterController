@@ -65,6 +65,11 @@ public class StrideController : MonoBehaviour {
     // How crouched the character is and how the crouch shapes the body; set every frame by the crouch controller.
     private float crouchShare;
     private CrouchSettings crouchSettings = CrouchSettings.Default;
+    // How much lower a hard landing holds the pelvis, recovering through its own spring.
+    private readonly SecondOrderDynamics landingCompression = new SecondOrderDynamics(0f);
+    private SpringSettings landingCompressionSpring = new SpringSettings(3f, 0.8f, 0f);
+    // After a landing in motion: which leg steps first when the gait picks up (null: the gait starts afresh from a stance).
+    private bool? pendingFrontLegStepsFirst;
     private float anchorX;
     private CharacterEvents events;
     private CharacterFacing facing;
@@ -88,6 +93,8 @@ public class StrideController : MonoBehaviour {
     public float CrouchShare => crouchShare;
     public CrouchSettings CrouchSettings => crouchSettings;
     public float CrouchDrop => crouchSettings.depth * crouchShare;
+    // How much lower a hard landing is still holding the pelvis.
+    public float LandingCompression => landingCompression.Value;
 
     // The blend of the walk, run and crouch profiles currently in use.
     public GaitProfile CurrentGait { get; private set; } = GaitProfile.Walk;
@@ -168,6 +175,16 @@ public class StrideController : MonoBehaviour {
     public void RestartGaitFromStance() {
         scheduler.RestartFromStance();
         supportResolver.Reset();
+        if (pendingFrontLegStepsFirst.HasValue) {
+            scheduler.ContinueRhythm(pendingFrontLegStepsFirst.Value);
+            pendingFrontLegStepsFirst = null;
+        }
+    }
+
+    // A hard landing holds the pelvis this far lower at first (on top of the squash from the landing speed).
+    public void ApplyLandingCompression((float depth, SpringSettings spring) landing) {
+        landingCompression.ResetWithVelocity((landing.depth, 0f));
+        landingCompressionSpring = landing.spring;
     }
 
     // feetSpan bounds where feet may go (up to wall faces); bodySpan bounds the body pivot so its hull stays out of walls.
@@ -181,6 +198,7 @@ public class StrideController : MonoBehaviour {
 
     private void TickGaitStep(float deltaTime, (float direction, bool running, (float min, float max) feetSpan, (float min, float max) bodySpan) intent) {
         AccelerateGround((intent.direction, intent.running, deltaTime));
+        landingCompression.Update((0f, deltaTime), landingCompressionSpring);
         AdvanceAnchor((deltaTime, AnchorSpan(intent)));
         BlendGaitWithSpeed(deltaTime);
         AdvanceGaitClock(deltaTime);
@@ -214,6 +232,26 @@ public class StrideController : MonoBehaviour {
         frontLeg.SettleOnto(frontGround);
         backLeg.SettleOnto(backGround);
         lastStepFoundNoFoothold = false;
+        pendingFrontLegStepsFirst = null;
+        PlaceStrideTargetUnderBody();
+        return true;
+    }
+
+    // The feet take where the gait has them at this speed: either side of the body standing, or the leading foot ahead
+    // and the other trailing behind when moving, with the trailing foot to step first once the gait picks up. leadIsFront:
+    // the leg that was reaching forward in the air, which lands first. False if either foot finds no ground.
+    public bool TrySettleLanding((float centerX, int facingSign, float groundY) landing, (float speedX, bool leadIsFront, float movingShare) motion) {
+        LandingStance.Columns columns = LandingStance.Of((landing.centerX, landing.facingSign, motion.speedX), (StanceHalfWidth, Gaits, motion.movingShare));
+        if (!TryFindStanceGround((columns.Lead, landing.groundY), out Vector2 leadGround)
+            || !TryFindStanceGround((columns.Trail, landing.groundY), out Vector2 trailGround)) {
+            return false;
+        }
+
+        (LegStepper lead, LegStepper trail) legs = motion.leadIsFront ? (frontLeg, backLeg) : (backLeg, frontLeg);
+        legs.lead.SettleOnto(leadGround);
+        legs.trail.SettleOnto(trailGround);
+        lastStepFoundNoFoothold = false;
+        pendingFrontLegStepsFirst = columns.IsMoving ? (bool?)(legs.trail == frontLeg) : null;
         PlaceStrideTargetUnderBody();
         return true;
     }
@@ -609,7 +647,7 @@ public class StrideController : MonoBehaviour {
         return BaselineHeight + bob;
     }
 
-    private float BaselineHeight => StanceHeight + bodyHeight - CurrentGait.pelvisDrop * Pace.Moving - CrouchDrop - WindupCrouch;
+    private float BaselineHeight => StanceHeight + bodyHeight - CurrentGait.pelvisDrop * Pace.Moving - CrouchDrop - WindupCrouch - landingCompression.Value;
 
     private float LowestPhase => GaitWaves.LowestPhase((CurrentGait.dutyFactor, CurrentGait.lowAfterContact));
 
