@@ -37,6 +37,7 @@ public class CharacterDriver : MonoBehaviour {
     [Header("Shooting")]
     [SerializeField] private ShootingSettings shooting = new ShootingSettings();
     [SerializeField] private Pistol pistol = new Pistol();
+    [SerializeField] private WeaponSettings weapon = new WeaponSettings();
 
     [Header("Camera")]
     [SerializeField] private FollowCamera followCamera = new FollowCamera();
@@ -46,11 +47,12 @@ public class CharacterDriver : MonoBehaviour {
     private CharacterStates states;
     private CharacterRig rig;
     private ShootingStance shootingStance;
+    private WeaponController weaponController;
     private PlayerCommands latestCommands;
 
     public CharacterEvents Events { get; private set; }
     // What debug and tuning tools need; the character never reads anything back from them.
-    public CharacterParts Parts => new CharacterParts((stride, posture, torsoMotion, head, armSwing), (crouch, postureRoot), (jump, airborne, states?.Airborne, (airPose, fallSecondary), landing), (shooting, pistol));
+    public CharacterParts Parts => new CharacterParts((stride, posture, torsoMotion, head, armSwing), (crouch, postureRoot), (jump, airborne, states?.Airborne, (airPose, fallSecondary), landing), (shooting, pistol, (weapon, weaponController)));
     public PlayerCommands LatestCommands => latestCommands;
 
     // Composes here rather than in Awake: a script recompile during play mode reloads the domain,
@@ -64,7 +66,10 @@ public class CharacterDriver : MonoBehaviour {
 
     private void OnDisable() => input?.Disable();
 
-    private void OnDestroy() => input?.Dispose();
+    private void OnDestroy() {
+        input?.Dispose();
+        weaponController?.Dispose();
+    }
 
     // Reports a broken rig while editing, as soon as the references change.
     private void OnValidate() {
@@ -81,7 +86,8 @@ public class CharacterDriver : MonoBehaviour {
         rig = BuildRig();
         crouch.Initialize(rig);
         states = BuildStates();
-        shootingStance = new ShootingStance(rig, (pistol, shooting));
+        weaponController = new WeaponController(pistol, weapon, (Events, transform));
+        shootingStance = new ShootingStance(rig, (weaponController, shooting, weapon));
         ComposeSecondaryMotion();
         states.Walk.Begin();
     }
@@ -90,6 +96,7 @@ public class CharacterDriver : MonoBehaviour {
     private void Update() {
         PlayerCommands commands = input.ReadCommands();
         latestCommands = commands;
+        weaponController.Tick(Time.time, Time.deltaTime, commands.ReloadPressed);
         crouch.Tick(Time.deltaTime, (commands.CrouchRequested, machine.Current.AllowsCrouch));
         machine.Tick(Time.deltaTime, commands);
         posture.Tick(Time.deltaTime);

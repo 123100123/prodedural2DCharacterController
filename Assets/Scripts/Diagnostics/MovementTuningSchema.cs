@@ -104,7 +104,22 @@ public static class MovementTuningSchema {
         parameters.AddRange(Spring(("Recoil spring", (p => p.shooting.recoilSpring, (p, s) => p.shooting.recoilSpring = s))));
         parameters.Add(new Parameter(("Pistol", "Seconds between shots", Seconds), (0.02f, 1.5f), (p => p.pistolCooldown, (p, v) => p.pistolCooldown = v)));
         parameters.Add(new Parameter(("Pistol", "Muzzle in front of the hand", Units), (0f, 1f), (p => p.pistolMuzzleOffset, (p, v) => p.pistolMuzzleOffset = v)));
+        parameters.AddRange(Weapon());
         return parameters;
+    }
+
+    // The shot, the tracer and the reload. The magazine size is a whole number and is set on the character in the scene.
+    private static IEnumerable<Parameter> Weapon() {
+        return new List<Parameter> {
+            new Parameter(("Shot", "Range", Units), (5f, 100f), (p => p.weapon.range, (p, v) => p.weapon.range = v)),
+            new Parameter(("Shot", "Damage", "hp"), (0.1f, 10f), (p => p.weapon.damage, (p, v) => p.weapon.damage = v)),
+            new Parameter(("Shot", "Impulse on a dynamic body", "N·s"), (0f, 40f), (p => p.weapon.impulse, (p, v) => p.weapon.impulse = v)),
+            new Parameter(("Tracer", "Width", Units), (0.005f, 0.3f), (p => p.weapon.tracerWidth, (p, v) => p.weapon.tracerWidth = v)),
+            new Parameter(("Tracer", "Fade time", Seconds), (0.01f, 0.5f), (p => p.weapon.tracerDuration, (p, v) => p.weapon.tracerDuration = v)),
+            new Parameter(("Reload", "Duration", Seconds), (0.1f, 4f), (p => p.weapon.reloadDuration, (p, v) => p.weapon.reloadDuration = v)),
+            new Parameter(("Reload", "Support hand drop", Units), (0f, 1.2f), (p => p.weapon.reloadHandDrop, (p, v) => p.weapon.reloadHandDrop = v)),
+            new Parameter(("Reload", "Pistol tilt", Degrees), (0f, 45f), (p => p.weapon.reloadTilt, (p, v) => p.weapon.reloadTilt = v)),
+        };
     }
 
     private static List<Parameter> Fall() {

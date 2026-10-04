@@ -15,6 +15,7 @@ public sealed class PlayerInputReader : IDisposable {
     private readonly InputAction aim = new InputAction("Aim", InputActionType.Button);
     private readonly InputAction crouch = new InputAction("Crouch", InputActionType.Button);
     private readonly InputAction fire = new InputAction("Fire", InputActionType.Button);
+    private readonly InputAction reload = new InputAction("Reload", InputActionType.Button);
     private readonly InputAction pointer = new InputAction("Pointer", InputActionType.Value, expectedControlType: "Vector2");
     private readonly HoldOrTapToggle aimMode = new HoldOrTapToggle(AimTapMaxDuration);
     private readonly HoldOrTapToggle crouchMode = new HoldOrTapToggle(CrouchTapMaxDuration);
@@ -43,6 +44,7 @@ public sealed class PlayerInputReader : IDisposable {
             IsAiming = ReadAimMode(isPointerOverUi),
             CrouchRequested = ReadCrouchMode(isTyping),
             FirePressed = !isPointerOverUi && fire.WasPressedThisFrame(),
+            ReloadPressed = !isTyping && reload.WasPressedThisFrame(),
             PointerScreenPosition = pointer.ReadValue<UnityEngine.Vector2>(),
         };
     }
@@ -80,6 +82,8 @@ public sealed class PlayerInputReader : IDisposable {
         crouch.AddBinding("<Gamepad>/rightStickPress");
         fire.AddBinding("<Mouse>/leftButton");
         fire.AddBinding("<Gamepad>/rightTrigger");
+        reload.AddBinding("<Keyboard>/r");
+        reload.AddBinding("<Gamepad>/buttonWest");
         pointer.AddBinding("<Pointer>/position");
     }
 
@@ -91,6 +95,7 @@ public sealed class PlayerInputReader : IDisposable {
         apply(aim);
         apply(crouch);
         apply(fire);
+        apply(reload);
         apply(pointer);
     }
 }

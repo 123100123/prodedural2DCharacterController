@@ -14,6 +14,7 @@ public sealed class MovementTuning {
     private readonly LandingSettings landing;
     private readonly ShootingSettings shooting;
     private readonly Pistol pistol;
+    private readonly WeaponSettings weapon;
 
     public MovementTuning(CharacterParts parts) {
         stride = parts.Stride;
@@ -29,6 +30,7 @@ public sealed class MovementTuning {
         landing = parts.Landing;
         shooting = parts.Shooting;
         pistol = parts.Pistol;
+        weapon = parts.Weapon;
     }
 
     public MovementPreset Capture() {
@@ -45,6 +47,7 @@ public sealed class MovementTuning {
             shooting = shooting.Clone(),
             pistolCooldown = pistol.Cooldown,
             pistolMuzzleOffset = pistol.MuzzleOffset,
+            weapon = weapon.Clone(),
             transitions = stride.Transitions,
             balance = stride.Balance,
             idle = stride.IdleStance,
@@ -71,6 +74,7 @@ public sealed class MovementTuning {
         shooting.CopyFrom(preset.shooting);
         pistol.Cooldown = preset.pistolCooldown;
         pistol.MuzzleOffset = preset.pistolMuzzleOffset;
+        weapon.CopyFrom(preset.weapon);
         stride.Transitions = preset.transitions;
         stride.Balance = preset.balance;
         stride.IdleStance = preset.idle;

@@ -13,5 +13,6 @@ public struct PlayerCommands {
     // Crouch is held, or was latched on by a quick tap.
     public bool CrouchRequested;
     public bool FirePressed;
+    public bool ReloadPressed;
     public Vector2 PointerScreenPosition;
 }

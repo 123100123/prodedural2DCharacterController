@@ -1,17 +1,20 @@
 using UnityEngine;
 
 // Shooting mode while aiming (aim held or tap-latched): faces the pointer, points the pistol with both hands,
-// follows it with the head, fires on click.
+// follows it with the head, fires on click. While the weapon reloads, the support hand fetches the magazine and the
+// pistol tilts up; the reload itself runs in the weapon whether or not the character is aiming.
 public sealed class ShootingStance {
     private readonly CharacterRig rig;
-    private readonly Pistol pistol;
+    private readonly WeaponController weapon;
     private readonly ShootingSettings settings;
+    private readonly WeaponSettings weaponSettings;
     private readonly SecondOrderDynamics recoil = new SecondOrderDynamics(0f);
 
-    public ShootingStance(CharacterRig rig, (Pistol pistol, ShootingSettings settings) weapon) {
+    public ShootingStance(CharacterRig rig, (WeaponController weapon, ShootingSettings settings, WeaponSettings weaponSettings) parts) {
         this.rig = rig;
-        pistol = weapon.pistol;
-        settings = weapon.settings;
+        weapon = parts.weapon;
+        settings = parts.settings;
+        weaponSettings = parts.weaponSettings;
     }
 
     // Called only while aiming.
@@ -20,10 +23,12 @@ public sealed class ShootingStance {
         rig.Facing.FaceToward(aimPoint.x - rig.Body.position.x);
 
         Vector2 aimDirection = ClampElevation(AimDirectionFromShoulder(aimPoint));
-        Vector2 gripPoint = rig.FrontArm.ShoulderPosition + aimDirection * (rig.FrontArm.Reach * settings.armExtension)
+        float reloadProgress = weapon.ReloadProgress(now);
+        Vector2 gripDirection = ReloadMotion.TiltedUp(aimDirection, (rig.Facing.Sign, weaponSettings.reloadTilt * ReloadMotion.Tilt(reloadProgress)));
+        Vector2 gripPoint = rig.FrontArm.ShoulderPosition + gripDirection * (rig.FrontArm.Reach * settings.armExtension)
             + RecoilOffset((aimDirection, Time.deltaTime));
         rig.FrontArm.ReachToward(gripPoint);
-        rig.BackArm.ReachToward(gripPoint - aimDirection * settings.supportHandOffset);
+        rig.BackArm.ReachToward(SupportHandTarget((gripPoint - gripDirection * settings.supportHandOffset, reloadProgress)));
         rig.Head.LookToward(aimDirection);
 
         if (commands.FirePressed) {
@@ -32,11 +37,16 @@ public sealed class ShootingStance {
     }
 
     private void FirePistol((Vector2 aimDirection, float now) shot) {
-        Vector2 muzzle = pistol.MuzzleFor((rig.FrontArm.HandPosition, shot.aimDirection));
-        if (pistol.TryFire((muzzle, shot.aimDirection), shot.now)) {
+        Vector2 muzzle = weapon.MuzzleFor((rig.FrontArm.HandPosition, shot.aimDirection));
+        if (weapon.PullTrigger((muzzle, shot.aimDirection), shot.now) == TriggerResult.Fired) {
             recoil.AddVelocity(settings.recoilKick);
-            rig.Events.RaiseFired((muzzle, shot.aimDirection));
         }
+    }
+
+    // The support hand rests at its grip, and drops to the magazine below it during a reload.
+    private Vector2 SupportHandTarget((Vector2 grip, float reloadProgress) support) {
+        Vector2 magazine = support.grip + Vector2.down * weaponSettings.reloadHandDrop;
+        return Vector2.Lerp(support.grip, magazine, ReloadMotion.HandDrop(support.reloadProgress));
     }
 
     // The grip is thrown back along the aim and up, then springs back.
