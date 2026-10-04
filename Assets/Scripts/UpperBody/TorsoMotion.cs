@@ -45,7 +45,8 @@ public class TorsoMotion {
         }
 
         float lungs = BreathDepth(deltaTime);
-        float forwardPitch = pitch.Update((GaitFlex() - breathing.pitch * lungs, deltaTime), spring);
+        float fold = rig.Stride.CrouchSettings.chestFold * rig.Stride.CrouchShare;
+        float forwardPitch = pitch.Update((GaitFlex() + fold - breathing.pitch * lungs, deltaTime), spring);
         PoseChest((forwardPitch, lungs));
     }
 

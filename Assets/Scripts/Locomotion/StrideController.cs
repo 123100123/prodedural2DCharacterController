@@ -39,6 +39,7 @@ public class StrideController : MonoBehaviour {
     [Header("Gait")]
     [SerializeField] private GaitProfile walk = GaitProfile.Walk;
     [SerializeField] private GaitProfile run = GaitProfile.Run;
+    [SerializeField] private GaitProfile crouchGait = GaitProfile.Crouch;
     [SerializeField] private GaitTransitionSettings transitions = GaitTransitionSettings.Default;
     [SerializeField] private BalanceSettings balance = BalanceSettings.Default;
     [SerializeField] private StepArcShape stepArc = new StepArcShape();
@@ -61,6 +62,9 @@ public class StrideController : MonoBehaviour {
     private BodyCarriage carriage;
     private float groundSpeed;
     private float intendedSpeed;
+    // How crouched the character is and how the crouch shapes the body; set every frame by the crouch controller.
+    private float crouchShare;
+    private CrouchSettings crouchSettings = CrouchSettings.Default;
     private float anchorX;
     private CharacterEvents events;
     private CharacterFacing facing;
@@ -70,14 +74,22 @@ public class StrideController : MonoBehaviour {
     public float BodyHeight { get => bodyHeight; set => bodyHeight = value; }
     // Far enough that open ground never shortens a step: a shorter look-ahead would land running feet under the hip.
     public float WallProbeDistance => Mathf.Max(MinWallLookAhead, GaitTiming.LandingReach(run.speed, run));
-    public float StanceHalfWidth => idle.stanceHalfWidth;
+    // Crouched, the feet stand a little wider apart.
+    public float StanceHalfWidth => idle.stanceHalfWidth * Mathf.Lerp(1f, crouchSettings.stanceWidthScale, crouchShare);
     public float MaxStepUp => footholdLimits.maxStepUp;
     public float MaxStepDown => footholdLimits.maxStepDown;
     public float StanceHeight => (frontLeg.FootTarget.y + backLeg.FootTarget.y) / 2f;
     public LayerMask GroundMask => footholdLimits.groundMask;
     public Vector2 BodyVelocity => Carriage.Velocity;
 
-    // The blend of the walk and run profiles currently in use, by Pace.Running.
+    // The walk, run and crouch profiles with how crouched the character is: asks "the gait at a speed".
+    public GaitSet Gaits => new GaitSet((walk, run, crouchGait), transitions, crouchShare);
+    // How crouched the character is (0 standing, 1 crouched), what a crouch does to the body, and how far it lowers the pelvis.
+    public float CrouchShare => crouchShare;
+    public CrouchSettings CrouchSettings => crouchSettings;
+    public float CrouchDrop => crouchSettings.depth * crouchShare;
+
+    // The blend of the walk, run and crouch profiles currently in use.
     public GaitProfile CurrentGait { get; private set; } = GaitProfile.Walk;
     // How far the gait is from standing toward walking and from walking toward running, from the ground speed alone.
     public LocomotionPace Pace { get; private set; } = LocomotionPace.Standing;
@@ -91,6 +103,7 @@ public class StrideController : MonoBehaviour {
     // Tuning: each group of settings as a value; a new value takes effect on the next gait tick.
     public GaitProfile Walk { get => walk; set => walk = value; }
     public GaitProfile Run { get => run; set => run = value; }
+    public GaitProfile CrouchGait { get => crouchGait; set => crouchGait = value; }
     public GaitTransitionSettings Transitions { get => transitions; set => transitions = value; }
     public BalanceSettings Balance { get => balance; set => balance = value; }
     public BodyMassSettings BodyMass { get => body; set => body = value; }
@@ -127,6 +140,12 @@ public class StrideController : MonoBehaviour {
 
     // Neither foot stands on ground any more (e.g. spawned in the air or the floor moved away).
     public bool HasLostGround => !IsFootOnGround(frontLeg) && !IsFootOnGround(backLeg);
+
+    // Called every frame by the crouch controller.
+    public void ApplyCrouch((float share, CrouchSettings settings) crouched) {
+        crouchShare = Mathf.Clamp01(crouched.share);
+        crouchSettings = crouched.settings;
+    }
 
     public void Connect((CharacterEvents events, CharacterFacing facing) character) {
         events = character.events;
@@ -183,8 +202,8 @@ public class StrideController : MonoBehaviour {
 
     // Picks ground under both feet around centerX, within a step of groundY, and lets the legs settle onto it.
     public bool TrySettleStance((float centerX, int facingSign, float groundY) stance) {
-        float frontX = stance.centerX + stance.facingSign * idle.stanceHalfWidth;
-        float backX = stance.centerX - stance.facingSign * idle.stanceHalfWidth;
+        float frontX = stance.centerX + stance.facingSign * StanceHalfWidth;
+        float backX = stance.centerX - stance.facingSign * StanceHalfWidth;
         if (!TryFindStanceGround((frontX, stance.groundY), out Vector2 frontGround)
             || !TryFindStanceGround((backX, stance.groundY), out Vector2 backGround)) {
             return false;
@@ -220,16 +239,17 @@ public class StrideController : MonoBehaviour {
     private void AccelerateGround((float direction, bool running, float deltaTime) input) {
         intendedSpeed = Preview.IsActive
             ? Preview.IntendedSpeed((input.direction, facing?.Sign ?? 1, walk.speed, run.speed))
-            : input.direction * (input.running ? run.speed : walk.speed);
+            : Gaits.TargetSpeed((input.direction, input.running));
         groundSpeed = GroundSpeedRamp.Step((groundSpeed, intendedSpeed, CurrentGait), input.deltaTime);
     }
 
-    // The walk/run blend follows the ground speed, rate-limited so a sudden stop at a wall does not snap the gait.
+    // The walk/run blend follows the ground speed, rate-limited so a sudden stop at a wall does not snap the gait; the
+    // crouch gait is laid over it as far as the character is crouched and slow.
     private void BlendGaitWithSpeed(float deltaTime) {
-        float runningTarget = LocomotionPace.RunningAt(groundSpeed, (walk, run, transitions));
-        float running = Mathf.MoveTowards(Pace.Running, runningTarget, transitions.runBlendRate * deltaTime);
-        Pace = new LocomotionPace((LocomotionPace.MovingAt(groundSpeed, walk), running));
-        CurrentGait = GaitProfile.Blend((walk, run), running);
+        GaitSet gaits = Gaits;
+        float running = Mathf.MoveTowards(Pace.Running, gaits.RunningAt(groundSpeed), transitions.runBlendRate * deltaTime);
+        Pace = new LocomotionPace((gaits.MovingAt(groundSpeed), running));
+        CurrentGait = gaits.At(groundSpeed, running);
     }
 
     // Walls always bound the body; while stopping (no target speed), so does the stopping margin past the leading foot. Only the
@@ -395,12 +415,12 @@ public class StrideController : MonoBehaviour {
     private (float landingHipX, float desiredX, float duration) ForecastLanding((float direction, float startProgress, (float otherFootX, float hipOffsetX) legs, (float min, float max) feetSpan) step) {
         // A stopping clock would stretch the last step into slow motion: it is held to a natural swing at the current speed.
         float longestDuration = IsStopping ? GaitTiming.SwingDuration(groundSpeed, CurrentGait) : CurrentGait.maxSwingDuration;
-        SwingForecast.Request request = new SwingForecast.Request((groundSpeed, intendedSpeed, scheduler.SwingShare, longestDuration, step.startProgress), (walk, run, transitions));
+        SwingForecast.Request request = new SwingForecast.Request((groundSpeed, intendedSpeed, scheduler.SwingShare, longestDuration, step.startProgress), Gaits);
         SwingForecast.Prediction swing = SwingForecast.Predict(request);
         float landingHipX = PelvisRidingAnchor((anchorX + swing.Travel, swing.LandingSpeed)) + step.legs.hipOffsetX;
         float landingX = IsStopping
             ? StoppingSpot((landingHipX, step.direction, step.legs.otherFootX))
-            : landingHipX + step.direction * GaitTiming.ContactLead(swing.LandingSpeed, SwingForecast.GaitAt(swing.LandingSpeed, (walk, run, transitions)));
+            : landingHipX + step.direction * GaitTiming.ContactLead(swing.LandingSpeed, SwingForecast.GaitAt(swing.LandingSpeed, Gaits));
         return (landingHipX, Mathf.Clamp(landingX, step.feetSpan.min, step.feetSpan.max), swing.Duration);
     }
 
@@ -408,8 +428,8 @@ public class StrideController : MonoBehaviour {
     // the stance rather than beside a foot that already took the other spot.
     private float StoppingSpot((float stopHipX, float direction, float otherFootX) stop) {
         float center = stop.stopHipX + stop.direction * idle.stanceLead;
-        float frontSpot = center + stop.direction * idle.stanceHalfWidth;
-        float backSpot = center - stop.direction * idle.stanceHalfWidth;
+        float frontSpot = center + stop.direction * StanceHalfWidth;
+        float backSpot = center - stop.direction * StanceHalfWidth;
         return Mathf.Abs(stop.otherFootX - frontSpot) >= Mathf.Abs(stop.otherFootX - backSpot) ? frontSpot : backSpot;
     }
 
@@ -429,8 +449,8 @@ public class StrideController : MonoBehaviour {
 
         float centerX = StanceCenterX();
         bool frontIsLeft = frontLeg.FootTarget.x <= backLeg.FootTarget.x;
-        float frontSpot = centerX + (frontIsLeft ? -idle.stanceHalfWidth : idle.stanceHalfWidth);
-        float backSpot = centerX + (frontIsLeft ? idle.stanceHalfWidth : -idle.stanceHalfWidth);
+        float frontSpot = centerX + (frontIsLeft ? -StanceHalfWidth : StanceHalfWidth);
+        float backSpot = centerX + (frontIsLeft ? StanceHalfWidth : -StanceHalfWidth);
         float frontError = Mathf.Abs(frontLeg.FootTarget.x - frontSpot);
         float backError = Mathf.Abs(backLeg.FootTarget.x - backSpot);
         if (Mathf.Max(frontError, backError) <= idle.footTolerance) {
@@ -572,7 +592,8 @@ public class StrideController : MonoBehaviour {
         return (Mathf.Min(ceiling, gaitHeight), ceiling);
     }
 
-    // Standing height over the feet with the step's bob, sunk lower the faster the gait moves and by any held crouch.
+    // Standing height over the feet with the step's bob, sunk lower the faster the gait moves, by the crouch and by any
+    // jump wind-up.
     // The bob is aimed ahead by the vertical spring's lag at the bob's rate, so the body's low point lands where the gait
     // puts it (just after contact walking, mid-stance running) rather than late.
     private float GaitHeight() {
@@ -582,7 +603,7 @@ public class StrideController : MonoBehaviour {
         return BaselineHeight + bob;
     }
 
-    private float BaselineHeight => StanceHeight + bodyHeight - CurrentGait.pelvisDrop * Pace.Moving - WindupCrouch;
+    private float BaselineHeight => StanceHeight + bodyHeight - CurrentGait.pelvisDrop * Pace.Moving - CrouchDrop - WindupCrouch;
 
     private float LowestPhase => GaitWaves.LowestPhase((CurrentGait.dutyFactor, CurrentGait.lowAfterContact));
 

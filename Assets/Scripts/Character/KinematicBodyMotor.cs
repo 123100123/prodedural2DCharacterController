@@ -19,12 +19,25 @@ public class KinematicBodyMotor {
     [SerializeField] private LayerMask solidMask = Physics2D.DefaultRaycastLayers;
 
     private readonly RaycastHit2D[] hullHits = new RaycastHit2D[8];
+    private readonly Collider2D[] headroomHits = new Collider2D[1];
     private Transform body;
+    private float crouchHullDrop;
 
     public Vector2 Velocity { get; set; }
     public float Gravity => gravity;
     public LayerMask SolidMask => solidMask;
     public float HullHalfWidth => hullSize.x / 2f;
+    // How far the top of the hull is lowered while crouching; the bottom stays where it is.
+    public float CrouchHullDrop { get => crouchHullDrop; set => crouchHullDrop = Mathf.Clamp(value, 0f, hullSize.y - 0.2f); }
+
+    // The hull as it is now (shorter while crouching), in world space.
+    public Rect CurrentHull {
+        get {
+            Vector2 size = new Vector2(hullSize.x, hullSize.y - crouchHullDrop);
+            Vector2 center = (Vector2)body.position + hullOffset - Vector2.up * (crouchHullDrop / 2f);
+            return new Rect(center - size / 2f, size);
+        }
+    }
 
     public void Bind(Transform movedBody) => body = movedBody;
 
@@ -46,6 +59,14 @@ public class KinematicBodyMotor {
         Velocity = new Vector2(
             Mathf.Approximately(movedX, Mathf.Abs(delta.x)) ? Velocity.x : 0f,
             Mathf.Approximately(movedY, Mathf.Abs(delta.y)) ? Velocity.y : 0f);
+    }
+
+    // Whether the standing hull would be clear of geometry with the body pivot at the given point: the room to stand
+    // up in. Slightly smaller than the hull, so a wall it merely touches does not count.
+    public bool HasHeadroom(Vector2 standingPivot) {
+        ContactFilter2D filter = new ContactFilter2D { useLayerMask = true, layerMask = solidMask, useTriggers = false };
+        Vector2 size = hullSize - Vector2.one * (2f * SkinWidth);
+        return Physics2D.OverlapCapsule(standingPivot + hullOffset, size, CapsuleDirection2D.Vertical, 0f, filter, headroomHits) == 0;
     }
 
     // How far the hull can travel sideways before touching geometry, up to maxDistance.
@@ -72,9 +93,9 @@ public class KinematicBodyMotor {
     // Geometry the hull already overlaps (distance 0) does not block, so the hull can move out instead of sticking,
     // and it must not hide real obstacles further along the cast.
     private RaycastHit2D CastHull((Vector2 direction, float distance) cast) {
-        Vector2 center = (Vector2)body.position + hullOffset;
+        Rect hull = CurrentHull;
         ContactFilter2D filter = new ContactFilter2D { useLayerMask = true, layerMask = solidMask };
-        int hitCount = Physics2D.CapsuleCast(center, hullSize, CapsuleDirection2D.Vertical, 0f, cast.direction, filter, hullHits, cast.distance);
+        int hitCount = Physics2D.CapsuleCast(hull.center, hull.size, CapsuleDirection2D.Vertical, 0f, cast.direction, filter, hullHits, cast.distance);
 
         RaycastHit2D nearest = default;
         for (int index = 0; index < hitCount; index++) {

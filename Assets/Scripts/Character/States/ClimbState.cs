@@ -25,6 +25,7 @@ public sealed class ClimbState : ICharacterState {
     }
 
     public bool AllowsUpperBodyActions => false;
+    public bool AllowsCrouch => false;
 
     // Jump pressed on the ground next to a ledge that is too high to step onto.
     public bool TryBeginFromStance() {

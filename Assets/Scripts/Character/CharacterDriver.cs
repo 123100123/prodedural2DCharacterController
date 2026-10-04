@@ -25,6 +25,7 @@ public class CharacterDriver : MonoBehaviour {
     [SerializeField] private ArmSwing armSwing = new ArmSwing();
 
     [Header("Moves")]
+    [SerializeField] private CrouchController crouch = new CrouchController();
     [SerializeField] private AirborneSettings airborne = new AirborneSettings();
     [SerializeField] private JumpSettings jump = new JumpSettings();
     [SerializeField] private RollSettings roll = new RollSettings();
@@ -46,7 +47,7 @@ public class CharacterDriver : MonoBehaviour {
 
     public CharacterEvents Events { get; private set; }
     // What debug and tuning tools need; the character never reads anything back from them.
-    public CharacterParts Parts => new CharacterParts((stride, posture, torsoMotion, head, armSwing), postureRoot);
+    public CharacterParts Parts => new CharacterParts((stride, posture, torsoMotion, head, armSwing), (crouch, postureRoot));
     public PlayerCommands LatestCommands => latestCommands;
 
     // Composes here rather than in Awake: a script recompile during play mode reloads the domain,
@@ -75,6 +76,7 @@ public class CharacterDriver : MonoBehaviour {
         machine = new CharacterStateMachine();
         Events = new CharacterEvents();
         rig = BuildRig();
+        crouch.Initialize(rig);
         states = BuildStates();
         shootingStance = new ShootingStance(rig, (pistol, shooting));
         ComposeSecondaryMotion();
@@ -85,6 +87,7 @@ public class CharacterDriver : MonoBehaviour {
     private void Update() {
         PlayerCommands commands = input.ReadCommands();
         latestCommands = commands;
+        crouch.Tick(Time.deltaTime, (commands.CrouchRequested, machine.Current.AllowsCrouch));
         machine.Tick(Time.deltaTime, commands);
         posture.Tick(Time.deltaTime);
 

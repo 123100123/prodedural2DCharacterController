@@ -36,13 +36,25 @@ public sealed class LocomotionTelemetry {
 
     private readonly StrideController stride;
     private readonly (LocomotionPosture posture, TorsoMotion torso, HeadLook head, Transform postureRoot) upperBody;
+    private readonly CrouchController crouch;
 
-    public LocomotionTelemetry(StrideController stride, (LocomotionPosture posture, TorsoMotion torso, HeadLook head, Transform postureRoot) upperBody) {
+    public LocomotionTelemetry(StrideController stride, (LocomotionPosture posture, TorsoMotion torso, HeadLook head, Transform postureRoot) upperBody, CrouchController crouch) {
         this.stride = stride;
         this.upperBody = upperBody;
+        this.crouch = crouch;
     }
 
     public Mode Classification { get; private set; }
+    // Crouching: how crouched the character is, whether it is held there, how far the pelvis is sunk and by how much
+    // a full crouch would sink it, and whether a low ceiling holds it down.
+    public float CrouchShare { get; private set; }
+    public bool IsCrouching { get; private set; }
+    public bool IsHeadroomBlocked { get; private set; }
+    public float CrouchDrop { get; private set; }
+    public float CrouchDepth { get; private set; }
+    public Rect Hull { get; private set; }
+    // The gait counts as a crouch once more than half crouched.
+    public bool IsCrouched => CrouchShare > 0.5f;
     public GaitPreview Preview { get; private set; }
     public float MoveAxis { get; private set; }
     public bool RunHeld { get; private set; }
@@ -99,6 +111,7 @@ public sealed class LocomotionTelemetry {
     public void Refresh((PlayerCommands commands, float time) frame) {
         ReadInput(frame.commands);
         ReadGait();
+        ReadCrouch();
         ReadUpperBody();
         ReadBodyAndLegs(frame.time);
         ReadEvents(frame.time);
@@ -121,6 +134,15 @@ public sealed class LocomotionTelemetry {
         SwingShare = stride.SwingShare;
         CatchUp = stride.Diagnostics.CatchUp;
         Classification = Classify((stride.IsMoving, Pace.Running));
+    }
+
+    private void ReadCrouch() {
+        CrouchShare = stride.CrouchShare;
+        IsCrouching = crouch.IsCrouching;
+        IsHeadroomBlocked = crouch.IsHeadroomBlocked;
+        CrouchDrop = stride.CrouchDrop;
+        CrouchDepth = crouch.Settings.depth;
+        Hull = crouch.Hull;
     }
 
     private void ReadUpperBody() {

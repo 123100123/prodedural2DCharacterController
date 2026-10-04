@@ -17,6 +17,7 @@ public sealed class AirborneState : ICharacterState {
     }
 
     public bool AllowsUpperBodyActions => true;
+    public bool AllowsCrouch => true;
 
     public void Launch(Vector2 velocity) => BeginFlight((velocity, false));
 

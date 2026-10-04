@@ -20,6 +20,7 @@ public static class LocomotionDebugDraw {
         GaitPhase = 1 << 10,
         PelvisPath = 1 << 11,
         SupportOffset = 1 << 12,
+        CrouchHull = 1 << 13,
     }
 
     private const float MarkSize = 0.08f;
@@ -48,6 +49,23 @@ public static class LocomotionDebugDraw {
         if (Has(layers, Layers.GaitPhase)) {
             DrawPhaseBar(t);
         }
+        if (Has(layers, Layers.CrouchHull)) {
+            DrawHull(t);
+        }
+    }
+
+    // The collision hull (shorter while crouched); red while a low ceiling holds the character crouched.
+    private static void DrawHull(LocomotionTelemetry t) {
+        Rect hull = t.Hull;
+        Color color = t.IsHeadroomBlocked ? Color.red : Color.cyan;
+        Vector2 bottomLeft = hull.min;
+        Vector2 topRight = hull.max;
+        Vector2 bottomRight = new Vector2(topRight.x, bottomLeft.y);
+        Vector2 topLeft = new Vector2(bottomLeft.x, topRight.y);
+        Debug.DrawLine(bottomLeft, bottomRight, color);
+        Debug.DrawLine(bottomRight, topRight, color);
+        Debug.DrawLine(topRight, topLeft, color);
+        Debug.DrawLine(topLeft, bottomLeft, color);
     }
 
     private static void DrawLegs((LocomotionTelemetry t, Layers layers) frame) {

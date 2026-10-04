@@ -10,11 +10,15 @@ using Section = TuningSection<MovementPreset>;
 public static class MovementTuningSchema {
     private delegate void GaitWriter(ref GaitProfile gait, float value);
 
+    // Which of the preset's gait profiles a gait section edits.
+    private enum GaitSlot { Walk, Run, Crouch }
+
     public static IReadOnlyList<Section> Build() {
         return new[] {
             new Section("IDLE", Idle()),
-            new Section("WALK", Gait(false)),
-            new Section("RUN", Gait(true)),
+            new Section("WALK", Gait(GaitSlot.Walk)),
+            new Section("RUN", Gait(GaitSlot.Run)),
+            new Section("CROUCH", Crouch()),
             new Section("TRANSITIONS", Transitions()),
             new Section("ADVANCED", Advanced()),
         };
@@ -39,29 +43,43 @@ public static class MovementTuningSchema {
         };
     }
 
-    private static List<Parameter> Gait(bool isRun) {
+    // The crouch's own settings first, then its gait profile (the same values as the walk and run sections).
+    private static List<Parameter> Crouch() {
+        List<Parameter> parameters = new List<Parameter> {
+            new Parameter(("Height", "Crouch depth", Units), (0f, 1.3f), (p => p.crouch.depth, (p, v) => p.crouch.depth = v)),
+            new Parameter(("Height", "Stance width scale", Multiple), (0.8f, 2f), (p => p.crouch.stanceWidthScale, (p, v) => p.crouch.stanceWidthScale = v)),
+            new Parameter(("Posture", "Idle lean", Degrees), (-10f, 30f), (p => p.crouch.idleLean, (p, v) => p.crouch.idleLean = v)),
+            new Parameter(("Posture", "Chest fold", Degrees), (0f, 30f), (p => p.crouch.chestFold, (p, v) => p.crouch.chestFold = v)),
+            new Parameter(("Posture", "Arm bend held in", Share), (0f, 1f), (p => p.crouch.idleArmBend, (p, v) => p.crouch.idleArmBend = v)),
+        };
+        parameters.AddRange(Spring(("Crouch transition", (p => p.crouch.spring, (p, s) => p.crouch.spring = s))));
+        parameters.AddRange(Gait(GaitSlot.Crouch));
+        return parameters;
+    }
+
+    private static List<Parameter> Gait(GaitSlot slot) {
         return new List<Parameter> {
-            GaitParameter(isRun, ((("Speed", "Speed", UnitsPerSecond), (0.5f, 15f)), (g => g.speed, (ref GaitProfile g, float v) => g.speed = v))),
-            GaitParameter(isRun, ((("Speed", "Acceleration", UnitsPerSecondSquared), (1f, 60f)), (g => g.acceleration, (ref GaitProfile g, float v) => g.acceleration = v))),
-            GaitParameter(isRun, ((("Speed", "Deceleration", UnitsPerSecondSquared), (1f, 80f)), (g => g.deceleration, (ref GaitProfile g, float v) => g.deceleration = v))),
-            GaitParameter(isRun, ((("Timing", "Duty factor", Share), (0.2f, 0.8f)), (g => g.dutyFactor, (ref GaitProfile g, float v) => g.dutyFactor = v))),
-            GaitParameter(isRun, ((("Timing", "Contact lead (share of stance ahead)", Share), (0.2f, 0.6f)), (g => g.contactLeadShare, (ref GaitProfile g, float v) => g.contactLeadShare = v))),
-            GaitParameter(isRun, ((("Timing", "Step length per √speed", Multiple), (0.3f, 2f)), (g => g.stepLengthPerRootSpeed, (ref GaitProfile g, float v) => g.stepLengthPerRootSpeed = v))),
-            GaitParameter(isRun, ((("Timing", "Min step length", Units), (0.1f, 2f)), (g => g.minStepLength, (ref GaitProfile g, float v) => g.minStepLength = v))),
-            GaitParameter(isRun, ((("Timing", "Max step length", Units), (0.5f, 5f)), (g => g.maxStepLength, (ref GaitProfile g, float v) => g.maxStepLength = v))),
-            GaitParameter(isRun, ((("Timing", "Min swing duration", Seconds), (0.1f, 1f)), (g => g.minSwingDuration, (ref GaitProfile g, float v) => g.minSwingDuration = v))),
-            GaitParameter(isRun, ((("Timing", "Max swing duration", Seconds), (0.2f, 1.5f)), (g => g.maxSwingDuration, (ref GaitProfile g, float v) => g.maxSwingDuration = v))),
-            GaitParameter(isRun, ((("Timing", "Lift height", Units), (0f, 1.2f)), (g => g.liftHeight, (ref GaitProfile g, float v) => g.liftHeight = v))),
-            GaitParameter(isRun, ((("Pelvis / body", "Pelvis drop", Units), (0f, 0.8f)), (g => g.pelvisDrop, (ref GaitProfile g, float v) => g.pelvisDrop = v))),
-            GaitParameter(isRun, ((("Pelvis / body", "Bob amplitude", Units), (0f, 0.4f)), (g => g.bobAmplitude, (ref GaitProfile g, float v) => g.bobAmplitude = v))),
-            GaitParameter(isRun, ((("Pelvis / body", "Low point after contact", "cycle"), (0f, 0.5f)), (g => g.lowAfterContact, (ref GaitProfile g, float v) => g.lowAfterContact = v))),
-            GaitParameter(isRun, ((("Pelvis / body", "Surge", Units), (0f, 0.3f)), (g => g.surge, (ref GaitProfile g, float v) => g.surge = v))),
-            GaitParameter(isRun, ((("Pelvis / body", "Plant impulse", "× impact"), (0f, 2f)), (g => g.plantImpulse, (ref GaitProfile g, float v) => g.plantImpulse = v))),
-            GaitParameter(isRun, ((("Pelvis / body", "Push-off impulse", UnitsPerSecond), (0f, 5f)), (g => g.pushOffImpulse, (ref GaitProfile g, float v) => g.pushOffImpulse = v))),
-            GaitParameter(isRun, ((("Upper body", "Base lean", Degrees), (-5f, 30f)), (g => g.lean, (ref GaitProfile g, float v) => g.lean = v))),
-            GaitParameter(isRun, ((("Upper body", "Secondary pitch oscillation", Degrees), (0f, 10f)), (g => g.pitchOscillation, (ref GaitProfile g, float v) => g.pitchOscillation = v))),
-            GaitParameter(isRun, ((("Upper body", "Arm swing", Degrees), (0f, 90f)), (g => g.armSwing, (ref GaitProfile g, float v) => g.armSwing = v))),
-            GaitParameter(isRun, ((("Upper body", "Arm bend", Share), (0f, 1f)), (g => g.armBend, (ref GaitProfile g, float v) => g.armBend = v))),
+            GaitParameter(slot, ((("Speed", "Speed", UnitsPerSecond), (0.5f, 15f)), (g => g.speed, (ref GaitProfile g, float v) => g.speed = v))),
+            GaitParameter(slot, ((("Speed", "Acceleration", UnitsPerSecondSquared), (1f, 60f)), (g => g.acceleration, (ref GaitProfile g, float v) => g.acceleration = v))),
+            GaitParameter(slot, ((("Speed", "Deceleration", UnitsPerSecondSquared), (1f, 80f)), (g => g.deceleration, (ref GaitProfile g, float v) => g.deceleration = v))),
+            GaitParameter(slot, ((("Timing", "Duty factor", Share), (0.2f, 0.8f)), (g => g.dutyFactor, (ref GaitProfile g, float v) => g.dutyFactor = v))),
+            GaitParameter(slot, ((("Timing", "Contact lead (share of stance ahead)", Share), (0.2f, 0.6f)), (g => g.contactLeadShare, (ref GaitProfile g, float v) => g.contactLeadShare = v))),
+            GaitParameter(slot, ((("Timing", "Step length per √speed", Multiple), (0.3f, 2f)), (g => g.stepLengthPerRootSpeed, (ref GaitProfile g, float v) => g.stepLengthPerRootSpeed = v))),
+            GaitParameter(slot, ((("Timing", "Min step length", Units), (0.1f, 2f)), (g => g.minStepLength, (ref GaitProfile g, float v) => g.minStepLength = v))),
+            GaitParameter(slot, ((("Timing", "Max step length", Units), (0.5f, 5f)), (g => g.maxStepLength, (ref GaitProfile g, float v) => g.maxStepLength = v))),
+            GaitParameter(slot, ((("Timing", "Min swing duration", Seconds), (0.1f, 1f)), (g => g.minSwingDuration, (ref GaitProfile g, float v) => g.minSwingDuration = v))),
+            GaitParameter(slot, ((("Timing", "Max swing duration", Seconds), (0.2f, 1.5f)), (g => g.maxSwingDuration, (ref GaitProfile g, float v) => g.maxSwingDuration = v))),
+            GaitParameter(slot, ((("Timing", "Lift height", Units), (0f, 1.2f)), (g => g.liftHeight, (ref GaitProfile g, float v) => g.liftHeight = v))),
+            GaitParameter(slot, ((("Pelvis / body", "Pelvis drop", Units), (0f, 0.8f)), (g => g.pelvisDrop, (ref GaitProfile g, float v) => g.pelvisDrop = v))),
+            GaitParameter(slot, ((("Pelvis / body", "Bob amplitude", Units), (0f, 0.4f)), (g => g.bobAmplitude, (ref GaitProfile g, float v) => g.bobAmplitude = v))),
+            GaitParameter(slot, ((("Pelvis / body", "Low point after contact", "cycle"), (0f, 0.5f)), (g => g.lowAfterContact, (ref GaitProfile g, float v) => g.lowAfterContact = v))),
+            GaitParameter(slot, ((("Pelvis / body", "Surge", Units), (0f, 0.3f)), (g => g.surge, (ref GaitProfile g, float v) => g.surge = v))),
+            GaitParameter(slot, ((("Pelvis / body", "Plant impulse", "× impact"), (0f, 2f)), (g => g.plantImpulse, (ref GaitProfile g, float v) => g.plantImpulse = v))),
+            GaitParameter(slot, ((("Pelvis / body", "Push-off impulse", UnitsPerSecond), (0f, 5f)), (g => g.pushOffImpulse, (ref GaitProfile g, float v) => g.pushOffImpulse = v))),
+            GaitParameter(slot, ((("Upper body", "Base lean", Degrees), (-5f, 30f)), (g => g.lean, (ref GaitProfile g, float v) => g.lean = v))),
+            GaitParameter(slot, ((("Upper body", "Secondary pitch oscillation", Degrees), (0f, 10f)), (g => g.pitchOscillation, (ref GaitProfile g, float v) => g.pitchOscillation = v))),
+            GaitParameter(slot, ((("Upper body", "Arm swing", Degrees), (0f, 90f)), (g => g.armSwing, (ref GaitProfile g, float v) => g.armSwing = v))),
+            GaitParameter(slot, ((("Upper body", "Arm bend", Share), (0f, 1f)), (g => g.armBend, (ref GaitProfile g, float v) => g.armBend = v))),
         };
     }
 
@@ -115,18 +133,20 @@ public static class MovementTuningSchema {
     }
 
     // A walk or run profile value, read from and written to the profile the section edits.
-    private static Parameter GaitParameter(bool isRun, (((string group, string label, string unit) display, (float min, float max) range) shown, (Func<GaitProfile, float> read, GaitWriter write) field) parameter) {
+    private static Parameter GaitParameter(GaitSlot slot, (((string group, string label, string unit) display, (float min, float max) range) shown, (Func<GaitProfile, float> read, GaitWriter write) field) parameter) {
         return new Parameter(parameter.shown.display, parameter.shown.range, (
-            preset => parameter.field.read(isRun ? preset.run : preset.walk),
-            (preset, value) => WriteGait((preset, isRun), (parameter.field.write, value))));
+            preset => parameter.field.read(ProfileOf(preset, slot)),
+            (preset, value) => parameter.field.write(ref ProfileOf(preset, slot), value)));
     }
 
-    private static void WriteGait((MovementPreset preset, bool isRun) target, (GaitWriter write, float value) change) {
-        if (target.isRun) {
-            change.write(ref target.preset.run, change.value);
-        }
-        else {
-            change.write(ref target.preset.walk, change.value);
+    private static ref GaitProfile ProfileOf(MovementPreset preset, GaitSlot slot) {
+        switch (slot) {
+            case GaitSlot.Run:
+                return ref preset.run;
+            case GaitSlot.Crouch:
+                return ref preset.crouchGait;
+            default:
+                return ref preset.walk;
         }
     }
 

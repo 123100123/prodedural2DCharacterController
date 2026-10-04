@@ -54,7 +54,7 @@ public class ArmSwing {
         float windup = stride.WindupCrouch > 0f ? -windupSwing : 0f;
 
         (float front, float back) angles = (windup - wave, windup + wave);
-        float baseBend = gait.armBend * stride.Pace.Moving;
+        float baseBend = Mathf.Clamp01(gait.armBend * stride.Pace.Moving + stride.CrouchSettings.idleArmBend * stride.CrouchShare);
         return (angles, (ElbowBendFor((angles.front, baseBend)), ElbowBendFor((angles.back, baseBend))));
     }
 

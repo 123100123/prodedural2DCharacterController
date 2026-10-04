@@ -9,6 +9,7 @@ public sealed class WalkState : ICharacterState {
     }
 
     public bool AllowsUpperBodyActions => true;
+    public bool AllowsCrouch => true;
 
     public void Begin() => context.Machine.ChangeTo(this);
 

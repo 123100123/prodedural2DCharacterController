@@ -11,6 +11,8 @@ public class MovementPreset : ITuningPreset<MovementPreset> {
     public int version = CurrentVersion;
     public GaitProfile walk;
     public GaitProfile run;
+    public GaitProfile crouchGait;
+    public CrouchSettings crouch;
     public GaitTransitionSettings transitions;
     public BalanceSettings balance;
     public IdleStanceSettings idle;
@@ -27,6 +29,8 @@ public class MovementPreset : ITuningPreset<MovementPreset> {
         return new MovementPreset {
             walk = GaitProfile.Walk,
             run = GaitProfile.Run,
+            crouchGait = GaitProfile.Crouch,
+            crouch = CrouchSettings.Default,
             transitions = GaitTransitionSettings.Default,
             balance = BalanceSettings.Default,
             idle = IdleStanceSettings.Default,

@@ -12,6 +12,7 @@ public sealed class JumpWindupState : ICharacterState {
     }
 
     public bool AllowsUpperBodyActions => true;
+    public bool AllowsCrouch => true;
 
     public void Begin() => context.Machine.ChangeTo(this);
 

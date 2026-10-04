@@ -8,7 +8,7 @@ public static class SwingForecast {
 
     public readonly struct Request {
         // startProgress: how far through the swing it already is (0 at lift; more when re-planning a swing in the air).
-        public Request((float speed, float intendedSpeed, float swingShare, float longestDuration, float startProgress) motion, (GaitProfile walk, GaitProfile run, GaitTransitionSettings transitions) gaits) {
+        public Request((float speed, float intendedSpeed, float swingShare, float longestDuration, float startProgress) motion, GaitSet gaits) {
             Speed = motion.speed;
             IntendedSpeed = motion.intendedSpeed;
             SwingShare = motion.swingShare;
@@ -22,7 +22,7 @@ public static class SwingForecast {
         public float SwingShare { get; }
         public float LongestDuration { get; }
         public float StartProgress { get; }
-        public (GaitProfile walk, GaitProfile run, GaitTransitionSettings transitions) Gaits { get; }
+        public GaitSet Gaits { get; }
     }
 
     // The rest of the swing, from its start progress to touchdown.
@@ -61,8 +61,6 @@ public static class SwingForecast {
         return SwingTiming.OnClock((at.request.LongestDuration, 1f)).ProgressOver((clockProgress, ForecastStep));
     }
 
-    // The walk/run blend the gait settles on at a speed.
-    public static GaitProfile GaitAt(float speed, (GaitProfile walk, GaitProfile run, GaitTransitionSettings transitions) gaits) {
-        return GaitProfile.Blend((gaits.walk, gaits.run), LocomotionPace.RunningAt(speed, gaits));
-    }
+    // The gait the body settles into at a speed.
+    public static GaitProfile GaitAt(float speed, GaitSet gaits) => gaits.SettledAt(speed);
 }

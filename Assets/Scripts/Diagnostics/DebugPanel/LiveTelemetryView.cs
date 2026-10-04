@@ -16,6 +16,7 @@ public sealed class LiveTelemetryView {
         Root = new VisualElement();
         AddFlags();
         AddSection(("Gait", GaitReadouts()));
+        AddSection(("Crouch", CrouchReadouts()));
         AddSection(("Timing", TimingReadouts()));
         AddSection(("Support", SupportReadouts()));
         AddSection(("Height", HeightReadouts()));
@@ -37,11 +38,24 @@ public sealed class LiveTelemetryView {
     }
 
     private static IEnumerable<(string label, Func<LocomotionTelemetry, string> format)> GaitReadouts() {
-        yield return ("Classification", t => t.IsDrivingGait ? t.Classification.ToString().ToUpperInvariant() : "NOT GROUNDED");
+        yield return ("Classification", ClassificationText);
         yield return ("Preview override", t => t.Preview.IsActive ? $"{t.Preview.PreviewMode} {(t.Preview.Speed.HasValue ? t.Preview.Speed.Value.ToString("0.00") + " u/s" : "")}" : "off (player input)");
         yield return ("Move axis / run held", t => $"{t.MoveAxis:0.00} / {(t.RunHeld ? "yes" : "no")}");
         yield return ("Ground / intended speed", t => $"{t.GroundSpeed:0.00} / {t.IntendedSpeed:0.00} u/s");
         yield return ("Pace moving / run blend", t => $"{t.Pace.Moving:0.00} / {t.Pace.Running:0.00}");
+    }
+
+    private static IEnumerable<(string label, Func<LocomotionTelemetry, string> format)> CrouchReadouts() {
+        yield return ("Crouch share", t => $"{t.CrouchShare:0.00}{(t.IsHeadroomBlocked ? "  (held by a low ceiling)" : t.IsCrouching ? "  (crouching)" : "")}");
+        yield return ("Pelvis sunk / full crouch depth", t => $"{t.CrouchDrop:0.000} / {t.CrouchDepth:0.000} u");
+    }
+
+    private static string ClassificationText(LocomotionTelemetry t) {
+        if (!t.IsDrivingGait) {
+            return "NOT GROUNDED";
+        }
+        string mode = t.Classification.ToString().ToUpperInvariant();
+        return t.IsCrouched ? $"CROUCH {mode}" : mode;
     }
 
     private static IEnumerable<(string label, Func<LocomotionTelemetry, string> format)> TimingReadouts() {

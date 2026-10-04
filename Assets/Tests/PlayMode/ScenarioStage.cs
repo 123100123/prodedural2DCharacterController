@@ -66,6 +66,12 @@ public sealed class ScenarioStage {
         return GroundTop + ledge.height;
     }
 
+    // A block hanging over the track from startX whose underside is the given height above it: a low ceiling.
+    public void AddCeiling((float startX, float clearance, float width) ceiling) {
+        const float Thickness = 3f;
+        CreateBlock(new Vector2(ceiling.startX + ceiling.width / 2f, GroundTop + ceiling.clearance + Thickness / 2f), new Vector2(ceiling.width, Thickness));
+    }
+
     public void Press(params Key[] keys) {
         heldKeys.UnionWith(keys);
         QueueKeyboard();
@@ -86,6 +92,13 @@ public sealed class ScenarioStage {
         Camera camera = Camera.main;
         Vector2 screen = camera.WorldToScreenPoint(worldPoint);
         InputSystem.QueueStateEvent(mouse, new MouseState { position = screen }.WithButton(MouseButton.Right));
+    }
+
+    // Aims at a world point and presses (or releases) the fire button, so alternating calls fire a shot each press.
+    public void AimAndFire(Vector2 worldPoint, bool fire) {
+        Vector2 screen = Camera.main.WorldToScreenPoint(worldPoint);
+        MouseState state = new MouseState { position = screen }.WithButton(MouseButton.Right);
+        InputSystem.QueueStateEvent(mouse, fire ? state.WithButton(MouseButton.Left) : state);
     }
 
     public void StopAiming() => InputSystem.QueueStateEvent(mouse, new MouseState());

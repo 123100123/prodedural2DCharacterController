@@ -72,6 +72,18 @@ public struct GaitProfile {
         lean = 17f, pitchOscillation = 1f, armSwing = 45f, armBend = 0.5f,
     };
 
+    // Weight carried low: short, deliberate steps with the feet staying down most of the cycle, the knees well bent and
+    // the torso folded forward, the arms held in close. The pelvis height itself comes from the crouch depth, not from
+    // the gait's pelvis drop.
+    public static GaitProfile Crouch => new GaitProfile {
+        speed = 1.8f, acceleration = 8f, deceleration = 12f,
+        dutyFactor = 0.7f, contactLeadShare = 0.5f, stepLengthPerRootSpeed = 0.6f, minStepLength = 0.3f, maxStepLength = 1.1f,
+        minSwingDuration = 0.3f, maxSwingDuration = 0.7f, liftHeight = 0.22f,
+        pelvisDrop = 0.05f, bobAmplitude = 0.04f, lowAfterContact = 0.06f, surge = 0.03f, plantImpulse = 0.05f, pushOffImpulse = 0f,
+        lean = 14f, pitchOscillation = 0.8f, armSwing = 12f, armBend = 0.45f,
+    };
+
+    // The blend of two profiles: t = 0 is the first, 1 the second (a walk-to-run share, or a crouch share).
     public static GaitProfile Blend((GaitProfile walk, GaitProfile run) profiles, float runShare) {
         GaitProfile a = profiles.walk;
         GaitProfile b = profiles.run;
