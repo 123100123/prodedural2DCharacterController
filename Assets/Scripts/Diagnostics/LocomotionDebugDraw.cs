@@ -22,6 +22,7 @@ public static class LocomotionDebugDraw {
         SupportOffset = 1 << 12,
         CrouchHull = 1 << 13,
         LandingPrediction = 1 << 14,
+        FlightPhase = 1 << 15,
     }
 
     private const float MarkSize = 0.08f;
@@ -55,6 +56,23 @@ public static class LocomotionDebugDraw {
         }
         if (Has(layers, Layers.LandingPrediction)) {
             DrawLandingPrediction(t);
+        }
+        if (Has(layers, Layers.FlightPhase)) {
+            DrawFlightPhase(t);
+        }
+    }
+
+    // Three bars above the character: how far the flight is rising (green), hanging (yellow) and falling (red), and a
+    // fourth for the strength of the long-fall flail (white).
+    private static void DrawFlightPhase(LocomotionTelemetry t) {
+        if (!t.Air.IsAirborne) {
+            return;
+        }
+        Vector2 origin = t.BodyPosition + new Vector2(-PhaseBarWidth / 2f, PhaseBarHeight + 0.4f);
+        (float value, Color color)[] bars = { (t.Air.Ascent, Color.green), (t.Air.Apex, Color.yellow), (t.Air.Descent, Color.red), (t.Air.FlailStrength, Color.white) };
+        for (int index = 0; index < bars.Length; index++) {
+            Vector2 start = origin + Vector2.up * (index * 0.18f);
+            Debug.DrawLine(start, start + Vector2.right * (PhaseBarWidth * bars[index].value), bars[index].color);
         }
     }
 

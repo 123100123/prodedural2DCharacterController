@@ -14,7 +14,8 @@ Open `Assets/Scenes/SampleScene.unity` and press Play.
 |---|---|---|
 | Walk | A / D (or ← / →) | Left stick |
 | Run (while walking, not while aiming) | Hold Left Shift | Press left stick |
-| Jump (climbs instead when a too-high ledge is ahead) | Space | South button |
+| Crouch (hold, or tap to latch on and off) | Left Ctrl | Press right stick |
+| Jump (climbs instead when a too-high ledge is ahead); release early for a hop | Space | South button |
 | Roll toward the facing direction (disabled by default) | C | East button |
 | Shooting mode: face and aim at the pointer | Hold right mouse button | Left trigger |
 | Fire (in shooting mode; logs a debug message) | Left mouse button | Right trigger |
@@ -26,15 +27,18 @@ Assets/
   Art/Characters/      inverseRobo.psb (rigged PSB character)
   Art/Sprites/         debug icons and the ground tile
   Scenes/              SampleScene
+  Editor/              ProceduralCharacter.Editor assembly: the one-time URP 2D lighting setup menu
   Scripts/             ProceduralCharacter.Runtime assembly
-    Character/         CharacterDriver (composition root), facing, kinematic motor, rig
+    Character/         CharacterDriver (composition root), facing, kinematic motor, rig, crouch, jump momentum, air pose, landing
     Character/States/  Walk, JumpWindup, Airborne, Roll, Climb and their settings
     Climbing/          ledge detection and grab rules
-    Diagnostics/       locomotion inspector (tuning, telemetry, preview), presets, debug lines
+    Lighting/          lighting settings and the muzzle flash envelope (pure)
+    Lighting/Urp/      ProceduralCharacter.Lighting assembly (compiled only with URP): the lighting rig, muzzle flash light, shadow casters
+    Diagnostics/       ProceduralCharacter.Diagnostics assembly: tuning domains and presets, telemetry, debug lines (the character never references it)
     Diagnostics/DebugPanel/  the runtime Game View tuning panel (UI Toolkit)
     Input/             PlayerInputReader (actions defined in code), PlayerCommands, UiInputCapture
-    Locomotion/        stride gait, gait clock and scheduler, leg steppers, foothold planning
-    UpperBody/         locomotion posture, chest motion, head look, arm swing, two-bone arm IK, shooting
+    Locomotion/        stride gait, gait set (walk, run, crouch), gait clock and scheduler, leg steppers, foothold planning
+    UpperBody/         locomotion posture, chest motion, head look, arm swing, two-bone arm IK, shooting, long-fall motion
   Resources/LocomotionDebug/  the panel's theme and stylesheet
   Tests/EditMode/      tests for the pure policies and the gait timing
   Tests/PlayMode/      locomotion scenarios driven through virtual input devices
@@ -43,7 +47,7 @@ Assets/
 ### How a frame runs
 `CharacterDriver` (on the `inverseRobo` root) is the only component with an `Update`:
 1. It reads one `PlayerCommands` snapshot from `PlayerInputReader`.
-2. It ticks the active **full-body state**: Walk, JumpWindup, Airborne, Roll or Climb.
+2. It ticks the **crouch** share, then the active **full-body state**: Walk, JumpWindup, Airborne, Roll or Climb.
 3. It ticks the **locomotion posture**: the sustained forward lean of the upper body.
 4. If the state allows it, it ticks the **upper body** on top: the shooting stance (aiming, head look, firing) or the arm swing and level head, then the chest's secondary motion.
 5. In `LateUpdate`, it applies this frame's arm and head pose requests. Any limb nobody posed eases back to its authored rest pose.
@@ -117,16 +121,26 @@ The full-body states switch through `CharacterStateMachine`. Each state receives
   - **Standing:** the robot stands tall on nearly straight legs (`bodyHeight`). Walking sinks the pelvis a little and running more (`pelvisDrop`). Once the body has come to rest, the feet take settling steps into a stance centred under the torso, slightly ahead of the pelvis (`stanceLead`). If both feet are off their spots, the leg that did not step last goes first.
   - **Edges:** a foot that finds no foothold ahead leaves the body leaning past its feet, and it falls. Stopping near a ledge keeps it on the ledge.
 
-  Walk and run are each a [GaitProfile](Assets/Scripts/Locomotion/GaitProfile.cs) on `StrideController`, with their own acceleration and braking: walking eases in, running starts and stops sharply. The timing of transitions is in [GaitTransitionSettings](Assets/Scripts/Locomotion/GaitTransitionSettings.cs) and [BalanceSettings](Assets/Scripts/Locomotion/BalanceSettings.cs).
+  Walk, run and crouch are each a [GaitProfile](Assets/Scripts/Locomotion/GaitProfile.cs) on `StrideController`, with their own acceleration and braking: walking eases in, running starts and stops sharply. [GaitSet](Assets/Scripts/Locomotion/GaitSet.cs) is the one place that answers "the gait at this speed": walk and run blend by speed, and the crouch gait is laid over them as far as the character is crouched and slow. The timing of transitions is in [GaitTransitionSettings](Assets/Scripts/Locomotion/GaitTransitionSettings.cs) and [BalanceSettings](Assets/Scripts/Locomotion/BalanceSettings.cs).
 
   ![Alt Text](https://media.giphy.com/media/UWcRcLwcw8LyuvL7qL/giphy.gif)
 
 ## 7. Moves
-  - **Jump:**
-    - A short crouch (`JumpWindupState`), then a launch tuned by apex height.
-    - In the air, the character can steer, and the legs tuck while rising and reach while falling.
+  - **Crouch** ([CrouchController](Assets/Scripts/Character/CrouchController.cs)): a modifier on the states that allow it (walking, the jump windup, the air), not a state of its own, so aiming, shooting and jumping work from it for free.
+    - Left Ctrl is hold-or-tap. The crouch share rises through a spring while the feet stay planted: the pelvis sinks by `depth`, the legs flex, the torso folds and the arms are held in close.
+    - Crouching, the **crouch gait** takes over at crouch speeds (about 1.8 u/s): short, low steps with the feet down most of the cycle. The run key is ignored, and crouching while running slows through the speed ramp (no slide). The pelvis drops at once; the gait's timing follows the speed.
+    - The collision hull shrinks from the top. Releasing under a ceiling too low to stand under keeps the character crouched until there is room.
+  - **Jump** ([JumpMomentum](Assets/Scripts/Character/JumpMomentum.cs), [AirSteering](Assets/Scripts/Character/AirSteering.cs)):
+    - The launch keeps the **ground speed** (plus a forward impulse that grows to a run), so a running jump goes much further than a standing one. The windup shrinks as the character speeds up: standing, a full load; running, it pushes off mid-stride with no stop.
+    - Releasing the button early cuts the rise: a tap is a hop, holding gives the full height (a crouch jump rises a little less).
+    - In the air, input steers up to the air speed and opposite input brakes and reverses, but speed carried in from the ground is not trimmed by steering with it; with no input only a gentle drag acts. A fall off an edge keeps its whole ground speed.
     - Coyote time and a jump buffer make timing forgiving.
-    - Landing is swept over the whole frame's fall, so a long frame cannot tunnel through the ground.
+  - **Flight pose** ([AirPose](Assets/Scripts/Character/AirPose.cs), [AirbornePoseSolver](Assets/Scripts/Character/AirbornePoseSolver.cs)): one pose for the legs, arms, posture and chest, blended by the vertical speed alone (rising, hanging, falling) and from a standing to a running version by the forward speed. After take-off the back leg stays extended behind the rising body (the push-off), at the top the legs tuck and the arms loosen, and falling they reach for the ground.
+  - **Long falls** ([FallSecondaryMotion](Assets/Scripts/UpperBody/FallSecondaryMotion.cs)): after about half a second of falling, the arms flail in large, fast arcs that grow with the time spent falling and the fall speed, while the feet drift and the torso pitches a little. It is a few sine waves of slowly wandering speed, seeded per fall, never a random value per frame, so it is smooth and deterministic. A hop or a normal jump never reaches it, it gives way to aiming over a short blend, and it calms as the landing nears.
+  - **Landing** ([LandingMath](Assets/Scripts/Character/LandingMath.cs), [LandingStance](Assets/Scripts/Locomotion/LandingStance.cs)):
+    - One ray each falling frame finds the ground; in the last quarter second the legs reach for the spots they will land on.
+    - Touchdown is swept over the whole frame's fall. The squash, a held pelvis compression, a torso fold and a loss of speed (up to 20 %) all scale with the impact speed.
+    - Landing at a walking pace or faster puts the feet where the gait has them (the lead foot ahead, the other far behind, the trailing foot stepping first), so a running jump lands into the run instead of restarting the gait.
   - **Roll** (a dive roll in four procedural phases, each easing from where the previous one left off):
     1. **Dive:** forward momentum, the torso pitches forward and drops, both arms stretch ahead and the trailing leg pushes back.
     2. **Hand contact:** the hands reach for ground probed ahead of the shoulders. The phase ends when the hand actually reaches it (with a timeout).
@@ -161,7 +175,7 @@ The full-body states switch through `CharacterStateMachine`. Each state receives
     - they swing opposite to the legs, the hand dragging a little behind the shoulder;
     - they swing about plumb, like pendulums, so a leaning run does not carry the swing back with the torso: the rear hand stays near the hip;
     - the elbows flex on the forward swing; when running they stay bent and pump;
-    - winding up a jump they swing back, and in the air they rise for balance.
+    - winding up a jump they swing back, and in the air they take the arms of the flight pose (and flail in a long fall).
   - **Mass:** the body follows its target through [SecondOrderDynamics](Assets/Scripts/Locomotion/SecondOrderDynamics.cs) springs ([BodyCarriage](Assets/Scripts/Locomotion/BodyCarriage.cs)), with three perceptual parameters (t3ssel8r's formulation): `frequency`, `damping` and `response`. The vertical spring (6 Hz) sits well above the running step rate (about 3 a second), so it follows the bob closely rather than being driven near its own frequency into an uncontrolled bounce. Foot plants and push-offs add only a little firmness, and a landing's speed becomes the squash and rebound.
   - **Steps:** the foot follows [StepArc](Assets/Scripts/Locomotion/StepArc.cs) curves, one set for walking and one for running:
     - walking, the toe clears early in the swing, the foot passes under the hip near the top, then lowers gently and comes to rest as it touches down;
@@ -170,7 +184,9 @@ The full-body states switch through `CharacterStateMachine`. Each state receives
   - **Camera and events:** [FollowCamera](Assets/Scripts/Character/FollowCamera.cs) follows with spring lag and look-ahead and kicks on landings. [CharacterEvents](Assets/Scripts/Character/CharacterEvents.cs) (`FootPlanted`, `Landed`, `Jumped`, `Fired`) are the place to attach sound and VFX.
 
 ## 9. Runtime tuning panel
-  Press **F1** in Play Mode to open the locomotion panel in the Game View. Press it again to close it, or use **–** to collapse it to its header. The `LocomotionDebugPanel` object in the scene holds the key and the character reference. Hidden, the panel only waits for its key. Open, clicks over it and typing into its fields don't reach gameplay. A field holds the keyboard only after you click into it, and clicking outside gives it back.
+  Press **F1** in Play Mode to open the locomotion panel in the Game View. Press it again to close it, or use **–** to collapse it to its header. The `LocomotionDebugPanel` object in the scene holds the key and the character reference. The panel lives in its own assembly (`ProceduralCharacter.Diagnostics`) and builds its inspector from `CharacterDriver.Parts`: the character never references it.
+
+  Settings are organised in **tuning domains**, each with its own preset type: **Movement** (`MovementPreset`) and **Lighting** (`LightingPreset`). A domain is a set of tabs declared as data (`MovementTuningSchema`, `LightingTuningSchema`): each parameter names its tab, group, unit, range and how it reads and writes the preset, and each setting is offered in exactly one tab. Presets are versioned JSON that loads over the code defaults, so a file saved before a setting existed keeps that setting's default. Hidden, the panel only waits for its key. Open, clicks over it and typing into its fields don't reach gameplay. A field holds the keyboard only after you click into it, and clicking outside gives it back.
   - **LIVE:** what the gait is doing, in sections:
     - **Gait:** classification (IDLE, WALK, RUN or TRANSITION), input, ground and intended speed, pace and run blend.
     - **Timing:** gait phase, cycle period and cadence, duty factor and swing share, catch-up, the last planted foot, the front-to-back and back-to-front contact intervals, and the balance step and resync counts.
@@ -180,22 +196,32 @@ The full-body states switch through `CharacterStateMachine`. Each state receives
     - **Posture:** the gait lean and acceleration lean, the total lean target and actual, chest pitch and head stabilization.
 
     Flags light up for 1.5 s after a **BALANCE STEP**, a **PHASE RESYNC** or a **FOOTHOLD FAILED**. The preview at the top (Auto, Idle, Walk, Run, with an optional speed) drives the gait without input. Auto is the normal game, and a badge in the header shows while a preview is active.
-  - **IDLE:** the stance, settling steps, idle lean, breathing and the start and stop thresholds.
+    - **Crouch, Airborne, Landing, Lighting:** the crouch share and pelvis sink, the flight (velocity, launch momentum, time airborne and falling, rising/hanging/falling weights, flail strength), the reach for the ground, the predicted ground and the last impact, and the player and muzzle light brightness.
+  - **IDLE:** the stance, settling steps, idle lean, breathing.
   - **WALK / RUN:** every value of that gait profile: speed, timing, pelvis and body, base lean, secondary pitch and arm swing.
-  - **TRANSITIONS:** the walk/run blend band and rate, the swing share ramp (cadence transition), the setting-off planning share, the lift overlaps, balance recovery (catch-up and emergency step), the posture's acceleration response and blend speed, and the idle thresholds.
-  - **BODY:** body height, leg extension, reach drop, the plant impulse cap and the horizontal and vertical springs.
-  - **UPPER BODY:** the walk and run leans and secondary pitch, the acceleration lean and caps, head stabilization, arm swing and the posture, chest, head and arm springs.
+  - **CROUCH:** the depth, stance width, posture and transition spring, then the crouch gait profile.
+  - **JUMP:** the windup, the launch height and hop, the momentum carried, the air control, the push-off, and the rising and hanging poses.
+  - **FALL:** the falling poses, the prolonged-fall flail and the landing (reach, impact, squash, momentum).
+  - **AIM:** arm extension, support hand, recoil and the pistol.
+  - **LIGHTING:** the ambient light, the player light and the muzzle flash (colours as red, green and blue sliders). Appears when the scene has a lighting rig; it has its own presets.
+  - **TRANSITIONS:** the idle start and stop thresholds, the walk/run blend band and rate, the swing share ramp (cadence transition), the setting-off planning share, the lift overlaps, balance recovery (catch-up and emergency step), and the posture's acceleration response and blend speed.
+  - **ADVANCED:** the body's height, reach and mass springs, and the posture, chest, head and arm springs and limits.
   - **DEBUG:** toggles for lines showing the foot and IK targets, planned footholds (the swinging foot's next foothold), body target, stride anchor, support range, pelvis, posture direction, ground probes, the support leg (support foot to its hip), the gait phase, the pelvis path, and the pelvis offsets (anchor, support offset and surge). The lines show in the Scene view, and in the Game view while its **Gizmos** toggle is on.
 
-  Each value has a slider, its exact value, a number field and its unit, and changes take effect at once. **Reset section** and **Reset all** restore the values the session started with. **Save preset** and **Load preset** write and read JSON files in `Application.persistentDataPath/LocomotionPresets` (on Windows, `%USERPROFILE%/AppData/LocalLow/<company>/<product>/LocomotionPresets`). **Copy current config** puts the JSON on the clipboard. Tuning never touches assets: in the Editor the changes end with Play Mode, so to keep values, copy them into the scene's `StrideController` and `CharacterDriver` settings. Debug tools reach all of this through `CharacterDriver.Inspector`; the locomotion never reads it back.
+  Each value has a slider, its exact value, a number field and its unit, and changes take effect at once. **Reset section** and **Reset all** restore the values the session started with. **Save preset** and **Load preset** write and read JSON files in `Application.persistentDataPath/LocomotionPresets` (on Windows, `%USERPROFILE%/AppData/LocalLow/<company>/<product>/LocomotionPresets`). **Copy current config** puts the JSON on the clipboard. Lighting presets are saved in `LightingPresets` next to them. Tuning never touches assets: in the Editor the changes end with Play Mode, so to keep values, copy them into the scene's `StrideController` and `CharacterDriver` settings. The panel reaches all of this through `CharacterDriver.Parts`; the character never reads it back.
+
+  ### Lighting
+  Lighting needs the Universal Render Pipeline with the 2D Renderer, which the project did not use. The package is listed in `Packages/manifest.json` (the 17.3.0 that ships with Unity 6000.3). Once the Package Manager has resolved it, run **Tools ▸ Procedural Character ▸ Set Up URP 2D Lighting** once: it creates `Assets/Settings/UniversalRP.asset` and `Renderer2D.asset` and assigns them in Graphics and every quality level (Gamma colour space is kept). From then on every scene that loads gets the lighting rig by itself (`LightingBootstrap`): a cool dim ambient light that keeps everything readable, a soft warm light about the character, and a short warm muzzle flash at the gun that lights on every `Fired` event, dies away in about 90 ms and casts shadows from the level's box colliders. Sprites on the default material are given the lit one while playing. Add a `SceneLightingController` to a scene to own its settings, and place any 2D lights by hand; an existing Global Light 2D is adopted. Without URP the assembly is not compiled and the game plays unchanged.
 
 ## 10. Tests
   Open the Test Runner (Window ▸ General ▸ Test Runner).
-  - **EditMode** tests cover the pure policies: foothold planning, two-bone IK, ledge grab rules, jump math, frame-rate easing, the gait cycle, timing and pace, step arcs, breathing, springs, posture lean, presets and the tuning schema. Simulations through the production timing classes check that walk to run and run to walk, from any point of either swing, keep the legs alternating, lift on cue and land evenly.
-  - **PlayMode** tests load the sample scene on a long test track and drive the character with a virtual keyboard and mouse at a fixed 60 fps. They cover idle, walk and run, transitions at every point of the stride, run toggles, starts and stops, reversals, the full run, uneven ground, jumps, landings, climbing, aiming, the panel, the preview and the telemetry. `RunPoseTests` measures the full run against a reference sprinter: the torso leaning 15–25° without a waist bend, the push-off leg straight and far behind the hip, the knee drive, and the hands' range in front and behind. Each scenario writes its measurements to `Temp/LocomotionScenarios/<test>.txt`: contact evenness, phase jumps, balance steps, lean, body height, flight, head steadiness and planted-foot reach.
+  - **EditMode** tests cover the pure policies: foothold planning, two-bone IK, ledge grab rules, jump math and momentum, air steering, the crouch intent and gait set, the flight pose and phases, the long-fall motion (including that it is smooth frame to frame), landing math and stances, the muzzle flash envelope, frame-rate easing, the gait cycle, timing and pace, step arcs, breathing, springs, posture lean, presets and the tuning schemas. Simulations through the production timing classes check that walk to run and run to walk, from any point of either swing, keep the legs alternating, lift on cue and land evenly.
+  - **PlayMode** tests load the sample scene on a long test track and drive the character with a virtual keyboard and mouse at a fixed 60 fps. They cover idle, walk and run, transitions at every point of the stride, run toggles, starts and stops, reversals, the full run, uneven ground, crouching and crouch walking, jumps and their momentum, the flight pose, long falls, landings, climbing, aiming, the muzzle flash lighting (skipped without URP), the panel, the preview and the telemetry. `RunPoseTests` measures the full run against a reference sprinter: the torso leaning 15–25° without a waist bend, the push-off leg straight and far behind the hip, the knee drive, and the hands' range in front and behind. Each scenario writes its measurements to `Temp/LocomotionScenarios/<test>.txt`: contact evenness, phase jumps, balance steps, lean, body height, flight, head steadiness and planted-foot reach.
 
 ## 11. Todo
   - [ ] Character and ground prefabs
+  - [ ] A crouch-slide and a sneak gait (one more profile in `GaitSet`)
+  - [ ] Per-area ambient light zones
   - [ ] Footstep and landing sounds and dust on `CharacterEvents`
   - [ ] Projectiles and hit reactions for the pistol
   - [ ] Foot alignment to slopes

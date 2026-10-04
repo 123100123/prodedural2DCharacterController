@@ -89,6 +89,35 @@ public class LocomotionInspectorTests {
         inspector.Tuning.Apply(inspector.Defaults);
     }
 
+    // The locomotion works the same without the panel: nothing in the gait depends on it, open, closed or gone.
+    [UnityTest]
+    public IEnumerator TheGaitIsTheSameWithThePanelHiddenOpenOrGone() {
+        Key[] walkRight = { Key.D };
+        stage.Press(walkRight);
+        yield return Frames(180);
+        (float speed, float interval) hidden = MeasureWalk();
+
+        yield return Tap(Key.F1);
+        yield return Frames(180);
+        (float speed, float interval) open = MeasureWalk();
+
+        foreach (LocomotionDebugPanel panel in Object.FindObjectsByType<LocomotionDebugPanel>(FindObjectsSortMode.None)) {
+            Object.Destroy(panel.gameObject);
+        }
+        yield return Frames(180);
+        (float speed, float interval) gone = MeasureWalk();
+
+        Assert.That(open.speed, Is.EqualTo(hidden.speed).Within(0.05f));
+        Assert.That(gone.speed, Is.EqualTo(hidden.speed).Within(0.05f));
+        Assert.That(gone.interval, Is.EqualTo(hidden.interval).Within(hidden.interval * 0.05f), "the same cadence with no panel");
+        Assert.That(open.interval, Is.EqualTo(hidden.interval).Within(hidden.interval * 0.05f), "and with it open");
+    }
+
+    private (float speed, float interval) MeasureWalk() {
+        float speed = Mathf.Abs(stage.Stride.GroundSpeed);
+        return (speed, stage.Stride.CyclePeriod);
+    }
+
     private static VisualElement FindPanel() {
         foreach (UIDocument document in Object.FindObjectsByType<UIDocument>(FindObjectsSortMode.None)) {
             VisualElement panel = document.rootVisualElement?.Q(className: "loco-panel");
