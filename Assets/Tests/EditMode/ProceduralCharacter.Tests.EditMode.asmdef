@@ -3,6 +3,7 @@
     "rootNamespace": "",
     "references": [
         "ProceduralCharacter.Runtime",
+        "ProceduralCharacter.Diagnostics",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

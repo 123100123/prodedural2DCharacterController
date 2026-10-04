@@ -33,7 +33,7 @@ public class LocomotionInspectorTests {
 
     [UnityTest]
     public IEnumerator ThePreviewRunsWalksAndStopsTheCharacterWithoutInput() {
-        LocomotionInspector inspector = stage.Character.Inspector;
+        LocomotionInspector inspector = stage.Inspector;
         inspector.Preview = new GaitPreview((GaitPreview.Mode.Run, null));
         yield return Frames(150);
         Assert.That(Mathf.Abs(stage.Stride.GroundSpeed), Is.EqualTo(stage.Stride.Run.speed).Within(0.01f));
@@ -51,7 +51,7 @@ public class LocomotionInspectorTests {
 
     [UnityTest]
     public IEnumerator TheTelemetryReportsTheSupportHeightAndLegsOfARun() {
-        LocomotionInspector inspector = stage.Character.Inspector;
+        LocomotionInspector inspector = stage.Inspector;
         inspector.Preview = new GaitPreview((GaitPreview.Mode.Run, null));
         yield return Frames(120);
 
@@ -75,8 +75,8 @@ public class LocomotionInspectorTests {
 
     [UnityTest]
     public IEnumerator TuningTakesEffectWhilePlaying() {
-        LocomotionInspector inspector = stage.Character.Inspector;
-        LocomotionPreset tuned = inspector.Tuning.Capture();
+        LocomotionInspector inspector = stage.Inspector;
+        MovementPreset tuned = inspector.Tuning.Capture();
         tuned.run.lean = 24f;
         tuned.posture.maxTotalLean = 30f;
         inspector.Tuning.Apply(tuned);

@@ -3,11 +3,11 @@ using UnityEngine.UIElements;
 
 // One tunable value in the panel: its name, a slider over its range, a number field showing the exact value (type
 // into it for values the slider cannot place precisely), and its unit.
-public sealed class TuningRow : VisualElement {
+public sealed class TuningRow<TPreset> : VisualElement {
     private readonly Slider slider;
     private readonly FloatField field;
 
-    public TuningRow(TuningParameter parameter) {
+    public TuningRow(TuningParameter<TPreset> parameter) {
         Parameter = parameter;
         AddToClassList("loco-row");
         AddLabel((parameter.Label, "loco-row__label"));
@@ -25,8 +25,8 @@ public sealed class TuningRow : VisualElement {
         AddLabel((parameter.Unit, "loco-row__unit"));
     }
 
-    public TuningParameter Parameter { get; }
-    public event Action<TuningRow, float> Changed;
+    public TuningParameter<TPreset> Parameter { get; }
+    public event Action<TuningRow<TPreset>, float> Changed;
 
     // Shows a value without reporting it as an edit.
     public void Show(float value) {

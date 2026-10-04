@@ -3,17 +3,19 @@ using System.Linq;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-// Resets, saves, loads and copies the tuned settings. Presets are JSON files under the persistent data folder; the
-// copied JSON can be pasted into a preset file or used to update the scene's defaults by hand.
-public sealed class PresetToolbar {
-    private readonly TuningEditor editor;
-    private readonly Func<LocomotionTuningSchema.Section> currentSection;
+// Resets, saves, loads and copies one domain's tuned settings. Presets are JSON files under the persistent data
+// folder; the copied JSON can be pasted into a preset file or used to update the scene's defaults by hand.
+public sealed class PresetToolbar<TPreset> where TPreset : class, ITuningPreset<TPreset> {
+    private readonly TuningEditor<TPreset> editor;
+    private readonly TuningDomain<TPreset> domain;
+    private readonly Func<TuningSection<TPreset>> currentSection;
     private readonly TextField presetName;
     private readonly DropdownField savedPresets;
     private readonly Label status;
 
-    public PresetToolbar(TuningEditor editor, Func<LocomotionTuningSchema.Section> currentSection) {
-        this.editor = editor;
+    public PresetToolbar((TuningEditor<TPreset> editor, TuningDomain<TPreset> domain) tuning, Func<TuningSection<TPreset>> currentSection) {
+        editor = tuning.editor;
+        domain = tuning.domain;
         this.currentSection = currentSection;
         Root = new VisualElement();
         Root.AddToClassList("loco-toolbar");
@@ -39,7 +41,7 @@ public sealed class PresetToolbar {
     public VisualElement Root { get; }
 
     private void ResetSection() {
-        LocomotionTuningSchema.Section section = currentSection();
+        TuningSection<TPreset> section = currentSection();
         if (section == null) {
             status.text = "Open a tuning tab to reset its section.";
             return;
@@ -50,19 +52,19 @@ public sealed class PresetToolbar {
 
     // Reset restores the values the session started with (the scene's); this loads what the code defines instead.
     private void LoadCodeDefaults() {
-        editor.Load(LocomotionPreset.CodeDefaults());
+        editor.Load(domain.CodeDefaults());
         status.text = "Loaded the code defaults (not saved to the scene).";
     }
 
     private void SavePreset() {
-        string path = LocomotionPresetStore.Save((presetName.value, editor.Current));
+        string path = domain.Store.Save((presetName.value, editor.Current));
         ListSavedPresets();
         savedPresets.value = presetName.value;
         status.text = $"Saved to {path}";
     }
 
     private void LoadPreset() {
-        if (!LocomotionPresetStore.TryLoad(savedPresets.value, out LocomotionPreset preset)) {
+        if (!domain.Store.TryLoad(savedPresets.value, out TPreset preset)) {
             status.text = "Choose a saved preset to load.";
             return;
         }
@@ -76,7 +78,7 @@ public sealed class PresetToolbar {
         status.text = "Copied the current config as JSON.";
     }
 
-    private void ListSavedPresets() => savedPresets.choices = LocomotionPresetStore.Names().ToList();
+    private void ListSavedPresets() => savedPresets.choices = domain.Store.Names().ToList();
 
     private void AddButton((string text, Action clicked) button) {
         Button element = new Button(button.clicked) { text = button.text };

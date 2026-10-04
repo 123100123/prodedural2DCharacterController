@@ -16,7 +16,7 @@ public class RunPoseTests : ScenarioFixture {
         float standingWaistBend = recorder.Poses.Average(pose => pose.WaistBend);
         float standingTorsoLean = recorder.Poses.Average(pose => pose.TorsoLean);
 
-        Stage.Character.Inspector.Preview = new GaitPreview((GaitPreview.Mode.Run, null));
+        Stage.Inspector.Preview = new GaitPreview((GaitPreview.Mode.Run, null));
         yield return Hold(2.5f);
         recorder.Clear();
         yield return Hold(2.5f);

@@ -1,8 +1,8 @@
 using NUnit.Framework;
 
-public class LocomotionPresetTests {
-    private static LocomotionPreset Sample() {
-        LocomotionPreset preset = LocomotionPreset.CodeDefaults();
+public class MovementPresetTests {
+    private static MovementPreset Sample() {
+        MovementPreset preset = MovementPreset.CodeDefaults();
         preset.run.lean = 17.5f;
         preset.body.verticalSpring.frequency = 7.25f;
         preset.head.stabilization = 0.35f;
@@ -11,8 +11,8 @@ public class LocomotionPresetTests {
 
     [Test]
     public void SurvivesAJsonRoundTrip() {
-        LocomotionPreset original = Sample();
-        LocomotionPreset loaded = LocomotionPreset.FromJson(original.ToJson());
+        MovementPreset original = Sample();
+        MovementPreset loaded = MovementPreset.FromJson(original.ToJson());
         Assert.That(loaded.ToJson(), Is.EqualTo(original.ToJson()));
         Assert.That(loaded.run.lean, Is.EqualTo(17.5f));
         Assert.That(loaded.body.verticalSpring.frequency, Is.EqualTo(7.25f));
@@ -20,9 +20,28 @@ public class LocomotionPresetTests {
     }
 
     [Test]
+    public void WritesItsFormatVersion() {
+        Assert.That(MovementPreset.FromJson(Sample().ToJson()).version, Is.EqualTo(MovementPreset.CurrentVersion));
+        Assert.That(Sample().ToJson(), Does.Contain("\"version\""));
+    }
+
+    // A file saved before a setting existed (or by hand with only a few values) leaves the rest at the code defaults.
+    [Test]
+    public void ASettingTheFileDoesNotMentionKeepsItsDefault() {
+        MovementPreset loaded = MovementPreset.FromJson("{\"run\":{\"lean\":21}}");
+        MovementPreset defaults = MovementPreset.CodeDefaults();
+
+        Assert.That(loaded.run.lean, Is.EqualTo(21f), "what the file says");
+        Assert.That(loaded.run.speed, Is.EqualTo(defaults.run.speed), "a field of the same profile it leaves out");
+        Assert.That(loaded.walk.speed, Is.EqualTo(defaults.walk.speed), "a profile it leaves out");
+        Assert.That(loaded.body.verticalSpring.frequency, Is.EqualTo(defaults.body.verticalSpring.frequency));
+        Assert.That(loaded.bodyHeight, Is.EqualTo(defaults.bodyHeight));
+    }
+
+    [Test]
     public void ACopyIsIndependent() {
-        LocomotionPreset original = Sample();
-        LocomotionPreset copy = original.Copy();
+        MovementPreset original = Sample();
+        MovementPreset copy = original.Copy();
         copy.walk.speed = 99f;
         copy.posture.maxTotalLean = 1f;
         Assert.That(original.walk.speed, Is.EqualTo(GaitProfile.Walk.speed));

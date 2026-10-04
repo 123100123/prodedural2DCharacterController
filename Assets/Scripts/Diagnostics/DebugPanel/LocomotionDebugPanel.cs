@@ -4,7 +4,8 @@ using UnityEngine.UIElements;
 
 // Runtime Game View panel for watching and tuning a character's locomotion: opens and closes with a key, sits on top
 // of the game, and keeps clicks over it and typing into its fields away from gameplay. It only talks to the
-// character's LocomotionInspector; the locomotion never depends on it, and hidden it does nothing but wait for its key.
+// character through a LocomotionInspector it builds from the character's parts; the locomotion never depends on it,
+// and hidden it does nothing but wait for its key.
 public sealed class LocomotionDebugPanel : MonoBehaviour, UiInputCapture.ICapture {
     private const string ThemePath = "LocomotionDebug/LocomotionDebugTheme";
     private const string StylePath = "LocomotionDebug/LocomotionDebugPanel";
@@ -19,6 +20,7 @@ public sealed class LocomotionDebugPanel : MonoBehaviour, UiInputCapture.ICaptur
 
     private PanelSettings panelSettings;
     private UIDocument document;
+    private LocomotionInspector inspector;
     private DebugPanelLayout layout;
     private bool isVisible;
     private bool isFieldClaimedByClick;
@@ -28,13 +30,14 @@ public sealed class LocomotionDebugPanel : MonoBehaviour, UiInputCapture.ICaptur
     public bool IsTyping => isVisible && isFieldClaimedByClick && IsTextFieldFocused();
 
     private void Start() {
-        if (character == null || character.Inspector == null) {
+        if (character == null) {
             Debug.LogWarning($"{name}: no character to inspect.", this);
             enabled = false;
             return;
         }
+        inspector = new LocomotionInspector(character);
         document = CreateDocument();
-        layout = new DebugPanelLayout(character.Inspector);
+        layout = new DebugPanelLayout(inspector);
         document.rootVisualElement.Add(layout.Root);
         layout.Root.RegisterCallback<PointerDownEvent>(_ => isFieldClaimedByClick = true, TrickleDown.TrickleDown);
         SetVisible(isVisibleOnStart);
@@ -56,7 +59,7 @@ public sealed class LocomotionDebugPanel : MonoBehaviour, UiInputCapture.ICaptur
             return;
         }
         KeepKeyboardForGameplayUnlessAFieldWasClicked();
-        LocomotionTelemetry telemetry = character.Inspector.ReadTelemetry();
+        LocomotionTelemetry telemetry = inspector.ReadTelemetry();
         LocomotionDebugDraw.Draw((telemetry, layout.DrawLayers));
         if (Time.unscaledTime >= nextRefresh) {
             nextRefresh = Time.unscaledTime + refreshInterval;

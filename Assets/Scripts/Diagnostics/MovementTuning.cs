@@ -1,22 +1,22 @@
-// Reads and writes every tunable locomotion setting through its owners' settings properties, as one LocomotionPreset.
+// Reads and writes every tunable movement setting through its owners' settings properties, as one MovementPreset.
 // In the Editor the changes live on the scene's components for the play session only; nothing is saved to assets.
-public sealed class LocomotionTuning {
+public sealed class MovementTuning {
     private readonly StrideController stride;
     private readonly LocomotionPosture posture;
     private readonly TorsoMotion torso;
     private readonly HeadLook head;
     private readonly ArmSwing arms;
 
-    public LocomotionTuning((StrideController stride, LocomotionPosture posture, TorsoMotion torso, HeadLook head, ArmSwing arms) owners) {
-        stride = owners.stride;
-        posture = owners.posture;
-        torso = owners.torso;
-        head = owners.head;
-        arms = owners.arms;
+    public MovementTuning(CharacterParts parts) {
+        stride = parts.Stride;
+        posture = parts.Posture;
+        torso = parts.Torso;
+        head = parts.Head;
+        arms = parts.Arms;
     }
 
-    public LocomotionPreset Capture() {
-        return new LocomotionPreset {
+    public MovementPreset Capture() {
+        return new MovementPreset {
             walk = stride.Walk,
             run = stride.Run,
             transitions = stride.Transitions,
@@ -32,7 +32,7 @@ public sealed class LocomotionTuning {
         };
     }
 
-    public void Apply(LocomotionPreset preset) {
+    public void Apply(MovementPreset preset) {
         stride.Walk = preset.walk;
         stride.Run = preset.run;
         stride.Transitions = preset.transitions;

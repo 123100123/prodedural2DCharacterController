@@ -16,11 +16,14 @@ public sealed class ScenarioStage {
     private readonly HashSet<Key> heldKeys = new HashSet<Key>();
     private Keyboard keyboard;
     private Mouse mouse;
+    private LocomotionInspector inspector;
     private (InputSettings.EditorInputBehaviorInPlayMode editor, InputSettings.BackgroundBehavior background) savedInputSettings;
 
     public CharacterDriver Character { get; private set; }
     public ScenarioSampler Sampler { get; private set; }
     public StrideController Stride { get; private set; }
+    // The debug tools' view of the character (telemetry, tuning, gait preview), built on first use.
+    public LocomotionInspector Inspector => inspector ?? (inspector = new LocomotionInspector(Character));
 
     public IEnumerator Load() {
 #if UNITY_EDITOR
@@ -32,6 +35,7 @@ public sealed class ScenarioStage {
         mouse = InputSystem.AddDevice<Mouse>("ScenarioMouse");
         ReplaceLevelWithTestTrack();
         Character = Object.FindAnyObjectByType<CharacterDriver>();
+        inspector = null;
         Stride = Object.FindAnyObjectByType<StrideController>();
         Sampler = new GameObject("scenarioSampler").AddComponent<ScenarioSampler>();
         yield return null;

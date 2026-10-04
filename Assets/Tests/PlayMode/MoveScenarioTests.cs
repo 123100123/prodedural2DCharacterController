@@ -83,14 +83,14 @@ public class MoveScenarioTests : ScenarioFixture {
         yield return WaitUntilGrounded(false);
         float leanWhileClimbing = 0f;
         for (float elapsed = 0f; elapsed < 6f && !Stage.Stride.IsDrivingGait; elapsed += ScenarioStage.FrameTime) {
-            leanWhileClimbing = Mathf.Max(leanWhileClimbing, Mathf.Abs(Stage.Character.Inspector.ReadTelemetry().PostureLean));
+            leanWhileClimbing = Mathf.Max(leanWhileClimbing, Mathf.Abs(Stage.Inspector.ReadTelemetry().PostureLean));
             yield return null;
         }
         yield return Hold(1.5f);
 
         Assert.That(Stage.Stride.IsDrivingGait, Is.True, "walks again after the climb");
         Assert.That(Stage.Stride.StanceHeight, Is.EqualTo(ledgeTop).Within(0.05f), "standing on top of the ledge");
-        Assert.That(Stage.Character.Inspector.ReadTelemetry().PostureLean, Is.GreaterThan(1f), "walking on, the posture leans again");
+        Assert.That(Stage.Inspector.ReadTelemetry().PostureLean, Is.GreaterThan(1f), "walking on, the posture leans again");
         Assert.That(leanWhileClimbing, Is.LessThan(6f), "the walking lean relaxes during the climb");
     }
 

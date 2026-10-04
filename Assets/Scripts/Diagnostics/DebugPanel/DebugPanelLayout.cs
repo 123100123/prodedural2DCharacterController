@@ -2,11 +2,15 @@ using System.Collections.Generic;
 using UnityEngine.UIElements;
 
 // Arranges the panel: a header with the title, a badge while a gait preview overrides the input, and a collapse
-// button; tabs for the live readout, each tuning section and the debug lines; and the preset toolbar.
+// button; tabs for the live readout, each tuning domain's sections and the debug lines; and the preset toolbar of
+// the domain the open tab belongs to.
 public sealed class DebugPanelLayout {
     private readonly LiveTelemetryView live = new LiveTelemetryView();
     private readonly DebugDrawToggles drawToggles = new DebugDrawToggles();
-    private readonly Dictionary<Tab, LocomotionTuningSchema.Section> sectionTabs = new Dictionary<Tab, LocomotionTuningSchema.Section>();
+    // Each tuning tab's section, and the toolbar of the domain it belongs to.
+    private readonly Dictionary<Tab, object> sectionTabs = new Dictionary<Tab, object>();
+    private readonly Dictionary<Tab, VisualElement> toolbarsByTab = new Dictionary<Tab, VisualElement>();
+    private readonly List<VisualElement> toolbars = new List<VisualElement>();
     private readonly VisualElement body = new VisualElement();
     private readonly Label previewBadge = new Label();
     private readonly TabView tabs = new TabView();
@@ -16,15 +20,16 @@ public sealed class DebugPanelLayout {
         Root.AddToClassList("loco-panel");
         Root.Add(BuildHeader());
 
-        TuningEditor editor = new TuningEditor(inspector);
         tabs.AddToClassList("loco-tabs");
         AddTab(("LIVE", BuildLiveTab(inspector)));
-        foreach (LocomotionTuningSchema.Section section in LocomotionTuningSchema.Build()) {
-            sectionTabs.Add(AddTab((section.Title, editor.BuildSection(section))), section);
-        }
+        AddDomain(inspector.Movement);
         AddTab(("DEBUG", drawToggles.Root));
         body.Add(tabs);
-        body.Add(new PresetToolbar(editor, CurrentSection).Root);
+        foreach (VisualElement toolbar in toolbars) {
+            body.Add(toolbar);
+        }
+        tabs.activeTabChanged += (_, active) => ShowToolbarFor(active);
+        ShowToolbarFor(tabs.activeTab);
         Root.Add(body);
     }
 
@@ -36,6 +41,18 @@ public sealed class DebugPanelLayout {
         bool isPreviewing = telemetry.Preview.IsActive;
         previewBadge.EnableInClassList("loco-badge--visible", isPreviewing);
         previewBadge.text = isPreviewing ? $"PREVIEW: {telemetry.Preview.PreviewMode.ToString().ToUpperInvariant()}" : "";
+    }
+
+    // One tab per section of the domain, with the domain's own editor and preset toolbar.
+    private void AddDomain<TPreset>(TuningDomain<TPreset> domain) where TPreset : class, ITuningPreset<TPreset> {
+        TuningEditor<TPreset> editor = new TuningEditor<TPreset>(domain);
+        VisualElement toolbar = new PresetToolbar<TPreset>((editor, domain), () => CurrentSection<TPreset>()).Root;
+        toolbars.Add(toolbar);
+        foreach (TuningSection<TPreset> section in domain.Sections) {
+            Tab tab = AddTab((section.Title, editor.BuildSection(section)));
+            sectionTabs.Add(tab, section);
+            toolbarsByTab.Add(tab, toolbar);
+        }
     }
 
     private VisualElement BuildHeader() {
@@ -74,7 +91,16 @@ public sealed class DebugPanelLayout {
         return tab;
     }
 
-    private LocomotionTuningSchema.Section CurrentSection() {
-        return tabs.activeTab != null && sectionTabs.TryGetValue(tabs.activeTab, out LocomotionTuningSchema.Section section) ? section : null;
+    // The open tab's section, if it belongs to this domain.
+    private TuningSection<TPreset> CurrentSection<TPreset>() {
+        return tabs.activeTab != null && sectionTabs.TryGetValue(tabs.activeTab, out object section) ? section as TuningSection<TPreset> : null;
+    }
+
+    // The tabs that are not a tuning section (LIVE, DEBUG) keep the first domain's toolbar.
+    private void ShowToolbarFor(Tab active) {
+        VisualElement shown = active != null && toolbarsByTab.TryGetValue(active, out VisualElement toolbar) ? toolbar : toolbars[0];
+        foreach (VisualElement element in toolbars) {
+            element.style.display = element == shown ? DisplayStyle.Flex : DisplayStyle.None;
+        }
     }
 }
