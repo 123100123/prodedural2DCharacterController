@@ -1,0 +1,25 @@
+{
+    "name": "ProceduralCharacter.Lighting",
+    "rootNamespace": "",
+    "references": [
+        "ProceduralCharacter.Runtime",
+        "Unity.RenderPipelines.Universal.2D.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "HAS_URP"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.unity.render-pipelines.universal",
+            "expression": "17.0.0",
+            "define": "HAS_URP"
+        }
+    ],
+    "noEngineReferences": false
+}
