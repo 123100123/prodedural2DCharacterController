@@ -5,8 +5,9 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-// Sets up the world around the character in the open scene: the background sorting layers, a placeholder parallax
-// background (generated art, three layers behind the level), and lit materials on the level's sprites. Everything is
+// Sets up the world around the character in the open scene: the background sorting layer, a plain dot-grid background
+// (generated art, one lit sprite behind the level), shadow casters on the level's blocks, lamps and lit materials on the
+// level's sprites. Everything is
 // idempotent, and SetUp() refuses to touch a scene with unsaved changes so a scripted save never carries edits
 // that were not made here. Run it from Tools > Procedural Character > Environment, or through the MCP.
 public static class EnvironmentSetup {
@@ -14,37 +15,18 @@ public static class EnvironmentSetup {
     private const string LitMaterialPath = "Packages/com.unity.render-pipelines.universal/Runtime/Materials/Sprite-Lit-Default.mat";
     private const string BackgroundRoot = "Background";
     private const float PixelsPerUnit = 32f;
+    private const string GridSprite = "bg_grid";
+    // One tile of the grid is five cells of a pixels-per-unit-sized cell (one world unit each); the background is a
+    // whole number of tiles, larger than any view, and follows the camera in tile steps.
+    private const int GridCellPixels = 32;
+    private const int GridCellsPerTile = 5;
+    private static readonly Vector2 GridSize = new Vector2(120f, 80f);
+    private const float GridDepth = 10f;
     private const string MarkerSpritePrefix = "icon";
+    private const string PrefabFolder = "Assets/Prefabs";
+    private const string LampPrefabPath = PrefabFolder + "/Lamp.prefab";
+    private const string LampComponentType = "LampLight, ProceduralCharacter.Lighting";
     private const string ShadowCasterType = "UnityEngine.Rendering.Universal.ShadowCaster2D, Unity.RenderPipelines.Universal.2D.Runtime";
-
-    private readonly struct LayerSpec {
-        public LayerSpec(string name, string sprite, string sortingLayer, (Vector2 size, Vector2 center, float z) placement, Vector2 parallax) {
-            Name = name;
-            Sprite = sprite;
-            SortingLayer = sortingLayer;
-            Size = placement.size;
-            Center = placement.center;
-            Z = placement.z;
-            Parallax = parallax;
-        }
-
-        public string Name { get; }
-        public string Sprite { get; }
-        public string SortingLayer { get; }
-        public Vector2 Size { get; }
-        public Vector2 Center { get; }
-        public float Z { get; }
-        public Vector2 Parallax { get; }
-    }
-
-    // Far mountains, middle ruins and the near wall, wide enough for the camera's travel plus each layer's own lag. The
-    // wall reaches well below the floor and rises a few units above it (its crenellated top is the edge), so the ruins
-    // and mountains show above it.
-    private static readonly LayerSpec[] Layers = {
-        new LayerSpec("BackgroundFar", "bg_far", EnvironmentLayers.Far, (new Vector2(200f, 16f), new Vector2(0f, 2f), 10f), new Vector2(0.25f, 0.4f)),
-        new LayerSpec("BackgroundMid", "bg_mid", EnvironmentLayers.Mid, (new Vector2(160f, 16f), new Vector2(0f, 1f), 6f), new Vector2(0.6f, 0.7f)),
-        new LayerSpec("BackgroundWall", "bg_wall", EnvironmentLayers.Wall, (new Vector2(160f, 32f), new Vector2(2f, -16f), 3f), new Vector2(0.9f, 0.9f)),
-    };
 
     [MenuItem("Tools/Procedural Character/Environment/Set Up Environment")]
     public static void SetUpFromMenu() => Debug.Log(SetUp());
@@ -61,10 +43,11 @@ public static class EnvironmentSetup {
         string background = BuildBackground(scene);
         string lit = MakeLevelSpritesLit(scene);
         string casters = AddShadowCasters(scene);
+        string lamps = BuildLamps(scene);
         string shadows = UrpLightingSetup.UseCrispShadows();
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene);
-        return string.Join("\n", layers, art, background, lit, casters, shadows);
+        return string.Join("\n", layers, art, background, lit, casters, lamps, shadows);
     }
 
     // ---- Sorting layers -------------------------------------------------------------------------------------------
@@ -72,10 +55,19 @@ public static class EnvironmentSetup {
     [MenuItem("Tools/Procedural Character/Environment/Create Sorting Layers")]
     public static void CreateSortingLayersFromMenu() => Debug.Log(EnsureSortingLayers());
 
-    // Inserts the background layers before Default, back to front, keeping any layer that exists.
+    // Inserts the background layer before Default and removes the layers an earlier background used.
     public static string EnsureSortingLayers() {
         SerializedObject tagManager = new SerializedObject(AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/TagManager.asset")[0]);
         SerializedProperty layers = tagManager.FindProperty("m_SortingLayers");
+        int removed = 0;
+        foreach (string obsolete in EnvironmentLayers.Obsolete) {
+            int at = IndexOfLayer(layers, obsolete);
+            if (at >= 0) {
+                layers.DeleteArrayElementAtIndex(at);
+                removed++;
+            }
+        }
+
         int added = 0;
         foreach (string name in EnvironmentLayers.BackToFront) {
             if (IndexOfLayer(layers, name) >= 0) {
@@ -91,7 +83,7 @@ public static class EnvironmentSetup {
             added++;
         }
         tagManager.ApplyModifiedProperties();
-        return added > 0 ? $"Sorting layers: added {added} ({string.Join(", ", EnvironmentLayers.BackToFront)})." : "Sorting layers: already set.";
+        return $"Sorting layers: {added} added, {removed} obsolete removed ({string.Join(", ", EnvironmentLayers.BackToFront)}).";
     }
 
     private static int IndexOfLayer(SerializedProperty layers, string name) {
@@ -119,18 +111,13 @@ public static class EnvironmentSetup {
     [MenuItem("Tools/Procedural Character/Environment/Generate Background Art")]
     public static void GenerateArtFromMenu() => Debug.Log(GenerateArt());
 
-    // Three seamless, seeded textures: mountains, ruins and a brick wall. Replace the PNGs with real art any time; the
-    // layers only reference the sprites.
+    // The dot-grid tile. Replace the PNG with real art any time; the background only references the sprite.
     public static string GenerateArt() {
         Directory.CreateDirectory(ArtFolder);
-        WriteTexture("bg_far", PlaceholderArt.Mountains(1024, 512));
-        WriteTexture("bg_mid", PlaceholderArt.Ruins(512, 512));
-        WriteTexture("bg_wall", PlaceholderArt.BrickWall(256, 1024));
+        WriteTexture(GridSprite, PlaceholderArt.DotGrid(GridCellPixels, GridCellsPerTile));
         AssetDatabase.Refresh();
-        foreach (LayerSpec layer in Layers) {
-            ConfigureImporter($"{ArtFolder}/{layer.Sprite}.png");
-        }
-        return "Background art: generated bg_far, bg_mid and bg_wall in " + ArtFolder + ".";
+        ConfigureImporter($"{ArtFolder}/{GridSprite}.png");
+        return "Background art: generated " + GridSprite + " in " + ArtFolder + ".";
     }
 
     private static void WriteTexture(string name, Texture2D texture) {
@@ -163,8 +150,8 @@ public static class EnvironmentSetup {
     [MenuItem("Tools/Procedural Character/Environment/Build Background")]
     public static void BuildBackgroundFromMenu() => Debug.Log(BuildBackground(SceneManager.GetActiveScene()));
 
-    // A root with the three layers, each tiled, lit, on its sorting layer and moved by its parallax. Rebuilds the layers
-    // from the specification each time, so the numbers above are the single place they are set.
+    // A root with the one background sprite: tiled, lit, on the background sorting layer, following the camera in whole
+    // tiles. Anything else under the root (an earlier background's layers) is removed.
     public static string BuildBackground(Scene scene) {
         Material lit = AssetDatabase.LoadAssetAtPath<Material>(LitMaterialPath);
         if (lit == null) {
@@ -178,31 +165,33 @@ public static class EnvironmentSetup {
         if (root.scene != scene) {
             SceneManager.MoveGameObjectToScene(root, scene);
         }
-        foreach (LayerSpec spec in Layers) {
-            BuildLayer(root.transform, spec, lit);
-        }
-        return $"Background: {Layers.Length} parallax layers under '{BackgroundRoot}'.";
-    }
+        RemoveOtherChildren(root.transform, "BackgroundGrid");
 
-    private static void BuildLayer(Transform root, LayerSpec spec, Material lit) {
-        Sprite sprite = AssetDatabase.LoadAssetAtPath<Sprite>($"{ArtFolder}/{spec.Sprite}.png");
-        Transform layer = root.Find(spec.Name);
-        GameObject host = layer != null ? layer.gameObject : new GameObject(spec.Name);
-        host.transform.SetParent(root, false);
-        host.transform.position = new Vector3(spec.Center.x, spec.Center.y, spec.Z);
+        Transform existing = root.transform.Find("BackgroundGrid");
+        GameObject host = existing != null ? existing.gameObject : new GameObject("BackgroundGrid");
+        host.transform.SetParent(root.transform, false);
+        host.transform.position = new Vector3(0f, 0f, GridDepth);
 
         SpriteRenderer renderer = EnsureComponent<SpriteRenderer>(host);
-        renderer.sprite = sprite;
+        renderer.sprite = AssetDatabase.LoadAssetAtPath<Sprite>($"{ArtFolder}/{GridSprite}.png");
         renderer.drawMode = SpriteDrawMode.Tiled;
         renderer.tileMode = SpriteTileMode.Continuous;
-        renderer.size = spec.Size;
-        renderer.sortingLayerName = spec.SortingLayer;
+        renderer.size = GridSize;
+        renderer.sortingLayerName = EnvironmentLayers.Background;
         renderer.sortingOrder = 0;
         renderer.sharedMaterial = lit;
-
-        ParallaxLayer parallax = EnsureComponent<ParallaxLayer>(host);
-        parallax.Factor = spec.Parallax;
+        EnsureComponent<GridBackground>(host);
         EditorUtility.SetDirty(host);
+        return $"Background: one dot-grid sprite ({GridSize.x} x {GridSize.y} units) under '{BackgroundRoot}'.";
+    }
+
+    private static void RemoveOtherChildren(Transform root, string keep) {
+        for (int index = root.childCount - 1; index >= 0; index--) {
+            Transform child = root.GetChild(index);
+            if (child.name != keep) {
+                UnityEngine.Object.DestroyImmediate(child.gameObject);
+            }
+        }
     }
 
     // The component, added if the object has none (Unity objects cannot use ??: a destroyed one is not null).
@@ -218,6 +207,58 @@ public static class EnvironmentSetup {
             }
         }
         return null;
+    }
+
+    // ---- Lamps ----------------------------------------------------------------------------------------------------
+
+    [MenuItem("Tools/Procedural Character/Environment/Build Lamps")]
+    public static void BuildLampsFromMenu() => Debug.Log(BuildLamps(SceneManager.GetActiveScene()));
+
+    // The lamp prefab (a lantern sprite and a LampLight, which makes its point light and takes the shared Lamps settings)
+    // and two lamps placed in the scene: one by the start and one by the raised block. Existing lamps are left where
+    // they are, so moving them or adding more is up to you.
+    public static string BuildLamps(Scene scene) {
+        Type lampType = Type.GetType(LampComponentType);
+        Material lit = AssetDatabase.LoadAssetAtPath<Material>(LitMaterialPath);
+        if (lampType == null || lit == null) {
+            return "Lamps: the Universal Render Pipeline lighting is not set up.";
+        }
+
+        Directory.CreateDirectory(ArtFolder);
+        Directory.CreateDirectory(PrefabFolder);
+        WriteTexture("lantern", PlaceholderArt.Lantern(48, 96));
+        AssetDatabase.Refresh();
+        ConfigureImporter($"{ArtFolder}/lantern.png");
+
+        GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(LampPrefabPath);
+        if (prefab == null) {
+            GameObject made = new GameObject("Lamp");
+            SpriteRenderer renderer = made.AddComponent<SpriteRenderer>();
+            renderer.sprite = AssetDatabase.LoadAssetAtPath<Sprite>($"{ArtFolder}/lantern.png");
+            renderer.sharedMaterial = lit;
+            renderer.sortingLayerName = EnvironmentLayers.Level;
+            renderer.sortingOrder = -5;
+            made.AddComponent(lampType);
+            prefab = PrefabUtility.SaveAsPrefabAsset(made, LampPrefabPath);
+            UnityEngine.Object.DestroyImmediate(made);
+        }
+
+        int placed = 0;
+        placed += PlaceLamp(scene, prefab, "Lamp A", new Vector2(-11.5f, -2.2f)) ? 1 : 0;
+        placed += PlaceLamp(scene, prefab, "Lamp B", new Vector2(-0.4f, -0.6f)) ? 1 : 0;
+        return $"Lamps: prefab at {LampPrefabPath}, {placed} lamps placed.";
+    }
+
+    private static bool PlaceLamp(Scene scene, GameObject prefab, string name, Vector2 position) {
+        foreach (GameObject root in scene.GetRootGameObjects()) {
+            if (root.name == name) {
+                return false;
+            }
+        }
+        GameObject lamp = (GameObject)PrefabUtility.InstantiatePrefab(prefab, scene);
+        lamp.name = name;
+        lamp.transform.position = new Vector3(position.x, position.y, 0f);
+        return true;
     }
 
     // ---- Shadow casters -------------------------------------------------------------------------------------------

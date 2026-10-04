@@ -8,7 +8,7 @@ using UnityEngine.TestTools;
 
 // The level's shadow casters as authored in the scene (the test stage switches the blocks off, so inactive ones are
 // included): every solid block has one, and it shadows the wall and the ruins
-// behind it and the level in front, but not the distant scenery. They are read by name so this needs no URP reference;
+// behind it and the level in front. They are read by name so this needs no URP reference;
 // without the Universal Render Pipeline the scenarios are skipped.
 public class ShadowCasterScenarioTests : ScenarioFixture {
     private const string CasterTypeName = "ShadowCaster2D";
@@ -36,7 +36,7 @@ public class ShadowCasterScenarioTests : ScenarioFixture {
     }
 
     [UnityTest]
-    public IEnumerator EveryLevelBlockHasACasterThatShadowsTheWallTheRuinsAndTheLevel() {
+    public IEnumerator EveryLevelBlockHasACasterThatShadowsTheBackgroundAndTheLevel() {
         RequireUrp();
         yield return null;
         List<Component> casters = Casters();
@@ -54,7 +54,6 @@ public class ShadowCasterScenarioTests : ScenarioFixture {
             foreach (string name in EnvironmentLayers.ShadowedByBlocks) {
                 Assert.That(targets, Has.Member(SortingLayer.NameToID(name)), $"{box.name} shadows {name}");
             }
-            Assert.That(targets, Has.No.Member(SortingLayer.NameToID(EnvironmentLayers.Far)), box.name + " leaves the far scenery lit");
         }
         Assert.That(blocks, Is.GreaterThan(5), "the level has its blocks");
     }

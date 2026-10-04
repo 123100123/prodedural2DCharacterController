@@ -25,7 +25,28 @@ public static class LightingTuningSchema {
         parameters.AddRange(Colour("Ambient light", "Colour", (p => p.lighting.ambientColor, (p, c) => p.lighting.ambientColor = c)));
         parameters.Add(new Parameter(("Ambient light", "Intensity", Multiple), (0.2f, 1.5f), (p => p.lighting.ambientIntensity, (p, v) => p.lighting.ambientIntensity = v)));
 
+        parameters.Add(Switch("Sun", "On", (p => p.lighting.sunEnabled, (p, on) => p.lighting.sunEnabled = on)));
+        parameters.AddRange(Colour("Sun", "Colour", (p => p.lighting.sunColor, (p, c) => p.lighting.sunColor = c)));
+        parameters.Add(new Parameter(("Sun", "Intensity", Multiple), (0f, 2f), (p => p.lighting.sunIntensity, (p, v) => p.lighting.sunIntensity = v)));
+        parameters.Add(new Parameter(("Sun", "Angle (0 right, 90 overhead, 180 left)", Degrees), (0f, 180f), (p => p.lighting.sunAngle, (p, v) => p.lighting.sunAngle = v)));
+        parameters.Add(new Parameter(("Sun", "Distance (further: more parallel shadows)", Units), (20f, 400f), (p => p.lighting.sunDistance, (p, v) => p.lighting.sunDistance = v)));
+        parameters.Add(new Parameter(("Sun", "Coverage width", Units), (40f, 400f), (p => p.lighting.sunCoverage.x, (p, v) => p.lighting.sunCoverage.x = v)));
+        parameters.Add(new Parameter(("Sun", "Coverage height", Units), (20f, 300f), (p => p.lighting.sunCoverage.y, (p, v) => p.lighting.sunCoverage.y = v)));
+        parameters.Add(new Parameter(("Sun", "Edge falloff", Units), (0.1f, 20f), (p => p.lighting.sunEdgeFalloff, (p, v) => p.lighting.sunEdgeFalloff = v)));
+        parameters.Add(new Parameter(("Sun", "Shadow strength", Share), (0f, 1f), (p => p.lighting.sunShadowStrength, (p, v) => p.lighting.sunShadowStrength = v)));
+        parameters.Add(new Parameter(("Sun", "Shadow softness", Share), (0f, 1f), (p => p.lighting.sunShadowSoftness, (p, v) => p.lighting.sunShadowSoftness = v)));
+        parameters.Add(new Parameter(("Sun", "Shadow softness falloff", Share), (0f, 1f), (p => p.lighting.sunShadowSoftnessFalloff, (p, v) => p.lighting.sunShadowSoftnessFalloff = v)));
+
+        parameters.Add(Switch("Lamps", "On", (p => p.lighting.lampsEnabled, (p, on) => p.lighting.lampsEnabled = on)));
+        parameters.AddRange(Colour("Lamps", "Colour", (p => p.lighting.lampColor, (p, c) => p.lighting.lampColor = c)));
+        parameters.Add(new Parameter(("Lamps", "Intensity", Multiple), (0f, 4f), (p => p.lighting.lampIntensity, (p, v) => p.lighting.lampIntensity = v)));
+        parameters.Add(new Parameter(("Lamps", "Inner radius", Units), (0f, 10f), (p => p.lighting.lampInnerRadius, (p, v) => p.lighting.lampInnerRadius = v)));
+        parameters.Add(new Parameter(("Lamps", "Outer radius", Units), (0.5f, 30f), (p => p.lighting.lampOuterRadius, (p, v) => p.lighting.lampOuterRadius = v)));
+        parameters.Add(new Parameter(("Lamps", "Shadow strength", Share), (0f, 1f), (p => p.lighting.lampShadowStrength, (p, v) => p.lighting.lampShadowStrength = v)));
+        parameters.Add(new Parameter(("Lamps", "Shadow softness", Share), (0f, 1f), (p => p.lighting.lampShadowSoftness, (p, v) => p.lighting.lampShadowSoftness = v)));
+
         parameters.Add(Switch("Player light", "On", (p => p.lighting.playerEnabled, (p, on) => p.lighting.playerEnabled = on)));
+        parameters.Add(Switch("Player light", "Casts shadows", (p => p.lighting.playerCastsShadows, (p, on) => p.lighting.playerCastsShadows = on)));
         parameters.AddRange(Colour("Player light", "Colour", (p => p.lighting.playerColor, (p, c) => p.lighting.playerColor = c)));
         parameters.Add(new Parameter(("Player light", "Intensity", Multiple), (0f, 2f), (p => p.lighting.playerIntensity, (p, v) => p.lighting.playerIntensity = v)));
         parameters.Add(new Parameter(("Player light", "Inner radius", Units), (0f, 10f), (p => p.lighting.playerInnerRadius, (p, v) => p.lighting.playerInnerRadius = v)));

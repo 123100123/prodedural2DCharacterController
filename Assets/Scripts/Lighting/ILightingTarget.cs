@@ -11,4 +11,11 @@ public interface ILightingTarget {
     // Where the muzzle flash was last lit, and how many shots have lit it.
     UnityEngine.Vector2 MuzzlePosition { get; }
     int MuzzleShots { get; }
+    // The sun's light now (0 when off), where its pivot is, and whether it throws shadows.
+    float SunIntensity { get; }
+    UnityEngine.Vector2 SunPivot { get; }
+    bool SunCastsShadows { get; }
+    // How many placed lamps are lit by the rig, and how many shadow casters the scene has.
+    int LampCount { get; }
+    int ShadowCasterCount { get; }
 }

@@ -4,6 +4,7 @@
     "references": [
         "ProceduralCharacter.Runtime",
         "ProceduralCharacter.Diagnostics",
+        "ProceduralCharacter.Editor",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

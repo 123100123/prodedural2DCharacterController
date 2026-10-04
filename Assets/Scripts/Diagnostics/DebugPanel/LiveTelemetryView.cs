@@ -68,6 +68,8 @@ public sealed class LiveTelemetryView {
     private static IEnumerable<(string label, Func<LocomotionTelemetry, string> format)> LightingReadouts() {
         yield return ("Player light intensity", t => t.Lighting != null ? $"{t.PlayerLightIntensity:0.00}" : "no lighting rig");
         yield return ("Muzzle flash intensity", t => t.Lighting != null ? $"{t.MuzzleLightIntensity:0.00}" : "no lighting rig");
+        yield return ("Sun intensity", t => t.Lighting != null ? $"{t.SunLightIntensity:0.00}{(t.Lighting.SunCastsShadows ? "  (casting shadows)" : "")}" : "no lighting rig");
+        yield return ("Lamps / shadow casters", t => t.Lighting != null ? $"{t.LampCount} / {t.ShadowCasterCount}" : "no lighting rig");
     }
 
     private static IEnumerable<(string label, Func<LocomotionTelemetry, string> format)> LandingReadouts() {

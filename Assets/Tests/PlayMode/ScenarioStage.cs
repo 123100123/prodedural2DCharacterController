@@ -25,7 +25,9 @@ public sealed class ScenarioStage {
     // The debug tools' view of the character (telemetry, tuning, gait preview), built on first use.
     public LocomotionInspector Inspector => inspector ?? (inspector = new LocomotionInspector(Character));
 
-    public IEnumerator Load() {
+    // keepTheLevel: leave the scene's own blocks in place instead of swapping them for the flat test track (for scenarios
+    // about the level itself, such as its shadows).
+    public IEnumerator Load(bool keepTheLevel = false) {
 #if UNITY_EDITOR
         yield return UnityEditor.SceneManagement.EditorSceneManager.LoadSceneAsyncInPlayMode(ScenePath, new LoadSceneParameters(LoadSceneMode.Single));
 #endif
@@ -33,7 +35,9 @@ public sealed class ScenarioStage {
         RouteAllInputToTheGame();
         keyboard = InputSystem.AddDevice<Keyboard>("ScenarioKeyboard");
         mouse = InputSystem.AddDevice<Mouse>("ScenarioMouse");
-        ReplaceLevelWithTestTrack();
+        if (!keepTheLevel) {
+            ReplaceLevelWithTestTrack();
+        }
         Character = Object.FindAnyObjectByType<CharacterDriver>();
         inspector = null;
         Stride = Object.FindAnyObjectByType<StrideController>();

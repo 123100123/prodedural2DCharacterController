@@ -122,6 +122,9 @@ public class LightingTests {
             else if (field.FieldType == typeof(Color)) {
                 field.SetValue(source, new Color(0.1f, 0.2f, 0.3f, 1f));
             }
+            else if (field.FieldType == typeof(Vector2)) {
+                field.SetValue(source, (Vector2)field.GetValue(source) + new Vector2(3f, 2f));
+            }
         }
         target.CopyFrom(source);
         foreach (System.Reflection.FieldInfo field in typeof(LightingSettings).GetFields()) {

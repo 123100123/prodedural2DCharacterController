@@ -43,6 +43,7 @@ public static class UrpLightingSetup {
         GraphicsSettings.defaultRenderPipeline = pipeline;
         AssignToEveryQualityLevel(pipeline);
         AssetDatabase.SaveAssets();
+        UseCrispShadows();
         return $"Universal Render Pipeline set up: {PipelinePath} with the 2D Renderer {RendererPath}, assigned in Graphics and all " +
                $"{QualitySettings.names.Length} quality levels. Colour space stays {PlayerSettings.colorSpace}.";
     }
