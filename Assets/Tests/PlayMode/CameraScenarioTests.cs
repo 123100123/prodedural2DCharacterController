@@ -13,17 +13,10 @@ public class CameraScenarioTests : ScenarioFixture {
     private FollowCamera FollowCamera => Stage.Character.Parts.FollowCamera;
     private CameraFeelSettings Feel => Stage.Character.Parts.CameraFeel;
 
-    // The screen position to hold the pointer at. The editor remaps the virtual mouse's position, so the position the
-    // game reads is measured after a few frames of aiming rather than assumed, then held while the camera moves.
-    private IEnumerator FindPointerScreenPosition(Vector2 worldOffset, Action<Vector2> found) {
-        Vector2 request = (Vector2)Stage.Stride.transform.position + worldOffset;
-        // Held for longer than a tap (which would latch the aim on) and left held for the caller to carry on aiming.
-        for (int frame = 0; frame < 20; frame++) {
-            Stage.AimAndFire(request, false);
-            yield return null;
-        }
-        found(Stage.Character.LatestCommands.PointerScreenPosition);
-    }
+    // The screen position to hold the pointer at: the point offset from the character, as the camera frames it now. It is
+    // held there while the camera moves, so the lean does not chase the pointer.
+    private Vector2 PointerScreenPositionAt(Vector2 worldOffset) =>
+        ScenarioStage.ScreenPointOf((Vector2)Stage.Stride.transform.position + worldOffset);
 
     private IEnumerator AimFor(Vector2 screen, int frames) {
         for (int frame = 0; frame < frames; frame++) {
@@ -53,8 +46,7 @@ public class CameraScenarioTests : ScenarioFixture {
         Assert.That(FollowCamera.AimOffset, Is.EqualTo(Vector2.zero), "not aiming, no lean");
         float restingX = Camera.main.transform.position.x;
         float restingY = Camera.main.transform.position.y;
-        Vector2 screen = Vector2.zero;
-        yield return FindPointerScreenPosition(new Vector2(3f, 1.5f), position => screen = position);
+        Vector2 screen = PointerScreenPositionAt(new Vector2(3f, 1.5f));
 
         yield return AimFor(screen, 120);
         float aimingX = Camera.main.transform.position.x;
@@ -71,10 +63,27 @@ public class CameraScenarioTests : ScenarioFixture {
     }
 
     [UnityTest]
+    public IEnumerator AimingLeftLeansTheCameraLeftAndReleasingEasesItBack() {
+        yield return Hold(1.5f);
+        float restingX = Camera.main.transform.position.x;
+        Vector2 screen = PointerScreenPositionAt(new Vector2(-3f, 1.5f));
+
+        yield return AimFor(screen, 120);
+        Vector2 lean = FollowCamera.AimOffset;
+        Report($"pointer at screen {screen}, camera x {restingX:F2} -> {Camera.main.transform.position.x:F2}, lean {lean}");
+        Assert.That(Camera.main.transform.position.x, Is.LessThan(restingX - 0.3f), "the camera moved toward the pointer side");
+        Assert.That(lean.x, Is.LessThan(-0.3f).And.GreaterThanOrEqualTo(-Feel.maxAimOffset.x - 0.001f));
+
+        Stage.StopAiming();
+        yield return Hold(3f);
+        Assert.That(FollowCamera.AimOffset.magnitude, Is.LessThan(0.05f), "the lean has eased out");
+        Assert.That(Camera.main.transform.position.x, Is.EqualTo(restingX).Within(0.2f), "the camera is back with the character");
+    }
+
+    [UnityTest]
     public IEnumerator AShotShakesTheCameraAndTheShakeDecaysBackToNothing() {
         yield return Hold(1f);
-        Vector2 screen = Vector2.zero;
-        yield return FindPointerScreenPosition(new Vector2(3f, 1.5f), position => screen = position);
+        Vector2 screen = PointerScreenPositionAt(new Vector2(3f, 1.5f));
         Assert.That(FollowCamera.Shake.Offset, Is.EqualTo(Vector2.zero), "no shake before the first shot");
 
         (float trauma, float offset) peaks = default;
@@ -96,8 +105,7 @@ public class CameraScenarioTests : ScenarioFixture {
         int shots = 0;
         Stage.Character.Events.Fired += _ => shots++;
         yield return Hold(1f);
-        Vector2 screen = Vector2.zero;
-        yield return FindPointerScreenPosition(new Vector2(3f, 1.5f), position => screen = position);
+        Vector2 screen = PointerScreenPositionAt(new Vector2(3f, 1.5f));
 
         (float trauma, float offset) peaks = (1f, 1f);
         yield return AimAndClick(screen, result => peaks = result);

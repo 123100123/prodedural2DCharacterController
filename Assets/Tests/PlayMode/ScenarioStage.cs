@@ -16,6 +16,7 @@ public sealed class ScenarioStage {
     private readonly HashSet<Key> heldKeys = new HashSet<Key>();
     private Keyboard keyboard;
     private Mouse mouse;
+    private MouseState heldMouse;
     private LocomotionInspector inspector;
     private (InputSettings.EditorInputBehaviorInPlayMode editor, InputSettings.BackgroundBehavior background) savedInputSettings;
 
@@ -42,11 +43,15 @@ public sealed class ScenarioStage {
         inspector = null;
         Stride = Object.FindAnyObjectByType<StrideController>();
         Sampler = new GameObject("scenarioSampler").AddComponent<ScenarioSampler>();
+        Sampler.ResendHeldInput = ResendHeldInput;
         yield return null;
     }
 
     public void Unload() {
         Time.captureDeltaTime = 0f;
+        if (Sampler != null) {
+            Sampler.ResendHeldInput = null;
+        }
         if (keyboard != null) {
             InputSystem.RemoveDevice(keyboard);
         }
@@ -104,27 +109,47 @@ public sealed class ScenarioStage {
         QueueKeyboard();
     }
 
-    // Holds the right mouse button (aim) with the pointer at a world point.
-    public void AimAt(Vector2 worldPoint) {
-        Camera camera = Camera.main;
-        Vector2 screen = camera.WorldToScreenPoint(worldPoint);
-        InputSystem.QueueStateEvent(mouse, new MouseState { position = screen }.WithButton(MouseButton.Right));
-    }
+    // Holds the right mouse button (aim) with the pointer at a world point. The button goes through the virtual mouse; the
+    // pointer position does not: it is converted with the camera and Screen the stance will use when it reads it that frame,
+    // so the Editor's Game view size and layout cannot move the aim.
+    public void AimAt(Vector2 worldPoint) => AimAndFire(worldPoint, false);
 
     // Aims at a world point and presses (or releases) the fire button, so alternating calls fire a shot each press.
     public void AimAndFire(Vector2 worldPoint, bool fire) {
-        Vector2 screen = Camera.main.WorldToScreenPoint(worldPoint);
-        MouseState state = new MouseState { position = screen }.WithButton(MouseButton.Right);
-        InputSystem.QueueStateEvent(mouse, fire ? state.WithButton(MouseButton.Left) : state);
+        Character.ScenarioPointerSource = () => Camera.main.WorldToScreenPoint(worldPoint);
+        QueueMouse(Aiming(fire));
     }
 
     // Holds aim with the pointer at a fixed screen position, so a camera that moves does not drag the pointer along.
     public void AimAtScreen(Vector2 screen, bool fire) {
-        MouseState state = new MouseState { position = screen }.WithButton(MouseButton.Right);
-        InputSystem.QueueStateEvent(mouse, fire ? state.WithButton(MouseButton.Left) : state);
+        Character.ScenarioPointerSource = () => screen;
+        QueueMouse(Aiming(fire));
     }
 
-    public void StopAiming() => InputSystem.QueueStateEvent(mouse, new MouseState());
+    // The screen position of a world point under the camera as it is now.
+    public static Vector2 ScreenPointOf(Vector2 worldPoint) => Camera.main.WorldToScreenPoint(worldPoint);
+
+    public void StopAiming() {
+        Character.ScenarioPointerSource = null;
+        QueueMouse(new MouseState());
+    }
+
+    private static MouseState Aiming(bool fire) {
+        MouseState state = new MouseState().WithButton(MouseButton.Right);
+        return fire ? state.WithButton(MouseButton.Left) : state;
+    }
+
+    private void QueueMouse(MouseState state) {
+        heldMouse = state;
+        InputSystem.QueueStateEvent(mouse, state);
+    }
+
+    // The Input System resets virtual devices whenever the Editor application is activated (the user clicking back into
+    // it mid-run), which would silently drop held keys and buttons; every frame the held state is sent again.
+    private void ResendHeldInput() {
+        QueueKeyboard();
+        InputSystem.QueueStateEvent(mouse, heldMouse);
+    }
 
     private void QueueKeyboard() {
         Key[] keys = new Key[heldKeys.Count];

@@ -20,6 +20,10 @@ public sealed class PlayerInputReader : IDisposable {
     private readonly HoldOrTapToggle aimMode = new HoldOrTapToggle(AimTapMaxDuration);
     private readonly HoldOrTapToggle crouchMode = new HoldOrTapToggle(CrouchTapMaxDuration);
 
+    // Scenario hook: while set, supplies the pointer's screen position instead of the mouse, so a test's aim does not
+    // depend on how the Editor's Game view maps (or remaps) virtual pointer coordinates. Unset in normal play.
+    public Func<UnityEngine.Vector2> PointerSource { get; set; }
+
     public PlayerInputReader() {
         BindMovement();
         BindActions();
@@ -45,7 +49,7 @@ public sealed class PlayerInputReader : IDisposable {
             CrouchRequested = ReadCrouchMode(isTyping),
             FirePressed = !isPointerOverUi && fire.WasPressedThisFrame(),
             ReloadPressed = !isTyping && reload.WasPressedThisFrame(),
-            PointerScreenPosition = pointer.ReadValue<UnityEngine.Vector2>(),
+            PointerScreenPosition = PointerSource?.Invoke() ?? pointer.ReadValue<UnityEngine.Vector2>(),
         };
     }
 

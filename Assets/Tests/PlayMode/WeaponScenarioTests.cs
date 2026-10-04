@@ -11,15 +11,14 @@ public class WeaponScenarioTests : ScenarioFixture {
     private const int FramesBetweenShots = 14;
     private const int FramesBeforeFirstClick = 30;
 
-    // The editor remaps the virtual mouse's position, so the point asked for is not the point the game reads: the pointer
-    // is held still for a few frames and the point the stance really aims at is measured.
+    // The point the stage aims at, and the point the game's pointer reading maps back to (they must agree).
     private Vector2 aimRequest;
     private Vector2 aimedPoint;
 
     private WeaponController Weapon => Stage.Character.Parts.WeaponController;
     private WeaponSettings Settings => Stage.Character.Parts.Weapon;
 
-    private IEnumerator FindWhereTheMouseAims() {
+    private IEnumerator AimAheadOfTheCharacter() {
         aimRequest = (Vector2)Stage.Stride.transform.position + new Vector2(3f, 1.5f);
         for (int frame = 0; frame < 8; frame++) {
             Stage.AimAndFire(aimRequest, false);
@@ -29,6 +28,7 @@ public class WeaponScenarioTests : ScenarioFixture {
         Vector2 pointer = Stage.Character.LatestCommands.PointerScreenPosition;
         aimedPoint = camera.ScreenToWorldPoint(new Vector3(pointer.x, pointer.y, -camera.transform.position.z));
         Report($"aim request {aimRequest}, the game reads the pointer at {pointer}, aims at {aimedPoint}");
+        Assert.That(Vector2.Distance(aimedPoint, aimRequest), Is.LessThan(0.01f), "the game reads the pointer where the stage put it");
         Assert.That(aimedPoint.x, Is.GreaterThan(Stage.Stride.transform.position.x + 2f), "the aim point lies ahead of the character");
     }
 
@@ -68,7 +68,7 @@ public class WeaponScenarioTests : ScenarioFixture {
             tracersSeen = Mathf.Max(tracersSeen, Weapon.Tracers.ActiveCount);
         };
         yield return Hold(1f);
-        yield return FindWhereTheMouseAims();
+        yield return AimAheadOfTheCharacter();
         ShootingTarget target = SpawnTarget();
 
         yield return AimAndClick(FramesBeforeFirstClick + 2 * FramesBetweenShots);
@@ -87,7 +87,7 @@ public class WeaponScenarioTests : ScenarioFixture {
     [UnityTest]
     public IEnumerator ATargetShotToPiecesVanishesThenRespawnsWithFullHealth() {
         yield return Hold(1f);
-        yield return FindWhereTheMouseAims();
+        yield return AimAheadOfTheCharacter();
         ShootingTarget target = SpawnTarget();
 
         yield return AimAndClick(FramesBeforeFirstClick + 3 * FramesBetweenShots + 5);
@@ -106,7 +106,7 @@ public class WeaponScenarioTests : ScenarioFixture {
     [UnityTest]
     public IEnumerator ABulletPushesADynamicBodyAwayFromTheShooter() {
         yield return Hold(1f);
-        yield return FindWhereTheMouseAims();
+        yield return AimAheadOfTheCharacter();
         ShootingTarget target = SpawnTarget(dynamicBody: true);
         Rigidbody2D rigidbody = target.GetComponent<Rigidbody2D>();
 
@@ -125,7 +125,7 @@ public class WeaponScenarioTests : ScenarioFixture {
     [UnityTest]
     public IEnumerator ABulletStopsAtWhateverIsInTheWay() {
         yield return Hold(1f);
-        yield return FindWhereTheMouseAims();
+        yield return AimAheadOfTheCharacter();
         ShootingTarget near = SpawnTarget(-1.5f);
         ShootingTarget far = SpawnTarget(1.5f);
 
@@ -142,7 +142,7 @@ public class WeaponScenarioTests : ScenarioFixture {
         Stage.Character.Events.ReloadStarted += _ => started++;
         Stage.Character.Events.ReloadFinished += _ => finished++;
         yield return Hold(1f);
-        yield return FindWhereTheMouseAims();
+        yield return AimAheadOfTheCharacter();
         SpawnTarget();
         yield return AimAndClick(FramesBeforeFirstClick + 2 * FramesBetweenShots);
         int remaining = Weapon.Magazine.Rounds;
@@ -172,7 +172,7 @@ public class WeaponScenarioTests : ScenarioFixture {
         Stage.Character.Events.Fired += _ => fired++;
         Stage.Character.Events.DryFired += _ => dry++;
         yield return Hold(1f);
-        yield return FindWhereTheMouseAims();
+        yield return AimAheadOfTheCharacter();
         SpawnTarget();
 
         yield return AimAndClick(FramesBeforeFirstClick + 3 * FramesBetweenShots + 5);
@@ -189,7 +189,7 @@ public class WeaponScenarioTests : ScenarioFixture {
     public IEnumerator TheSupportHandDropsToTheMagazineWhileAimingAndReloading() {
         ArmLimb supportArm = (ArmLimb)typeof(CharacterDriver).GetField("backArm", BindingFlags.NonPublic | BindingFlags.Instance).GetValue(Stage.Character);
         yield return Hold(1f);
-        yield return FindWhereTheMouseAims();
+        yield return AimAheadOfTheCharacter();
         SpawnTarget();
         yield return AimAndClick(FramesBeforeFirstClick + 3);
         Assert.That(Weapon.Magazine.Rounds, Is.LessThan(Weapon.Magazine.Capacity));

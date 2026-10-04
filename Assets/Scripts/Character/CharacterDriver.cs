@@ -61,6 +61,10 @@ public class CharacterDriver : MonoBehaviour {
     // What debug and tuning tools need; the character never reads anything back from them.
     public CharacterParts Parts => new CharacterParts((stride, posture, torsoMotion, head, armSwing), (crouch, postureRoot), (jump, airborne, states?.Airborne, (airPose, fallSecondary), landing), (shooting, pistol, (weapon, weaponController)), (cameraFeel, followCamera), effects);
     public PlayerCommands LatestCommands => latestCommands;
+    // Scenario hook: supplies the pointer's screen position in place of the mouse (null goes back to the mouse).
+    public System.Func<Vector2> ScenarioPointerSource {
+        set => input.PointerSource = value;
+    }
     // The dust, smoke, sparks and casings; null until the character is composed.
     public CharacterEffects Effects => characterEffects;
 
