@@ -43,20 +43,26 @@ public class CharacterDriver : MonoBehaviour {
     [SerializeField] private FollowCamera followCamera = new FollowCamera();
     [SerializeField] private CameraFeelSettings cameraFeel = new CameraFeelSettings();
 
+    [Header("Effects")]
+    [SerializeField] private EffectsSettings effects = new EffectsSettings();
+
     private PlayerInputReader input;
     private CharacterStateMachine machine;
     private CharacterStates states;
     private CharacterRig rig;
     private ShootingStance shootingStance;
     private WeaponController weaponController;
+    private CharacterEffects characterEffects;
     private PlayerCommands latestCommands;
     // Whether the character aimed this frame and where the pointer was, for the camera to frame.
     private (bool isAiming, Vector2 pointerWorld) cameraAim;
 
     public CharacterEvents Events { get; private set; }
     // What debug and tuning tools need; the character never reads anything back from them.
-    public CharacterParts Parts => new CharacterParts((stride, posture, torsoMotion, head, armSwing), (crouch, postureRoot), (jump, airborne, states?.Airborne, (airPose, fallSecondary), landing), (shooting, pistol, (weapon, weaponController)), (cameraFeel, followCamera));
+    public CharacterParts Parts => new CharacterParts((stride, posture, torsoMotion, head, armSwing), (crouch, postureRoot), (jump, airborne, states?.Airborne, (airPose, fallSecondary), landing), (shooting, pistol, (weapon, weaponController)), (cameraFeel, followCamera), effects);
     public PlayerCommands LatestCommands => latestCommands;
+    // The dust, smoke, sparks and casings; null until the character is composed.
+    public CharacterEffects Effects => characterEffects;
 
     // Composes here rather than in Awake: a script recompile during play mode reloads the domain,
     // which clears these non-serialized collaborators and calls OnEnable again, but not Awake.
@@ -72,6 +78,7 @@ public class CharacterDriver : MonoBehaviour {
     private void OnDestroy() {
         input?.Dispose();
         weaponController?.Dispose();
+        characterEffects?.Dispose();
     }
 
     // Reports a broken rig while editing, as soon as the references change.
@@ -92,6 +99,7 @@ public class CharacterDriver : MonoBehaviour {
         weaponController = new WeaponController(pistol, weapon, (Events, transform));
         shootingStance = new ShootingStance(rig, (weaponController, shooting, weapon));
         ComposeSecondaryMotion();
+        characterEffects = new CharacterEffects(rig, effects);
         states.Walk.Begin();
     }
 
@@ -101,6 +109,7 @@ public class CharacterDriver : MonoBehaviour {
         latestCommands = commands;
         cameraAim = (false, Vector2.zero);
         weaponController.Tick(Time.time, Time.deltaTime, commands.ReloadPressed);
+        characterEffects.Tick(Time.deltaTime);
         crouch.Tick(Time.deltaTime, (commands.CrouchRequested, machine.Current.AllowsCrouch));
         machine.Tick(Time.deltaTime, commands);
         posture.Tick(Time.deltaTime);

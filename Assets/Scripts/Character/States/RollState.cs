@@ -87,6 +87,7 @@ public sealed class RollState : ICharacterState {
     private void AdvancePhase() {
         switch (phase) {
             case RollPhase.Dive:
+                context.Rig.Events.RaiseRolled((new Vector2(context.Rig.FrontArm.HandPosition.x, groundY), direction));
                 StartPhase(RollPhase.HandContact);
                 break;
             case RollPhase.HandContact:

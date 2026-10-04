@@ -24,6 +24,7 @@ public static class MovementTuningSchema {
             new Section("FALL", Fall()),
             new Section("AIM", Aim()),
             new Section("CAMERA", Camera()),
+            new Section("EFFECTS", Effects()),
             new Section("TRANSITIONS", Transitions()),
             new Section("ADVANCED", Advanced()),
         };
@@ -143,6 +144,25 @@ public static class MovementTuningSchema {
             new Parameter(("Trauma from", "Landing: trauma per speed above it", Share), (0f, 0.2f), (p => p.cameraFeel.landingTraumaPerSpeed, (p, v) => p.cameraFeel.landingTraumaPerSpeed = v)),
         });
         return parameters;
+    }
+
+    // The dust, sparks, smoke and shell casings. A scale of 0 turns that kind off; the effects switch is set on the character.
+    private static List<Parameter> Effects() {
+        return new List<Parameter> {
+            new Parameter(("Dust", "Amount (0 is off)", Multiple), (0f, 3f), (p => p.effects.dustScale, (p, v) => p.effects.dustScale = v)),
+            new Parameter(("Dust", "Lifetime", Seconds), (0.1f, 2f), (p => p.effects.dustLifetime, (p, v) => p.effects.dustLifetime = v)),
+            new Parameter(("Dust", "Foot plant: least impact speed", UnitsPerSecond), (0f, 10f), (p => p.effects.footDustMinImpact, (p, v) => p.effects.footDustMinImpact = v)),
+            new Parameter(("Dust", "Foot plant: biggest puff at", UnitsPerSecond), (1f, 20f), (p => p.effects.footDustFullImpact, (p, v) => p.effects.footDustFullImpact = v)),
+            new Parameter(("Dust", "Landing: least impact speed", UnitsPerSecond), (0f, 20f), (p => p.effects.landingDustMinImpact, (p, v) => p.effects.landingDustMinImpact = v)),
+            new Parameter(("Dust", "Landing: biggest spray at", UnitsPerSecond), (2f, 40f), (p => p.effects.landingDustFullImpact, (p, v) => p.effects.landingDustFullImpact = v)),
+            new Parameter(("Dust", "Jump: puffs at take-off", "puffs"), (0f, 12f), (p => p.effects.jumpDustCount, (p, v) => p.effects.jumpDustCount = v)),
+            new Parameter(("Dust", "Roll: puffs at hand contact", "puffs"), (0f, 16f), (p => p.effects.rollDustCount, (p, v) => p.effects.rollDustCount = v)),
+            new Parameter(("Gun", "Sparks (0 is off)", Multiple), (0f, 3f), (p => p.effects.sparkScale, (p, v) => p.effects.sparkScale = v)),
+            new Parameter(("Gun", "Smoke (0 is off)", Multiple), (0f, 3f), (p => p.effects.smokeScale, (p, v) => p.effects.smokeScale = v)),
+            new Parameter(("Shell casings", "Lifetime (0 is none)", Seconds), (0f, 15f), (p => p.effects.casingLifetime, (p, v) => p.effects.casingLifetime = v)),
+            new Parameter(("Shell casings", "Fade time", Seconds), (0.1f, 3f), (p => p.effects.casingFadeTime, (p, v) => p.effects.casingFadeTime = v)),
+            new Parameter(("Shell casings", "Ejection speed", UnitsPerSecond), (0f, 10f), (p => p.effects.casingEjectSpeed, (p, v) => p.effects.casingEjectSpeed = v)),
+        };
     }
 
     private static List<Parameter> Fall() {
