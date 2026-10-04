@@ -37,6 +37,8 @@ If the server really is unreachable, fall back to a `dotnet build` of generated 
 - New assets need `.meta` files (the Editor creates them when it focuses; otherwise write them).
 - The rig `inverseRobo` faces right (+1); a mirrored root reports bone angles as 360 minus the authored angle.
 - Everything stays procedural: no Animator clips for locomotion.
+- The world's look is set up by `EnvironmentSetup.SetUp()` (Editor, idempotent, refuses a dirty scene): sorting layer `Background`, the dot-grid background, lit level sprites, `ShadowCaster2D` on level blocks (authored in the scene, not at runtime), the lamp prefab. To look at the lit scene, run `python Tools/unity_mcp.py test PlayMode EnvironmentShadowTests`: it writes `Temp/LocomotionScenarios/lit-*.png`.
+- Staging the scene: the user's own unsaved-then-saved edits may sit in `Assets/Scenes/SampleScene.unity` (e.g. the camera size). Stage only your hunks (filter the diff and `git apply --cached`), never `git add` the scene whole.
 
 ## Layout
 
