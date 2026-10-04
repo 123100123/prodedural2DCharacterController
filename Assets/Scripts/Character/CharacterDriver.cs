@@ -29,6 +29,7 @@ public class CharacterDriver : MonoBehaviour {
     [SerializeField] private AirborneSettings airborne = new AirborneSettings();
     [SerializeField] private JumpSettings jump = new JumpSettings();
     [SerializeField] private AirPoseSettings airPose = new AirPoseSettings();
+    [SerializeField] private FallSecondarySettings fallSecondary = new FallSecondarySettings();
     [SerializeField] private RollSettings roll = new RollSettings();
     [SerializeField] private ClimbSettings climb = new ClimbSettings();
 
@@ -48,7 +49,7 @@ public class CharacterDriver : MonoBehaviour {
 
     public CharacterEvents Events { get; private set; }
     // What debug and tuning tools need; the character never reads anything back from them.
-    public CharacterParts Parts => new CharacterParts((stride, posture, torsoMotion, head, armSwing), (crouch, postureRoot), (jump, airborne, states?.Airborne, airPose));
+    public CharacterParts Parts => new CharacterParts((stride, posture, torsoMotion, head, armSwing), (crouch, postureRoot), (jump, airborne, states?.Airborne, (airPose, fallSecondary)));
     public PlayerCommands LatestCommands => latestCommands;
 
     // Composes here rather than in Awake: a script recompile during play mode reloads the domain,
@@ -102,6 +103,7 @@ public class CharacterDriver : MonoBehaviour {
     private void PoseUpperBody(PlayerCommands commands) {
         if (commands.IsAiming) {
             shootingStance.Tick(commands, Time.time);
+            armSwing.Track(Time.deltaTime);
             return;
         }
         rig.Head.HoldLevel();
@@ -129,7 +131,7 @@ public class CharacterDriver : MonoBehaviour {
         built.Register((
             new WalkState(context),
             new JumpWindupState(context, (jump, airborne)),
-            new AirborneState(context, (airborne, jump, airPose)),
+            new AirborneState(context, (airborne, jump, airPose, fallSecondary)),
             new RollState(context, roll),
             new ClimbState(context, climb)));
         return built;

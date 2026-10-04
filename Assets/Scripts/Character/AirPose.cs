@@ -49,11 +49,16 @@ public struct AirPose {
 public readonly struct AirPoseFrame {
     public static readonly AirPoseFrame None = default;
 
-    public AirPoseFrame(AirPose pose) {
+    // elbows: how far each arm's elbow is bent (the pose's elbow bend, plus what the fall's secondary motion adds).
+    public AirPoseFrame(AirPose pose, (float front, float back) elbows) {
         Pose = pose;
+        ElbowFront = Mathf.Clamp01(elbows.front);
+        ElbowBack = Mathf.Clamp01(elbows.back);
         IsActive = true;
     }
 
     public AirPose Pose { get; }
+    public float ElbowFront { get; }
+    public float ElbowBack { get; }
     public bool IsActive { get; }
 }

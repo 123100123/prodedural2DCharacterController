@@ -92,9 +92,33 @@ public static class MovementTuningSchema {
     }
 
     private static List<Parameter> Fall() {
-        return PoseParameters("Falling pose (standing)", (p => p.airPose.descentStanding, (p, pose) => p.airPose.descentStanding = pose))
+        List<Parameter> parameters = PoseParameters("Falling pose (standing)", (p => p.airPose.descentStanding, (p, pose) => p.airPose.descentStanding = pose))
             .Concat(PoseParameters("Falling pose (running)", (p => p.airPose.descentRunning, (p, pose) => p.airPose.descentRunning = pose)))
             .ToList();
+        parameters.AddRange(new[] {
+            new Parameter(("Prolonged fall: build-up", "Starts after", Seconds), (0f, 3f), (p => p.fallSecondary.onsetTime, (p, v) => p.fallSecondary.onsetTime = v)),
+            new Parameter(("Prolonged fall: build-up", "Full strength after", Seconds), (0.1f, 6f), (p => p.fallSecondary.fullTime, (p, v) => p.fallSecondary.fullTime = v)),
+            new Parameter(("Prolonged fall: build-up", "Fall speed adds from", UnitsPerSecond), (0f, 30f), (p => p.fallSecondary.speedBand.x, (p, v) => p.fallSecondary.speedBand.x = v)),
+            new Parameter(("Prolonged fall: build-up", "Fall speed adds until", UnitsPerSecond), (0f, 40f), (p => p.fallSecondary.speedBand.y, (p, v) => p.fallSecondary.speedBand.y = v)),
+            new Parameter(("Prolonged fall: build-up", "Strength of a slow long fall", Share), (0f, 1f), (p => p.fallSecondary.slowFallStrength, (p, v) => p.fallSecondary.slowFallStrength = v)),
+            new Parameter(("Prolonged fall: arms", "Arm swing", Degrees), (0f, 120f), (p => p.fallSecondary.armAmplitude, (p, v) => p.fallSecondary.armAmplitude = v)),
+            new Parameter(("Prolonged fall: arms", "Flail speed at the start", "cycles/s"), (0.1f, 6f), (p => p.fallSecondary.flailRate.x, (p, v) => p.fallSecondary.flailRate.x = v)),
+            new Parameter(("Prolonged fall: arms", "Flail speed at full strength", "cycles/s"), (0.1f, 6f), (p => p.fallSecondary.flailRate.y, (p, v) => p.fallSecondary.flailRate.y = v)),
+            new Parameter(("Prolonged fall: arms", "Flail speed wander", Share), (0f, 0.5f), (p => p.fallSecondary.rateWobble, (p, v) => p.fallSecondary.rateWobble = v)),
+            new Parameter(("Prolonged fall: arms", "Wander rate", "cycles/s"), (0.02f, 2f), (p => p.fallSecondary.wobbleRate, (p, v) => p.fallSecondary.wobbleRate = v)),
+            new Parameter(("Prolonged fall: arms", "Second wave", Share), (0f, 1f), (p => p.fallSecondary.secondWave, (p, v) => p.fallSecondary.secondWave = v)),
+            new Parameter(("Prolonged fall: arms", "Back arm speed", Multiple), (0.5f, 2f), (p => p.fallSecondary.backArmRate, (p, v) => p.fallSecondary.backArmRate = v)),
+            new Parameter(("Prolonged fall: arms", "Elbow flail", Share), (0f, 1f), (p => p.fallSecondary.elbowFlail, (p, v) => p.fallSecondary.elbowFlail = v)),
+            new Parameter(("Prolonged fall: arms", "Arms lift with fall speed", Degrees), (0f, 80f), (p => p.fallSecondary.armLiftWithSpeed, (p, v) => p.fallSecondary.armLiftWithSpeed = v)),
+            new Parameter(("Prolonged fall: arms", "Arms trail acceleration", "°/(u/s²)"), (0f, 12f), (p => p.fallSecondary.armLagPerAcceleration, (p, v) => p.fallSecondary.armLagPerAcceleration = v)),
+            new Parameter(("Prolonged fall: arms", "Most the arms trail", Degrees), (0f, 80f), (p => p.fallSecondary.maxArmLag, (p, v) => p.fallSecondary.maxArmLag = v)),
+            new Parameter(("Prolonged fall: legs and torso", "Foot drift forward", Units), (0f, 0.6f), (p => p.fallSecondary.legLoosen.x, (p, v) => p.fallSecondary.legLoosen.x = v)),
+            new Parameter(("Prolonged fall: legs and torso", "Foot drift up and down", Units), (0f, 0.6f), (p => p.fallSecondary.legLoosen.y, (p, v) => p.fallSecondary.legLoosen.y = v)),
+            new Parameter(("Prolonged fall: legs and torso", "Forward pitch", Degrees), (0f, 25f), (p => p.fallSecondary.forwardPitch, (p, v) => p.fallSecondary.forwardPitch = v)),
+            new Parameter(("Prolonged fall: landing and aiming", "Damped on approaching the ground", Share), (0f, 1f), (p => p.fallSecondary.landingDamping, (p, v) => p.fallSecondary.landingDamping = v)),
+            new Parameter(("Prolonged fall: landing and aiming", "Aim blend time", Seconds), (0.02f, 1f), (p => p.fallSecondary.aimBlendTime, (p, v) => p.fallSecondary.aimBlendTime = v)),
+        });
+        return parameters;
     }
 
     // The nine values of one airborne pose: the feet, the arms, the elbows and the torso.

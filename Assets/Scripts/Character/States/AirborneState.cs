@@ -4,7 +4,8 @@ using UnityEngine;
 // short by releasing the button, flight leg pose, coyote jump, buffered jump, ledge grabs and landing.
 public sealed class AirborneState : ICharacterState {
     private readonly StateContext context;
-    private readonly (AirborneSettings air, JumpSettings jump, AirPoseSettings pose) settings;
+    private readonly (AirborneSettings air, JumpSettings jump, AirPoseSettings pose, FallSecondarySettings fall) settings;
+    private readonly FallSecondaryMotion secondary;
 
     // Feet reach at most this share of the leg's length, so the knee never locks.
     private const float MaxLegExtension = 0.985f;
@@ -19,10 +20,16 @@ public sealed class AirborneState : ICharacterState {
     // whether it still is, and whether the rise has been settled (cut short, or held long enough to rise in full).
     private (float fullHeight, float heldFor, bool isHeld, bool isSettled) jump = (0f, 0f, false, true);
     private AirSnapshot snapshot;
+    // Each flight starts the secondary motion from a new seed, so no two falls flail the same way.
+    private int flightCount;
+    private float previousSpeedX;
+    private bool hasPreviousSpeed;
+    private float aimSuppression;
 
-    public AirborneState(StateContext context, (AirborneSettings air, JumpSettings jump, AirPoseSettings pose) settings) {
+    public AirborneState(StateContext context, (AirborneSettings air, JumpSettings jump, AirPoseSettings pose, FallSecondarySettings fall) settings) {
         this.context = context;
         this.settings = settings;
+        secondary = new FallSecondaryMotion(settings.fall);
     }
 
     public bool AllowsUpperBodyActions => true;
@@ -59,6 +66,9 @@ public sealed class AirborneState : ICharacterState {
         timeFalling = 0f;
         timeSinceLaunch = 0f;
         jumpBufferLeft = 0f;
+        hasPreviousSpeed = false;
+        aimSuppression = 0f;
+        secondary.Begin(++flightCount);
         legs = context.Rig.Stride.LegsOrderedByFacing(context.Rig.Facing.Sign);
     }
 
@@ -86,23 +96,44 @@ public sealed class AirborneState : ICharacterState {
         if (context.States.Climb.TryBeginFromAir()) {
             return;
         }
-        SolvePose();
+        SolvePose((commands.IsAiming, deltaTime));
         PoseLegsForFlight(deltaTime);
         context.Rig.Stride.PlaceStrideTargetUnderBody();
         UpdateSnapshot();
     }
 
     // The pose of this frame of the flight, read by the legs here and by the arms, posture and chest.
-    private void SolvePose() {
+    private void SolvePose((bool isAiming, float deltaTime) frame) {
         Vector2 velocity = context.Rig.Motor.Velocity;
         AirbornePoseSolver.Motion motion = new AirbornePoseSolver.Motion((velocity.y, velocity.x), context.Rig.Stride.Run.speed, timeSinceLaunch);
-        context.Rig.AirPose = new AirPoseFrame(AirbornePoseSolver.Solve(motion, settings.pose));
+        AirPose pose = AirbornePoseSolver.Solve(motion, settings.pose);
+
+        FallSecondaryMotion.Output flail = TickSecondaryMotion(frame);
+        pose.armFront += flail.ArmFront;
+        pose.armBack += flail.ArmBack;
+        pose.lean += flail.ForwardPitch;
+        pose.leadFoot += flail.LeadFoot;
+        pose.trailFoot += flail.TrailFoot;
+        context.Rig.AirPose = new AirPoseFrame(pose, (pose.elbowBend + flail.ElbowFront, pose.elbowBend + flail.ElbowBack));
+        snapshot.FlailStrength = flail.Strength;
 
         AirPhase phase = AirPhase.From(velocity.y, settings.pose.apexBand);
         snapshot.Ascent = phase.Ascent;
         snapshot.Apex = phase.Apex;
         snapshot.Descent = phase.Descent;
         snapshot.RunningPoseShare = AirbornePoseSolver.RunningShare(motion, settings.pose);
+    }
+
+    // The long-fall flail, given way to aiming (which needs the arms) over a short blend.
+    private FallSecondaryMotion.Output TickSecondaryMotion((bool isAiming, float deltaTime) frame) {
+        float speedX = context.Rig.Motor.Velocity.x;
+        float forwardAcceleration = hasPreviousSpeed && frame.deltaTime > 0f ? (speedX - previousSpeedX) / frame.deltaTime * context.Rig.Facing.Sign : 0f;
+        previousSpeedX = speedX;
+        hasPreviousSpeed = true;
+        aimSuppression = Mathf.MoveTowards(aimSuppression, frame.isAiming ? 1f : 0f, frame.deltaTime / Mathf.Max(0.01f, settings.fall.aimBlendTime));
+
+        FallSecondaryMotion.Input input = new FallSecondaryMotion.Input((timeFalling, context.Rig.Motor.Velocity.y, forwardAcceleration), (0f, aimSuppression), frame.deltaTime);
+        return secondary.Tick(input);
     }
 
     private void UpdateSnapshot() {

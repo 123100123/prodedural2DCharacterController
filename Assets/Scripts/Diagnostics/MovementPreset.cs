@@ -16,6 +16,7 @@ public class MovementPreset : ITuningPreset<MovementPreset> {
     public JumpSettings jump;
     public AirborneSettings air;
     public AirPoseSettings airPose;
+    public FallSecondarySettings fallSecondary;
     public GaitTransitionSettings transitions;
     public BalanceSettings balance;
     public IdleStanceSettings idle;
@@ -37,6 +38,7 @@ public class MovementPreset : ITuningPreset<MovementPreset> {
             jump = new JumpSettings(),
             air = new AirborneSettings(),
             airPose = new AirPoseSettings(),
+            fallSecondary = new FallSecondarySettings(),
             transitions = GaitTransitionSettings.Default,
             balance = BalanceSettings.Default,
             idle = IdleStanceSettings.Default,
@@ -56,6 +58,7 @@ public class MovementPreset : ITuningPreset<MovementPreset> {
         copy.jump = jump.Clone();
         copy.air = air.Clone();
         copy.airPose = airPose.Clone();
+        copy.fallSecondary = fallSecondary.Clone();
         return copy;
     }
 

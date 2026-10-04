@@ -18,4 +18,6 @@ public struct AirSnapshot {
     public float Apex;
     public float Descent;
     public float RunningPoseShare;
+    // How strongly the long-fall secondary motion (flailing arms, loose legs) is acting, 0 to 1.
+    public float FlailStrength;
 }

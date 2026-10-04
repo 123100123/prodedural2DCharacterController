@@ -72,6 +72,19 @@ public sealed class ScenarioStage {
         CreateBlock(new Vector2(ceiling.startX + ceiling.width / 2f, GroundTop + ceiling.clearance + Thickness / 2f), new Vector2(ceiling.width, Thickness));
     }
 
+    // Lifts the character onto a new platform the given height above the track and returns when it stands there: for
+    // falls from a height. The platform runs from behind the character to widthAhead in front of it.
+    public void PlaceOnPlatform((float height, float widthAhead) platform) {
+        const float Behind = 6f;
+        Transform root = Character.transform;
+        float x = Stride.transform.position.x;
+        float top = GroundTop + platform.height;
+        CreateBlock(new Vector2(x + (platform.widthAhead - Behind) / 2f, top - 0.5f), new Vector2(platform.widthAhead + Behind, 1f));
+        root.position += Vector3.up * platform.height;
+        Stride.TrySettleStance((x, 1, top));
+        Stride.BeginGroundedMotion(Vector2.zero);
+    }
+
     public void Press(params Key[] keys) {
         heldKeys.UnionWith(keys);
         QueueKeyboard();

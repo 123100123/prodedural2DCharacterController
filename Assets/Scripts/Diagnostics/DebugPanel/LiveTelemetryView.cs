@@ -60,6 +60,7 @@ public sealed class LiveTelemetryView {
         yield return ("Phase", AirPhaseText);
         yield return ("Pose blend: rising / hang / falling", t => t.Air.IsAirborne ? $"{t.Air.Ascent:0.00} / {t.Air.Apex:0.00} / {t.Air.Descent:0.00}" : "-");
         yield return ("Running pose share", t => t.Air.IsAirborne ? $"{t.Air.RunningPoseShare:0.00}" : "-");
+        yield return ("Fall flail strength", t => t.Air.IsAirborne ? $"{t.Air.FlailStrength:0.00}" : "-");
     }
 
     private static string AirPhaseText(LocomotionTelemetry t) {

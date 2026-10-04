@@ -31,15 +31,23 @@ public class ArmSwing {
     }
 
     public void Tick(float deltaTime) {
+        ((float front, float back) angles, (float front, float back) bends) arms = FollowPose(deltaTime);
+        rig.FrontArm.ReachToward(SwungHand((rig.FrontArm, restHandsInChest.front, uprightHang.front), (arms.angles.front, arms.bends.front)));
+        rig.BackArm.ReachToward(SwungHand((rig.BackArm, restHandsInChest.back, uprightHang.back), (arms.angles.back, arms.bends.back)));
+    }
+
+    // Keeps the swing following its pose without posing the arms, while something else (aiming) has them: handing them
+    // back then starts from the swing the body is in, not from where it was when the arms were taken.
+    public void Track(float deltaTime) => FollowPose(deltaTime);
+
+    private ((float front, float back) angles, (float front, float back) bends) FollowPose(float deltaTime) {
         bool isFlying = !rig.Stride.IsDrivingGait && rig.AirPose.IsActive;
         ((float front, float back) angles, (float front, float back) elbows) pose = isFlying ? AirbornePose() : GroundedPose();
         float frontAngle = swing.front.Update((pose.angles.front, deltaTime), settings.spring);
         float backAngle = swing.back.Update((pose.angles.back, deltaTime), settings.spring);
         float frontBend = bend.front.Update((pose.elbows.front, deltaTime), settings.spring);
         float backBend = bend.back.Update((pose.elbows.back, deltaTime), settings.spring);
-
-        rig.FrontArm.ReachToward(SwungHand((rig.FrontArm, restHandsInChest.front, uprightHang.front), (frontAngle, frontBend)));
-        rig.BackArm.ReachToward(SwungHand((rig.BackArm, restHandsInChest.back, uprightHang.back), (backAngle, backBend)));
+        return ((frontAngle, backAngle), (frontBend, backBend));
     }
 
     // The back arm is opposite the front leg: it reaches forward as the front leg lands; the front arm mirrors it.
@@ -56,10 +64,11 @@ public class ArmSwing {
         return (angles, (ElbowBendFor((angles.front, baseBend)), ElbowBendFor((angles.back, baseBend))));
     }
 
-    // The arms of the flight pose: thrown up with the push-off, loosening at the top, settling for the landing.
+    // The arms of the flight pose: thrown up with the push-off, loosening at the top, flailing in a long fall, settling
+    // for the landing.
     private ((float front, float back) angles, (float front, float back) elbows) AirbornePose() {
-        AirPose pose = rig.AirPose.Pose;
-        return ((pose.armFront, pose.armBack), (pose.elbowBend, pose.elbowBend));
+        AirPoseFrame frame = rig.AirPose;
+        return ((frame.Pose.armFront, frame.Pose.armBack), (frame.ElbowFront, frame.ElbowBack));
     }
 
     // Elbows flex as the arm swings forward and straighten as it swings back.
