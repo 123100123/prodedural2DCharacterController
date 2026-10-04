@@ -35,7 +35,7 @@ public sealed class LocomotionDebugPanel : MonoBehaviour, UiInputCapture.ICaptur
             enabled = false;
             return;
         }
-        inspector = new LocomotionInspector(character);
+        inspector = new LocomotionInspector(character, FindLighting());
         document = CreateDocument();
         layout = new DebugPanelLayout(inspector);
         document.rootVisualElement.Add(layout.Root);
@@ -65,6 +65,16 @@ public sealed class LocomotionDebugPanel : MonoBehaviour, UiInputCapture.ICaptur
             nextRefresh = Time.unscaledTime + refreshInterval;
             layout.ShowTelemetry(telemetry);
         }
+    }
+
+    // The scene's lighting rig, if it has one (it exists only under the Universal Render Pipeline).
+    private static ILightingTarget FindLighting() {
+        foreach (MonoBehaviour behaviour in FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None)) {
+            if (behaviour is ILightingTarget lighting) {
+                return lighting;
+            }
+        }
+        return null;
     }
 
     private void SetVisible(bool visible) {

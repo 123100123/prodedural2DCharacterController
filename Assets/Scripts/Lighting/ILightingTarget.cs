@@ -8,4 +8,7 @@ public interface ILightingTarget {
 
     float PlayerIntensity { get; }
     float MuzzleIntensity { get; }
+    // Where the muzzle flash was last lit, and how many shots have lit it.
+    UnityEngine.Vector2 MuzzlePosition { get; }
+    int MuzzleShots { get; }
 }

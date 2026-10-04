@@ -19,6 +19,8 @@ public sealed class SceneLightingController : MonoBehaviour, ILightingTarget {
     public MuzzleFlashLight Muzzle => muzzle;
     public float PlayerIntensity => player != null && player.enabled ? player.intensity : 0f;
     public float MuzzleIntensity => muzzle != null ? muzzle.Intensity : 0f;
+    public Vector2 MuzzlePosition => muzzle != null ? (Vector2)muzzle.transform.position : Vector2.zero;
+    public int MuzzleShots => muzzle != null ? muzzle.Shots : 0;
 
     // The controller of a scene that has none gets its character before it wakes.
     public void Bind(CharacterDriver driver) => character = driver;

@@ -55,6 +55,10 @@ public sealed class LocomotionTelemetry {
     public float CrouchDrop { get; private set; }
     public float CrouchDepth { get; private set; }
     public Rect Hull { get; private set; }
+    // The scene's lighting rig, if any, and the brightness of its player light and muzzle flash right now.
+    public ILightingTarget Lighting { get; set; }
+    public float PlayerLightIntensity { get; private set; }
+    public float MuzzleLightIntensity { get; private set; }
     // How much lower a hard landing is holding the pelvis, while it recovers.
     public float LandingCompression { get; private set; }
     // The flight, as the airborne state last reported it (all zero on the ground).
@@ -150,6 +154,8 @@ public sealed class LocomotionTelemetry {
         CrouchDrop = stride.CrouchDrop;
         CrouchDepth = crouch.Settings.depth;
         Hull = crouch.Hull;
+        PlayerLightIntensity = Lighting?.PlayerIntensity ?? 0f;
+        MuzzleLightIntensity = Lighting?.MuzzleIntensity ?? 0f;
         LandingCompression = stride.LandingCompression;
     }
 

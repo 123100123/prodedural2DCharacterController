@@ -22,6 +22,7 @@ public static class MovementTuningSchema {
             new Section("CROUCH", Crouch()),
             new Section("JUMP", Jump()),
             new Section("FALL", Fall()),
+            new Section("AIM", Aim()),
             new Section("TRANSITIONS", Transitions()),
             new Section("ADVANCED", Advanced()),
         };
@@ -89,6 +90,21 @@ public static class MovementTuningSchema {
          .Concat(PoseParameters("Rising pose (running)", (p => p.airPose.ascentRunning, (p, pose) => p.airPose.ascentRunning = pose)))
          .Concat(PoseParameters("Apex pose", (p => p.airPose.apex, (p, pose) => p.airPose.apex = pose)))
          .ToList();
+    }
+
+    private static List<Parameter> Aim() {
+        List<Parameter> parameters = new List<Parameter> {
+            new Parameter(("Arms", "Arm extension", Share), (0.5f, 1f), (p => p.shooting.armExtension, (p, v) => p.shooting.armExtension = v)),
+            new Parameter(("Arms", "Highest aim above horizontal", Degrees), (10f, 89f), (p => p.shooting.maxAimElevation, (p, v) => p.shooting.maxAimElevation = v)),
+            new Parameter(("Support hand", "Grip behind the front hand", Units), (-0.3f, 0.6f), (p => p.shooting.supportHandOffset, (p, v) => p.shooting.supportHandOffset = v)),
+            new Parameter(("Recoil", "Kick", UnitsPerSecond), (0f, 20f), (p => p.shooting.recoilKick, (p, v) => p.shooting.recoilKick = v)),
+            new Parameter(("Recoil", "Upward share", Share), (0f, 2f), (p => p.shooting.recoilRise, (p, v) => p.shooting.recoilRise = v)),
+            new Parameter(("Recoil", "Torso kick", "°/s"), (0f, 200f), (p => p.shooting.recoilTorsoKick, (p, v) => p.shooting.recoilTorsoKick = v)),
+        };
+        parameters.AddRange(Spring(("Recoil spring", (p => p.shooting.recoilSpring, (p, s) => p.shooting.recoilSpring = s))));
+        parameters.Add(new Parameter(("Pistol", "Seconds between shots", Seconds), (0.02f, 1.5f), (p => p.pistolCooldown, (p, v) => p.pistolCooldown = v)));
+        parameters.Add(new Parameter(("Pistol", "Muzzle in front of the hand", Units), (0f, 1f), (p => p.pistolMuzzleOffset, (p, v) => p.pistolMuzzleOffset = v)));
+        return parameters;
     }
 
     private static List<Parameter> Fall() {

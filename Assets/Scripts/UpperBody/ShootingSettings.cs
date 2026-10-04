@@ -20,4 +20,18 @@ public class ShootingSettings {
     public float recoilRise = 0.6f;
     [Tooltip("Backward chest lean speed (degrees per second) a shot gives the torso.")]
     public float recoilTorsoKick = 60f;
+
+    public ShootingSettings Clone() => (ShootingSettings)MemberwiseClone();
+
+    // A copy made field by field into this instance, which the shooting stance holds by reference. The camera is a
+    // scene reference, not a setting, and stays as it is.
+    public void CopyFrom(ShootingSettings source) {
+        armExtension = source.armExtension;
+        maxAimElevation = source.maxAimElevation;
+        supportHandOffset = source.supportHandOffset;
+        recoilKick = source.recoilKick;
+        recoilSpring = source.recoilSpring;
+        recoilRise = source.recoilRise;
+        recoilTorsoKick = source.recoilTorsoKick;
+    }
 }

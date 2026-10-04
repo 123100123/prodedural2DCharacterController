@@ -19,6 +19,7 @@ public sealed class LiveTelemetryView {
         AddSection(("Crouch", CrouchReadouts()));
         AddSection(("Airborne", AirborneReadouts()));
         AddSection(("Landing", LandingReadouts()));
+        AddSection(("Lighting", LightingReadouts()));
         AddSection(("Timing", TimingReadouts()));
         AddSection(("Support", SupportReadouts()));
         AddSection(("Height", HeightReadouts()));
@@ -62,6 +63,11 @@ public sealed class LiveTelemetryView {
         yield return ("Pose blend: rising / hang / falling", t => t.Air.IsAirborne ? $"{t.Air.Ascent:0.00} / {t.Air.Apex:0.00} / {t.Air.Descent:0.00}" : "-");
         yield return ("Running pose share", t => t.Air.IsAirborne ? $"{t.Air.RunningPoseShare:0.00}" : "-");
         yield return ("Fall flail strength", t => t.Air.IsAirborne ? $"{t.Air.FlailStrength:0.00}" : "-");
+    }
+
+    private static IEnumerable<(string label, Func<LocomotionTelemetry, string> format)> LightingReadouts() {
+        yield return ("Player light intensity", t => t.Lighting != null ? $"{t.PlayerLightIntensity:0.00}" : "no lighting rig");
+        yield return ("Muzzle flash intensity", t => t.Lighting != null ? $"{t.MuzzleLightIntensity:0.00}" : "no lighting rig");
     }
 
     private static IEnumerable<(string label, Func<LocomotionTelemetry, string> format)> LandingReadouts() {

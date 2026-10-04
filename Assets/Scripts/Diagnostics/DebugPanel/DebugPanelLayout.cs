@@ -11,6 +11,10 @@ public sealed class DebugPanelLayout {
     private readonly Dictionary<Tab, object> sectionTabs = new Dictionary<Tab, object>();
     private readonly Dictionary<Tab, VisualElement> toolbarsByTab = new Dictionary<Tab, VisualElement>();
     private readonly List<VisualElement> toolbars = new List<VisualElement>();
+    // Every page the panel offers before it is laid out in TabOrder: its title, content, section and the toolbar of its domain.
+    private readonly List<(string title, VisualElement content, object section, VisualElement toolbar)> pages = new List<(string, VisualElement, object, VisualElement)>();
+    // The tabs in the order they are shown: tuning sections of every domain among the readout and the debug lines.
+    private static readonly string[] TabOrder = { "LIVE", "IDLE", "WALK", "RUN", "CROUCH", "JUMP", "FALL", "AIM", "LIGHTING", "TRANSITIONS", "ADVANCED", "DEBUG" };
     private readonly VisualElement body = new VisualElement();
     private readonly Label previewBadge = new Label();
     private readonly TabView tabs = new TabView();
@@ -21,9 +25,13 @@ public sealed class DebugPanelLayout {
         Root.Add(BuildHeader());
 
         tabs.AddToClassList("loco-tabs");
-        AddTab(("LIVE", BuildLiveTab(inspector)));
+        pages.Add(("LIVE", BuildLiveTab(inspector), null, null));
         AddDomain(inspector.Movement);
-        AddTab(("DEBUG", drawToggles.Root));
+        if (inspector.Lighting != null) {
+            AddDomain(inspector.Lighting);
+        }
+        pages.Add(("DEBUG", drawToggles.Root, null, null));
+        LayOutTabs();
         body.Add(tabs);
         foreach (VisualElement toolbar in toolbars) {
             body.Add(toolbar);
@@ -49,9 +57,32 @@ public sealed class DebugPanelLayout {
         VisualElement toolbar = new PresetToolbar<TPreset>((editor, domain), () => CurrentSection<TPreset>()).Root;
         toolbars.Add(toolbar);
         foreach (TuningSection<TPreset> section in domain.Sections) {
-            Tab tab = AddTab((section.Title, editor.BuildSection(section)));
-            sectionTabs.Add(tab, section);
-            toolbarsByTab.Add(tab, toolbar);
+            pages.Add((section.Title, editor.BuildSection(section), section, toolbar));
+        }
+    }
+
+    private void LayOutTabs() {
+        foreach ((string title, VisualElement content, object section, VisualElement toolbar) page in OrderedPages()) {
+            Tab tab = AddTab((page.title, page.content));
+            if (page.section != null) {
+                sectionTabs.Add(tab, page.section);
+                toolbarsByTab.Add(tab, page.toolbar);
+            }
+        }
+    }
+
+    private IEnumerable<(string title, VisualElement content, object section, VisualElement toolbar)> OrderedPages() {
+        foreach (string title in TabOrder) {
+            foreach ((string title, VisualElement content, object section, VisualElement toolbar) page in pages) {
+                if (page.title == title) {
+                    yield return page;
+                }
+            }
+        }
+        foreach ((string title, VisualElement content, object section, VisualElement toolbar) page in pages) {
+            if (System.Array.IndexOf(TabOrder, page.title) < 0) {
+                yield return page;
+            }
         }
     }
 

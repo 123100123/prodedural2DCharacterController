@@ -18,6 +18,9 @@ public class MovementPreset : ITuningPreset<MovementPreset> {
     public AirPoseSettings airPose;
     public FallSecondarySettings fallSecondary;
     public LandingSettings landing;
+    public ShootingSettings shooting;
+    public float pistolCooldown;
+    public float pistolMuzzleOffset;
     public GaitTransitionSettings transitions;
     public BalanceSettings balance;
     public IdleStanceSettings idle;
@@ -41,6 +44,9 @@ public class MovementPreset : ITuningPreset<MovementPreset> {
             airPose = new AirPoseSettings(),
             fallSecondary = new FallSecondarySettings(),
             landing = new LandingSettings(),
+            shooting = new ShootingSettings(),
+            pistolCooldown = 0.18f,
+            pistolMuzzleOffset = 0.15f,
             transitions = GaitTransitionSettings.Default,
             balance = BalanceSettings.Default,
             idle = IdleStanceSettings.Default,
@@ -62,6 +68,7 @@ public class MovementPreset : ITuningPreset<MovementPreset> {
         copy.airPose = airPose.Clone();
         copy.fallSecondary = fallSecondary.Clone();
         copy.landing = landing.Clone();
+        copy.shooting = shooting.Clone();
         return copy;
     }
 

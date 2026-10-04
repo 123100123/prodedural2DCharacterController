@@ -11,6 +11,10 @@ public class Pistol {
 
     private float readyTime;
 
+    // Tuning: seconds between shots, and how far in front of the hand the muzzle is.
+    public float Cooldown { get => cooldown; set => cooldown = value; }
+    public float MuzzleOffset { get => muzzleOffset; set => muzzleOffset = value; }
+
     public Vector2 MuzzleFor((Vector2 hand, Vector2 aimDirection) grip) => grip.hand + grip.aimDirection * muzzleOffset;
 
     public bool TryFire((Vector2 muzzle, Vector2 direction) shot, float now) {
