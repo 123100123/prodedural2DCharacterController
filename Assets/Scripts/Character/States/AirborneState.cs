@@ -1,15 +1,21 @@
 using UnityEngine;
 
-// Ballistic flight after a jump or a fall: air steering, flight leg pose, coyote jump, buffered jump,
-// ledge grabs and landing.
+// Ballistic flight after a jump or a fall: air steering that keeps the momentum the flight started with, a jump cut
+// short by releasing the button, flight leg pose, coyote jump, buffered jump, ledge grabs and landing.
 public sealed class AirborneState : ICharacterState {
     private readonly StateContext context;
     private readonly (AirborneSettings air, JumpSettings jump) settings;
 
     private float timeInAir;
+    private float timeFalling;
+    private float timeSinceLaunch;
     private float jumpBufferLeft;
     private bool canCoyoteJump;
     private (LegStepper lead, LegStepper trail) legs;
+    // The variable jump height: the full height of the jump (0 when the flight is a fall), how long the button was held,
+    // whether it still is, and whether the rise has been settled (cut short, or held long enough to rise in full).
+    private (float fullHeight, float heldFor, bool isHeld, bool isSettled) jump = (0f, 0f, false, true);
+    private AirSnapshot snapshot;
 
     public AirborneState(StateContext context, (AirborneSettings air, JumpSettings jump) settings) {
         this.context = context;
@@ -19,30 +25,44 @@ public sealed class AirborneState : ICharacterState {
     public bool AllowsUpperBodyActions => true;
     public bool AllowsCrouch => true;
 
-    public void Launch(Vector2 velocity) => BeginFlight((velocity, false));
+    // Read-only view of the flight for debug tools.
+    public AirSnapshot Snapshot => snapshot;
+
+    // A jump: launched with its velocity, and how the jump button was held (releasing it early cuts the rise short).
+    public void Launch(Vector2 velocity, (float fullHeight, float heldFor, bool isHeld) hold) {
+        jump = (hold.fullHeight, hold.heldFor, hold.isHeld, false);
+        BeginFlight((velocity, false, true));
+    }
 
     // The whole ground speed carries over (up to the run speed); vertical motion of the gait is not a launch.
     public void Fall(Vector2 walkVelocity) {
         float runSpeed = context.Rig.Stride.Run.speed;
         float carriedSpeedX = Mathf.Clamp(walkVelocity.x, -runSpeed, runSpeed);
-        BeginFlight((new Vector2(carriedSpeedX, 0f), true));
+        jump = (0f, 0f, false, true);
+        BeginFlight((new Vector2(carriedSpeedX, 0f), true, false));
     }
 
     // The velocity is set after the change: the state being left may write the motor velocity in its Exit.
-    private void BeginFlight((Vector2 velocity, bool allowsCoyoteJump) entry) {
+    private void BeginFlight((Vector2 velocity, bool allowsCoyoteJump, bool isJump) entry) {
         canCoyoteJump = entry.allowsCoyoteJump;
         context.Machine.ChangeTo(this);
         context.Rig.Motor.Velocity = entry.velocity;
+        snapshot.LaunchVelocity = entry.velocity;
+        snapshot.LaunchedByJump = entry.isJump;
     }
 
     public void Enter() {
         timeInAir = 0f;
+        timeFalling = 0f;
+        timeSinceLaunch = 0f;
         jumpBufferLeft = 0f;
         legs = context.Rig.Stride.LegsOrderedByFacing(context.Rig.Facing.Sign);
     }
 
     public void Tick(float deltaTime, PlayerCommands commands) {
         timeInAir += deltaTime;
+        timeSinceLaunch += deltaTime;
+        timeFalling += context.Rig.Motor.Velocity.y < 0f ? deltaTime : 0f;
         jumpBufferLeft -= deltaTime;
 
         if (!commands.IsAiming) {
@@ -52,6 +72,7 @@ public sealed class AirborneState : ICharacterState {
             JumpOrBufferJump();
         }
 
+        CutJumpShortWhenReleased((commands.JumpHeld, deltaTime));
         SteerHorizontally((commands.MoveAxis, deltaTime));
         context.Rig.Motor.ApplyGravity(deltaTime);
         if (TryTouchDown(deltaTime)) {
@@ -64,14 +85,28 @@ public sealed class AirborneState : ICharacterState {
         }
         PoseLegsForFlight(deltaTime);
         context.Rig.Stride.PlaceStrideTargetUnderBody();
+        UpdateSnapshot();
     }
 
-    public void Exit() { }
+    private void UpdateSnapshot() {
+        snapshot.IsAirborne = true;
+        snapshot.Velocity = context.Rig.Motor.Velocity;
+        snapshot.TimeAirborne = timeInAir;
+        snapshot.TimeFalling = timeFalling;
+        snapshot.TimeSinceLaunch = timeSinceLaunch;
+    }
+
+    public void Exit() => snapshot = default;
 
     private void JumpOrBufferJump() {
         KinematicBodyMotor motor = context.Rig.Motor;
         if (canCoyoteJump && timeInAir <= settings.air.coyoteTime) {
-            motor.Velocity = new Vector2(motor.Velocity.x, settings.jump.LaunchSpeed(motor.Gravity));
+            float fullHeight = JumpMomentum.FullHeight(settings.jump, context.Rig.Stride.CrouchShare);
+            motor.Velocity = new Vector2(motor.Velocity.x, JumpMath.LaunchSpeedForHeight(motor.Gravity, fullHeight));
+            jump = (fullHeight, 0f, true, false);
+            timeSinceLaunch = 0f;
+            snapshot.LaunchedByJump = true;
+            snapshot.LaunchVelocity = motor.Velocity;
             canCoyoteJump = false;
             return;
         }
@@ -80,9 +115,31 @@ public sealed class AirborneState : ICharacterState {
 
     private void SteerHorizontally((float moveAxis, float deltaTime) steering) {
         KinematicBodyMotor motor = context.Rig.Motor;
-        float targetSpeed = steering.moveAxis * settings.air.airSpeed;
-        float speedX = Mathf.MoveTowards(motor.Velocity.x, targetSpeed, settings.air.airAcceleration * steering.deltaTime);
+        float speedX = AirSteering.Step((motor.Velocity.x, steering.moveAxis, steering.deltaTime), settings.air);
         motor.Velocity = new Vector2(speedX, motor.Velocity.y);
+    }
+
+    // Releasing the jump button while still rising cuts the rise to the height the button was held for: a tap is a hop,
+    // a hold of the full time (or past the apex) is the whole jump.
+    private void CutJumpShortWhenReleased((bool isJumpHeld, float deltaTime) frame) {
+        KinematicBodyMotor motor = context.Rig.Motor;
+        if (jump.isSettled) {
+            return;
+        }
+        if (motor.Velocity.y <= 0f) {
+            jump.isSettled = true;
+            return;
+        }
+        if (frame.isJumpHeld && jump.isHeld) {
+            jump.heldFor += frame.deltaTime;
+            jump.isSettled = jump.heldFor >= settings.jump.fullHoldTime;
+            return;
+        }
+
+        float heldHeight = JumpMath.HeldJumpHeight(jump.heldFor, (settings.jump.minHopHeight, jump.fullHeight, settings.jump.fullHoldTime));
+        motor.Velocity = new Vector2(motor.Velocity.x, JumpMath.CutRise(motor.Velocity.y, motor.Gravity, heldHeight));
+        jump.isHeld = false;
+        jump.isSettled = true;
     }
 
     // Legs tuck while rising and reach for the ground while falling.
@@ -136,7 +193,7 @@ public sealed class AirborneState : ICharacterState {
 
     private void ContinueAfterLanding() {
         if (jumpBufferLeft > 0f) {
-            context.States.JumpWindup.Begin();
+            context.States.JumpWindup.Begin(false);
             return;
         }
         context.States.Walk.Begin();

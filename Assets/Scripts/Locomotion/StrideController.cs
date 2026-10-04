@@ -133,6 +133,8 @@ public class StrideController : MonoBehaviour {
 
     // Held by the jump wind-up to lower the body (the load before a jump). Crouching is a separate share of the gait.
     public float WindupCrouch { get; set; }
+    // Carries the body at the ground speed it has, whatever the move input (the jump wind-up of a moving character).
+    public bool HoldGroundSpeed { get; set; }
 
     // The body leans past both feet toward a spot where no foothold was found, e.g. walking off a ledge. On solid ground
     // balance steps keep the feet under the body, so leaning ahead alone is never a fall.
@@ -237,6 +239,10 @@ public class StrideController : MonoBehaviour {
 
     // The run input only picks the target speed; the gait itself follows the speed the body reaches.
     private void AccelerateGround((float direction, bool running, float deltaTime) input) {
+        if (HoldGroundSpeed) {
+            intendedSpeed = groundSpeed;
+            return;
+        }
         intendedSpeed = Preview.IsActive
             ? Preview.IntendedSpeed((input.direction, facing?.Sign ?? 1, walk.speed, run.speed))
             : Gaits.TargetSpeed((input.direction, input.running));

@@ -37,11 +37,13 @@ public sealed class LocomotionTelemetry {
     private readonly StrideController stride;
     private readonly (LocomotionPosture posture, TorsoMotion torso, HeadLook head, Transform postureRoot) upperBody;
     private readonly CrouchController crouch;
+    private readonly AirborneState airborne;
 
-    public LocomotionTelemetry(StrideController stride, (LocomotionPosture posture, TorsoMotion torso, HeadLook head, Transform postureRoot) upperBody, CrouchController crouch) {
+    public LocomotionTelemetry(StrideController stride, (LocomotionPosture posture, TorsoMotion torso, HeadLook head, Transform postureRoot) upperBody, (CrouchController crouch, AirborneState airborne) states) {
         this.stride = stride;
         this.upperBody = upperBody;
-        this.crouch = crouch;
+        crouch = states.crouch;
+        airborne = states.airborne;
     }
 
     public Mode Classification { get; private set; }
@@ -53,6 +55,8 @@ public sealed class LocomotionTelemetry {
     public float CrouchDrop { get; private set; }
     public float CrouchDepth { get; private set; }
     public Rect Hull { get; private set; }
+    // The flight, as the airborne state last reported it (all zero on the ground).
+    public AirSnapshot Air { get; private set; }
     // The gait counts as a crouch once more than half crouched.
     public bool IsCrouched => CrouchShare > 0.5f;
     public GaitPreview Preview { get; private set; }
@@ -112,6 +116,7 @@ public sealed class LocomotionTelemetry {
         ReadInput(frame.commands);
         ReadGait();
         ReadCrouch();
+        Air = airborne.Snapshot;
         ReadUpperBody();
         ReadBodyAndLegs(frame.time);
         ReadEvents(frame.time);

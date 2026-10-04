@@ -13,6 +13,8 @@ public class MovementPreset : ITuningPreset<MovementPreset> {
     public GaitProfile run;
     public GaitProfile crouchGait;
     public CrouchSettings crouch;
+    public JumpSettings jump;
+    public AirborneSettings air;
     public GaitTransitionSettings transitions;
     public BalanceSettings balance;
     public IdleStanceSettings idle;
@@ -31,6 +33,8 @@ public class MovementPreset : ITuningPreset<MovementPreset> {
             run = GaitProfile.Run,
             crouchGait = GaitProfile.Crouch,
             crouch = CrouchSettings.Default,
+            jump = new JumpSettings(),
+            air = new AirborneSettings(),
             transitions = GaitTransitionSettings.Default,
             balance = BalanceSettings.Default,
             idle = IdleStanceSettings.Default,
@@ -44,8 +48,13 @@ public class MovementPreset : ITuningPreset<MovementPreset> {
         };
     }
 
-    // Every field is a value, so a member-wise copy is a full, independent copy.
-    public MovementPreset Copy() => (MovementPreset)MemberwiseClone();
+    // The settings that are classes (held by reference by the states) are copied too.
+    public MovementPreset Copy() {
+        MovementPreset copy = (MovementPreset)MemberwiseClone();
+        copy.jump = jump.Clone();
+        copy.air = air.Clone();
+        return copy;
+    }
 
     public string ToJson() => JsonUtility.ToJson(this, true);
 

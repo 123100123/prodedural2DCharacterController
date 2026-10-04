@@ -19,6 +19,7 @@ public static class MovementTuningSchema {
             new Section("WALK", Gait(GaitSlot.Walk)),
             new Section("RUN", Gait(GaitSlot.Run)),
             new Section("CROUCH", Crouch()),
+            new Section("JUMP", Jump()),
             new Section("TRANSITIONS", Transitions()),
             new Section("ADVANCED", Advanced()),
         };
@@ -55,6 +56,27 @@ public static class MovementTuningSchema {
         parameters.AddRange(Spring(("Crouch transition", (p => p.crouch.spring, (p, s) => p.crouch.spring = s))));
         parameters.AddRange(Gait(GaitSlot.Crouch));
         return parameters;
+    }
+
+    private static List<Parameter> Jump() {
+        return new List<Parameter> {
+            new Parameter(("Windup", "Windup duration (standing)", Seconds), (0f, 0.6f), (p => p.jump.windupDuration, (p, v) => p.jump.windupDuration = v)),
+            new Parameter(("Windup", "Windup crouch depth", Units), (0f, 1.2f), (p => p.jump.crouchDepth, (p, v) => p.jump.crouchDepth = v)),
+            new Parameter(("Windup", "Shortest windup", Seconds), (0f, 0.3f), (p => p.jump.minWindup, (p, v) => p.jump.minWindup = v)),
+            new Parameter(("Windup", "Windup starts shrinking at", "share of run speed"), (0f, 1f), (p => p.jump.windupSpeedBand.x, (p, v) => p.jump.windupSpeedBand.x = v)),
+            new Parameter(("Windup", "Windup gone at", "share of run speed"), (0f, 1f), (p => p.jump.windupSpeedBand.y, (p, v) => p.jump.windupSpeedBand.y = v)),
+            new Parameter(("Launch", "Jump height (held)", Units), (0.5f, 6f), (p => p.jump.jumpHeight, (p, v) => p.jump.jumpHeight = v)),
+            new Parameter(("Launch", "Crouch jump height", "× full height"), (0.3f, 1f), (p => p.jump.crouchJumpScale, (p, v) => p.jump.crouchJumpScale = v)),
+            new Parameter(("Launch", "Hop height (tap)", Units), (0.1f, 3f), (p => p.jump.minHopHeight, (p, v) => p.jump.minHopHeight = v)),
+            new Parameter(("Launch", "Hold for the full jump", Seconds), (0.02f, 0.6f), (p => p.jump.fullHoldTime, (p, v) => p.jump.fullHoldTime = v)),
+            new Parameter(("Momentum", "Ground speed kept", Share), (0f, 1.5f), (p => p.jump.carry, (p, v) => p.jump.carry = v)),
+            new Parameter(("Momentum", "Forward impulse at a full run", UnitsPerSecond), (0f, 4f), (p => p.jump.forwardImpulse, (p, v) => p.jump.forwardImpulse = v)),
+            new Parameter(("Air control", "Air speed", UnitsPerSecond), (1f, 12f), (p => p.air.airSpeed, (p, v) => p.air.airSpeed = v)),
+            new Parameter(("Air control", "Air acceleration", UnitsPerSecondSquared), (2f, 80f), (p => p.air.airAcceleration, (p, v) => p.air.airAcceleration = v)),
+            new Parameter(("Air control", "Drag with no input", UnitsPerSecondSquared), (0f, 30f), (p => p.air.neutralDrag, (p, v) => p.air.neutralDrag = v)),
+            new Parameter(("Air control", "Coyote time", Seconds), (0f, 0.4f), (p => p.air.coyoteTime, (p, v) => p.air.coyoteTime = v)),
+            new Parameter(("Air control", "Jump buffer time", Seconds), (0f, 0.5f), (p => p.air.jumpBufferTime, (p, v) => p.air.jumpBufferTime = v)),
+        };
     }
 
     private static List<Parameter> Gait(GaitSlot slot) {

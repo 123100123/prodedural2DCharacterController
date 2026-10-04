@@ -27,7 +27,7 @@ public sealed class WalkState : ICharacterState {
         }
         if (commands.JumpPressed) {
             if (!context.States.Climb.TryBeginFromStance()) {
-                context.States.JumpWindup.Begin();
+                context.States.JumpWindup.Begin(true);
             }
             return;
         }
@@ -49,17 +49,7 @@ public sealed class WalkState : ICharacterState {
 
     // Running needs the run input and no aiming: aiming slows the character to a walk.
     private (float direction, bool running, (float min, float max) feetSpan, (float min, float max) bodySpan) GaitIntent(PlayerCommands commands) {
-        ((float min, float max) feet, (float min, float max) body) spans = SpansWithinWalls();
+        ((float min, float max) feet, (float min, float max) body) spans = WallSpans.Within(context.Rig);
         return (commands.MoveAxis, commands.RunHeld && !commands.IsAiming, spans.feet, spans.body);
-    }
-
-    // The body may travel as far as its hull is free; feet may reach the wall face itself, a hull half-width further.
-    private ((float min, float max) feet, (float min, float max) body) SpansWithinWalls() {
-        float bodyX = context.Rig.Body.position.x;
-        float lookAhead = context.Rig.Stride.WallProbeDistance;
-        KinematicBodyMotor motor = context.Rig.Motor;
-
-        (float min, float max) body = (bodyX - motor.FreeDistance(-1f, lookAhead), bodyX + motor.FreeDistance(1f, lookAhead));
-        return ((body.min - motor.HullHalfWidth, body.max + motor.HullHalfWidth), body);
     }
 }

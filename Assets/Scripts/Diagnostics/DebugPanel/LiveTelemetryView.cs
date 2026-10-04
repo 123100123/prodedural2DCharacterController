@@ -17,6 +17,7 @@ public sealed class LiveTelemetryView {
         AddFlags();
         AddSection(("Gait", GaitReadouts()));
         AddSection(("Crouch", CrouchReadouts()));
+        AddSection(("Airborne", AirborneReadouts()));
         AddSection(("Timing", TimingReadouts()));
         AddSection(("Support", SupportReadouts()));
         AddSection(("Height", HeightReadouts()));
@@ -48,6 +49,14 @@ public sealed class LiveTelemetryView {
     private static IEnumerable<(string label, Func<LocomotionTelemetry, string> format)> CrouchReadouts() {
         yield return ("Crouch share", t => $"{t.CrouchShare:0.00}{(t.IsHeadroomBlocked ? "  (held by a low ceiling)" : t.IsCrouching ? "  (crouching)" : "")}");
         yield return ("Pelvis sunk / full crouch depth", t => $"{t.CrouchDrop:0.000} / {t.CrouchDepth:0.000} u");
+    }
+
+    private static IEnumerable<(string label, Func<LocomotionTelemetry, string> format)> AirborneReadouts() {
+        yield return ("In the air", t => t.Air.IsAirborne ? (t.Air.LaunchedByJump ? "jump" : "fall") : "no");
+        yield return ("Velocity X / Y", t => t.Air.IsAirborne ? $"{t.Air.Velocity.x:0.00} / {t.Air.Velocity.y:0.00} u/s" : "-");
+        yield return ("Launch momentum X / Y", t => t.Air.IsAirborne ? $"{t.Air.LaunchVelocity.x:0.00} / {t.Air.LaunchVelocity.y:0.00} u/s" : "-");
+        yield return ("Time airborne / falling", t => t.Air.IsAirborne ? $"{t.Air.TimeAirborne:0.00} / {t.Air.TimeFalling:0.00} s" : "-");
+        yield return ("Time since launch", t => t.Air.IsAirborne ? $"{t.Air.TimeSinceLaunch:0.00} s" : "-");
     }
 
     private static string ClassificationText(LocomotionTelemetry t) {

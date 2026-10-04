@@ -7,6 +7,8 @@ public sealed class MovementTuning {
     private readonly HeadLook head;
     private readonly ArmSwing arms;
     private readonly CrouchController crouch;
+    private readonly JumpSettings jump;
+    private readonly AirborneSettings air;
 
     public MovementTuning(CharacterParts parts) {
         stride = parts.Stride;
@@ -15,6 +17,8 @@ public sealed class MovementTuning {
         head = parts.Head;
         arms = parts.Arms;
         crouch = parts.Crouch;
+        jump = parts.Jump;
+        air = parts.Airborne;
     }
 
     public MovementPreset Capture() {
@@ -23,6 +27,8 @@ public sealed class MovementTuning {
             run = stride.Run,
             crouchGait = stride.CrouchGait,
             crouch = crouch.Settings,
+            jump = jump.Clone(),
+            air = air.Clone(),
             transitions = stride.Transitions,
             balance = stride.Balance,
             idle = stride.IdleStance,
@@ -41,6 +47,8 @@ public sealed class MovementTuning {
         stride.Run = preset.run;
         stride.CrouchGait = preset.crouchGait;
         crouch.Settings = preset.crouch;
+        jump.CopyFrom(preset.jump);
+        air.CopyFrom(preset.air);
         stride.Transitions = preset.transitions;
         stride.Balance = preset.balance;
         stride.IdleStance = preset.idle;
