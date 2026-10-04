@@ -46,7 +46,7 @@ public class TorsoMotion {
 
         float lungs = BreathDepth(deltaTime);
         float fold = rig.Stride.CrouchSettings.chestFold * rig.Stride.CrouchShare;
-        float forwardPitch = pitch.Update((GaitFlex() + fold - breathing.pitch * lungs, deltaTime), spring);
+        float forwardPitch = pitch.Update((GaitFlex() + AirPitch() + fold - breathing.pitch * lungs, deltaTime), spring);
         PoseChest((forwardPitch, lungs));
     }
 
@@ -55,6 +55,11 @@ public class TorsoMotion {
         float forwardTurnSign = -rig.Facing.AuthoredSign;
         rig.Chest.localRotation = Quaternion.Euler(0f, 0f, pose.forwardPitch * forwardTurnSign) * restChest;
         rig.Chest.localPosition = restChestPosition + restChestPosition.normalized * (breathing.rise * pose.lungs);
+    }
+
+    // In the air the chest takes the flex of the flight pose (extended with the push-off, folded for the landing).
+    private float AirPitch() {
+        return !rig.Stride.IsDrivingGait && rig.AirPose.IsActive ? rig.AirPose.Pose.chestPitch : 0f;
     }
 
     // The per-step flex and extension, fading out as the character slows to a stop.

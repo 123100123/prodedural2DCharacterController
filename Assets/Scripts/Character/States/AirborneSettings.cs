@@ -13,14 +13,8 @@ public class AirborneSettings {
     [Tooltip("A jump pressed this long before landing fires on touchdown.")]
     public float jumpBufferTime = 0.15f;
 
-    [Header("Leg pose (x forward, y down from the body pivot)")]
-    public Vector2 leadFootTucked = new Vector2(0.55f, -1.5f);
-    public Vector2 trailFootTucked = new Vector2(-0.15f, -1.75f);
-    public Vector2 leadFootReaching = new Vector2(0.3f, -2.05f);
-    public Vector2 trailFootReaching = new Vector2(-0.2f, -2.15f);
-    [Tooltip("Vertical speed at which legs are fully tucked (rising) or fully reaching (falling).")]
-    public float poseBlendSpeed = 4f;
-    [Tooltip("Fraction of the remaining pose distance covered per 60 Hz frame.")]
+    [Header("Leg pose")]
+    [Tooltip("Fraction of the remaining pose distance the feet cover per 60 Hz frame (the poses themselves are AirPoseSettings).")]
     public float legPoseEase = 0.3f;
 
     [Header("Landing")]
@@ -40,11 +34,6 @@ public class AirborneSettings {
         neutralDrag = source.neutralDrag;
         coyoteTime = source.coyoteTime;
         jumpBufferTime = source.jumpBufferTime;
-        leadFootTucked = source.leadFootTucked;
-        trailFootTucked = source.trailFootTucked;
-        leadFootReaching = source.leadFootReaching;
-        trailFootReaching = source.trailFootReaching;
-        poseBlendSpeed = source.poseBlendSpeed;
         legPoseEase = source.legPoseEase;
         landingSpeedCarry = source.landingSpeedCarry;
         maxCarriedLandingSpeed = source.maxCarriedLandingSpeed;

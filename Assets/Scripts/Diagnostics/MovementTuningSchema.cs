@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using static TuningUnits;
 using Parameter = TuningParameter<MovementPreset>;
 using Section = TuningSection<MovementPreset>;
@@ -20,6 +21,7 @@ public static class MovementTuningSchema {
             new Section("RUN", Gait(GaitSlot.Run)),
             new Section("CROUCH", Crouch()),
             new Section("JUMP", Jump()),
+            new Section("FALL", Fall()),
             new Section("TRANSITIONS", Transitions()),
             new Section("ADVANCED", Advanced()),
         };
@@ -76,7 +78,48 @@ public static class MovementTuningSchema {
             new Parameter(("Air control", "Drag with no input", UnitsPerSecondSquared), (0f, 30f), (p => p.air.neutralDrag, (p, v) => p.air.neutralDrag = v)),
             new Parameter(("Air control", "Coyote time", Seconds), (0f, 0.4f), (p => p.air.coyoteTime, (p, v) => p.air.coyoteTime = v)),
             new Parameter(("Air control", "Jump buffer time", Seconds), (0f, 0.5f), (p => p.air.jumpBufferTime, (p, v) => p.air.jumpBufferTime = v)),
-        };
+            new Parameter(("Pose blend", "Rising / falling at", UnitsPerSecond), (1f, 15f), (p => p.airPose.apexBand, (p, v) => p.airPose.apexBand = v)),
+            new Parameter(("Pose blend", "Running pose starts at", "share of run speed"), (0f, 1f), (p => p.airPose.runningBand.x, (p, v) => p.airPose.runningBand.x = v)),
+            new Parameter(("Pose blend", "Running pose complete at", "share of run speed"), (0f, 1f), (p => p.airPose.runningBand.y, (p, v) => p.airPose.runningBand.y = v)),
+            new Parameter(("Pose blend", "Foot ease", "share/frame"), (0.02f, 1f), (p => p.air.legPoseEase, (p, v) => p.air.legPoseEase = v)),
+            new Parameter(("Push-off", "Push-off duration", Seconds), (0f, 0.6f), (p => p.airPose.pushOffDuration, (p, v) => p.airPose.pushOffDuration = v)),
+            new Parameter(("Push-off", "Trailing foot reaches back", Units), (-1.5f, 1f), (p => p.airPose.pushOffReach.x, (p, v) => p.airPose.pushOffReach.x = v)),
+            new Parameter(("Push-off", "Trailing foot reaches down", Units), (-1.5f, 1f), (p => p.airPose.pushOffReach.y, (p, v) => p.airPose.pushOffReach.y = v)),
+        }.Concat(PoseParameters("Rising pose (standing)", (p => p.airPose.ascentStanding, (p, pose) => p.airPose.ascentStanding = pose)))
+         .Concat(PoseParameters("Rising pose (running)", (p => p.airPose.ascentRunning, (p, pose) => p.airPose.ascentRunning = pose)))
+         .Concat(PoseParameters("Apex pose", (p => p.airPose.apex, (p, pose) => p.airPose.apex = pose)))
+         .ToList();
+    }
+
+    private static List<Parameter> Fall() {
+        return PoseParameters("Falling pose (standing)", (p => p.airPose.descentStanding, (p, pose) => p.airPose.descentStanding = pose))
+            .Concat(PoseParameters("Falling pose (running)", (p => p.airPose.descentRunning, (p, pose) => p.airPose.descentRunning = pose)))
+            .ToList();
+    }
+
+    // The nine values of one airborne pose: the feet, the arms, the elbows and the torso.
+    private static IEnumerable<Parameter> PoseParameters(string group, (Func<MovementPreset, AirPose> read, Action<MovementPreset, AirPose> write) pose) {
+        yield return PoseValue((group, "Lead foot forward", Units), (-1f, 2.5f), (pose, (ref AirPose a, float v) => a.leadFoot.x = v, a => a.leadFoot.x));
+        yield return PoseValue((group, "Lead foot height", Units), (-3f, 0f), (pose, (ref AirPose a, float v) => a.leadFoot.y = v, a => a.leadFoot.y));
+        yield return PoseValue((group, "Trail foot forward", Units), (-2.5f, 1.5f), (pose, (ref AirPose a, float v) => a.trailFoot.x = v, a => a.trailFoot.x));
+        yield return PoseValue((group, "Trail foot height", Units), (-3f, 0f), (pose, (ref AirPose a, float v) => a.trailFoot.y = v, a => a.trailFoot.y));
+        yield return PoseValue((group, "Front arm raise", Degrees), (-90f, 180f), (pose, (ref AirPose a, float v) => a.armFront = v, a => a.armFront));
+        yield return PoseValue((group, "Back arm raise", Degrees), (-90f, 180f), (pose, (ref AirPose a, float v) => a.armBack = v, a => a.armBack));
+        yield return PoseValue((group, "Elbow bend", Share), (0f, 1f), (pose, (ref AirPose a, float v) => a.elbowBend = v, a => a.elbowBend));
+        yield return PoseValue((group, "Lean", Degrees), (-30f, 40f), (pose, (ref AirPose a, float v) => a.lean = v, a => a.lean));
+        yield return PoseValue((group, "Chest pitch", Degrees), (-30f, 40f), (pose, (ref AirPose a, float v) => a.chestPitch = v, a => a.chestPitch));
+    }
+
+    private delegate void PoseWriter(ref AirPose pose, float value);
+
+    private static Parameter PoseValue((string group, string label, string unit) display, (float min, float max) range, ((Func<MovementPreset, AirPose> read, Action<MovementPreset, AirPose> write) pose, PoseWriter set, Func<AirPose, float> get) field) {
+        return new Parameter(display, range, (
+            preset => field.get(field.pose.read(preset)),
+            (preset, value) => {
+                AirPose pose = field.pose.read(preset);
+                field.set(ref pose, value);
+                field.pose.write(preset, pose);
+            }));
     }
 
     private static List<Parameter> Gait(GaitSlot slot) {

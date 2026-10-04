@@ -57,6 +57,19 @@ public sealed class LiveTelemetryView {
         yield return ("Launch momentum X / Y", t => t.Air.IsAirborne ? $"{t.Air.LaunchVelocity.x:0.00} / {t.Air.LaunchVelocity.y:0.00} u/s" : "-");
         yield return ("Time airborne / falling", t => t.Air.IsAirborne ? $"{t.Air.TimeAirborne:0.00} / {t.Air.TimeFalling:0.00} s" : "-");
         yield return ("Time since launch", t => t.Air.IsAirborne ? $"{t.Air.TimeSinceLaunch:0.00} s" : "-");
+        yield return ("Phase", AirPhaseText);
+        yield return ("Pose blend: rising / hang / falling", t => t.Air.IsAirborne ? $"{t.Air.Ascent:0.00} / {t.Air.Apex:0.00} / {t.Air.Descent:0.00}" : "-");
+        yield return ("Running pose share", t => t.Air.IsAirborne ? $"{t.Air.RunningPoseShare:0.00}" : "-");
+    }
+
+    private static string AirPhaseText(LocomotionTelemetry t) {
+        if (!t.Air.IsAirborne) {
+            return "-";
+        }
+        if (t.Air.Ascent >= t.Air.Apex && t.Air.Ascent >= t.Air.Descent) {
+            return "ASCENT";
+        }
+        return t.Air.Descent >= t.Air.Apex ? "DESCENT" : "APEX";
     }
 
     private static string ClassificationText(LocomotionTelemetry t) {

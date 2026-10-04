@@ -27,6 +27,8 @@ public sealed class CharacterRig {
     // The pelvis bone, which carries the sustained locomotion lean; the chest's own motion rides on top of it.
     public Transform PostureRoot { get; }
     public Transform Body => Stride.transform;
+    // The pose the upper body takes while the character is in the air; none on the ground.
+    public AirPoseFrame AirPose { get; set; }
 
     // Applies this frame's arm and head requests; parts nobody posed relax toward rest.
     public void ApplyUpperBodyPose(float deltaTime) {

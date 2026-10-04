@@ -4,7 +4,10 @@ using UnityEngine;
 // short by releasing the button, flight leg pose, coyote jump, buffered jump, ledge grabs and landing.
 public sealed class AirborneState : ICharacterState {
     private readonly StateContext context;
-    private readonly (AirborneSettings air, JumpSettings jump) settings;
+    private readonly (AirborneSettings air, JumpSettings jump, AirPoseSettings pose) settings;
+
+    // Feet reach at most this share of the leg's length, so the knee never locks.
+    private const float MaxLegExtension = 0.985f;
 
     private float timeInAir;
     private float timeFalling;
@@ -17,7 +20,7 @@ public sealed class AirborneState : ICharacterState {
     private (float fullHeight, float heldFor, bool isHeld, bool isSettled) jump = (0f, 0f, false, true);
     private AirSnapshot snapshot;
 
-    public AirborneState(StateContext context, (AirborneSettings air, JumpSettings jump) settings) {
+    public AirborneState(StateContext context, (AirborneSettings air, JumpSettings jump, AirPoseSettings pose) settings) {
         this.context = context;
         this.settings = settings;
     }
@@ -83,9 +86,23 @@ public sealed class AirborneState : ICharacterState {
         if (context.States.Climb.TryBeginFromAir()) {
             return;
         }
+        SolvePose();
         PoseLegsForFlight(deltaTime);
         context.Rig.Stride.PlaceStrideTargetUnderBody();
         UpdateSnapshot();
+    }
+
+    // The pose of this frame of the flight, read by the legs here and by the arms, posture and chest.
+    private void SolvePose() {
+        Vector2 velocity = context.Rig.Motor.Velocity;
+        AirbornePoseSolver.Motion motion = new AirbornePoseSolver.Motion((velocity.y, velocity.x), context.Rig.Stride.Run.speed, timeSinceLaunch);
+        context.Rig.AirPose = new AirPoseFrame(AirbornePoseSolver.Solve(motion, settings.pose));
+
+        AirPhase phase = AirPhase.From(velocity.y, settings.pose.apexBand);
+        snapshot.Ascent = phase.Ascent;
+        snapshot.Apex = phase.Apex;
+        snapshot.Descent = phase.Descent;
+        snapshot.RunningPoseShare = AirbornePoseSolver.RunningShare(motion, settings.pose);
     }
 
     private void UpdateSnapshot() {
@@ -96,7 +113,10 @@ public sealed class AirborneState : ICharacterState {
         snapshot.TimeSinceLaunch = timeSinceLaunch;
     }
 
-    public void Exit() => snapshot = default;
+    public void Exit() {
+        snapshot = default;
+        context.Rig.AirPose = AirPoseFrame.None;
+    }
 
     private void JumpOrBufferJump() {
         KinematicBodyMotor motor = context.Rig.Motor;
@@ -142,21 +162,21 @@ public sealed class AirborneState : ICharacterState {
         jump.isSettled = true;
     }
 
-    // Legs tuck while rising and reach for the ground while falling.
+    // The legs follow the flight pose: the push-off, the tuck at the top and the reach down for the ground.
     private void PoseLegsForFlight(float deltaTime) {
-        float reaching = Mathf.InverseLerp(settings.air.poseBlendSpeed, -settings.air.poseBlendSpeed, context.Rig.Motor.Velocity.y);
+        AirPose pose = context.Rig.AirPose.Pose;
         float ease = FrameRateEase.FractionForFrame(settings.air.legPoseEase, deltaTime);
-
-        Vector2 leadOffset = Vector2.Lerp(settings.air.leadFootTucked, settings.air.leadFootReaching, reaching);
-        Vector2 trailOffset = Vector2.Lerp(settings.air.trailFootTucked, settings.air.trailFootReaching, reaching);
-        legs.lead.SwingFreelyToward(FootTargetAboveGround(leadOffset), ease);
-        legs.trail.SwingFreelyToward(FootTargetAboveGround(trailOffset), ease);
+        legs.lead.SwingFreelyToward(FootTargetAboveGround((pose.leadFoot, legs.lead)), ease);
+        legs.trail.SwingFreelyToward(FootTargetAboveGround((pose.trailFoot, legs.trail)), ease);
     }
 
-    // Feet never aim below the ground they are reaching for.
-    private Vector2 FootTargetAboveGround(Vector2 offset) {
+    // Feet never aim below the ground they are reaching for, nor further from the hip than the leg is long.
+    private Vector2 FootTargetAboveGround((Vector2 offset, LegStepper leg) foot) {
         Vector2 body = context.Rig.Body.position;
-        Vector2 poseTarget = body + new Vector2(offset.x * context.Rig.Facing.Sign, offset.y);
+        Vector2 offset = foot.offset;
+        Vector2 hip = foot.leg.HipPosition;
+        Vector2 requested = body + new Vector2(offset.x * context.Rig.Facing.Sign, offset.y);
+        Vector2 poseTarget = hip + Vector2.ClampMagnitude(requested - hip, foot.leg.LegLength * MaxLegExtension);
         Vector2 rayOrigin = new Vector2(poseTarget.x, body.y);
 
         bool hitsGround = FootholdProbe.TryFindGroundBelow((rayOrigin, body.y - poseTarget.y), context.Rig.Stride.GroundMask, out Vector2 ground);

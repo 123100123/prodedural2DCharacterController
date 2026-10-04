@@ -28,6 +28,7 @@ public class CharacterDriver : MonoBehaviour {
     [SerializeField] private CrouchController crouch = new CrouchController();
     [SerializeField] private AirborneSettings airborne = new AirborneSettings();
     [SerializeField] private JumpSettings jump = new JumpSettings();
+    [SerializeField] private AirPoseSettings airPose = new AirPoseSettings();
     [SerializeField] private RollSettings roll = new RollSettings();
     [SerializeField] private ClimbSettings climb = new ClimbSettings();
 
@@ -47,7 +48,7 @@ public class CharacterDriver : MonoBehaviour {
 
     public CharacterEvents Events { get; private set; }
     // What debug and tuning tools need; the character never reads anything back from them.
-    public CharacterParts Parts => new CharacterParts((stride, posture, torsoMotion, head, armSwing), (crouch, postureRoot), (jump, airborne, states?.Airborne));
+    public CharacterParts Parts => new CharacterParts((stride, posture, torsoMotion, head, armSwing), (crouch, postureRoot), (jump, airborne, states?.Airborne, airPose));
     public PlayerCommands LatestCommands => latestCommands;
 
     // Composes here rather than in Awake: a script recompile during play mode reloads the domain,
@@ -128,7 +129,7 @@ public class CharacterDriver : MonoBehaviour {
         built.Register((
             new WalkState(context),
             new JumpWindupState(context, (jump, airborne)),
-            new AirborneState(context, (airborne, jump)),
+            new AirborneState(context, (airborne, jump, airPose)),
             new RollState(context, roll),
             new ClimbState(context, climb)));
         return built;

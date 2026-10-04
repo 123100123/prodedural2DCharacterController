@@ -5,8 +5,8 @@ using UnityEngine;
 // whole torso tilts as one line rather than bending at the waist): a modest base lean that grows with the pace and a
 // lean into acceleration, through a slow, critically damped spring so the posture carries the body's inertia instead
 // of following individual steps. Most of the forward body line comes from the pelvis travelling over its support foot
-// (StrideController); this lean only adds to it. When the gait is not driving (airborne, rolling, climbing) it relaxes
-// upright. The chest's per-step flex rides on top of it (TorsoMotion).
+// (StrideController); this lean only adds to it. When the gait is not driving it follows the flight pose in the air and
+// relaxes upright rolling or climbing. The chest's per-step flex rides on top of it (TorsoMotion).
 [Serializable]
 public class LocomotionPosture {
     [SerializeField] private PostureSettings settings = PostureSettings.Default;
@@ -34,11 +34,14 @@ public class LocomotionPosture {
             return;
         }
         AccelerationLean = MeasureAccelerationLean(deltaTime);
-        TargetLean = rig.Stride.IsDrivingGait ? PostureLean.Total((BaseLean(), AccelerationLean), settings) : 0f;
+        TargetLean = rig.Stride.IsDrivingGait ? PostureLean.Total((BaseLean(), AccelerationLean), settings) : AirLean();
         float forwardLean = lean.Update((TargetLean, deltaTime), settings.spring);
         // Turning about +z leans an authored right-facing rig back, so forward is the opposite of the authored facing.
         rig.PostureRoot.localRotation = Quaternion.Euler(0f, 0f, -forwardLean * rig.Facing.AuthoredSign) * restRotation;
     }
+
+    // In the air the posture takes the lean of the flight pose; with no flight (rolling, climbing) it relaxes upright.
+    private float AirLean() => rig.AirPose.IsActive ? rig.AirPose.Pose.lean : 0f;
 
     private float BaseLean() {
         StrideController stride = rig.Stride;

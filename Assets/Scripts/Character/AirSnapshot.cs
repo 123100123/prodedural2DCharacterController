@@ -12,4 +12,10 @@ public struct AirSnapshot {
     // Seconds spent moving downward.
     public float TimeFalling;
     public float TimeSinceLaunch;
+    // How far the flight is rising, hanging and falling (add up to 1), and how far the pose has moved from standing to
+    // running.
+    public float Ascent;
+    public float Apex;
+    public float Descent;
+    public float RunningPoseShare;
 }

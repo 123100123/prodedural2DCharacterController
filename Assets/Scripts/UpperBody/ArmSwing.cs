@@ -4,7 +4,7 @@ using UnityEngine;
 // Poses the arms when they are not aiming. Walking and running, they swing opposite to the legs on the gait cycle, the
 // hand dragging a little behind the shoulder and the elbow flexing on the forward swing; the size of the swing and the
 // elbow bend come from the gait. They swing about plumb, like pendulums, so leaning the torso into a run does not carry
-// the swing back with it. Winding up a jump they swing back; in the air they rise for balance.
+// the swing back with it. Winding up a jump they swing back; in the air they take the arms of the flight pose.
 [Serializable]
 public class ArmSwing {
     [SerializeField] private ArmSwingSettings settings = ArmSwingSettings.Default;
@@ -12,9 +12,6 @@ public class ArmSwing {
     [Header("Jump")]
     [Tooltip("Arms swing back this far (degrees) while crouching to jump.")]
     [SerializeField] private float windupSwing = 40f;
-    [Tooltip("Arm raise (degrees forward) while rising and while falling.")]
-    [SerializeField] private Vector2 airborneRaise = new Vector2(80f, 45f);
-    [SerializeField] private float airborneElbowBend = 0.3f;
 
     private CharacterRig rig;
 
@@ -34,7 +31,8 @@ public class ArmSwing {
     }
 
     public void Tick(float deltaTime) {
-        ((float front, float back) angles, (float front, float back) elbows) pose = rig.Stride.IsDrivingGait ? GroundedPose() : AirbornePose();
+        bool isFlying = !rig.Stride.IsDrivingGait && rig.AirPose.IsActive;
+        ((float front, float back) angles, (float front, float back) elbows) pose = isFlying ? AirbornePose() : GroundedPose();
         float frontAngle = swing.front.Update((pose.angles.front, deltaTime), settings.spring);
         float backAngle = swing.back.Update((pose.angles.back, deltaTime), settings.spring);
         float frontBend = bend.front.Update((pose.elbows.front, deltaTime), settings.spring);
@@ -58,11 +56,10 @@ public class ArmSwing {
         return (angles, (ElbowBendFor((angles.front, baseBend)), ElbowBendFor((angles.back, baseBend))));
     }
 
-    // Both arms rise as the body rises and settle lower, ready for the landing, as it falls.
+    // The arms of the flight pose: thrown up with the push-off, loosening at the top, settling for the landing.
     private ((float front, float back) angles, (float front, float back) elbows) AirbornePose() {
-        float rising = Mathf.InverseLerp(-6f, 6f, rig.Motor.Velocity.y);
-        float raise = Mathf.Lerp(airborneRaise.y, airborneRaise.x, rising);
-        return ((raise, raise), (airborneElbowBend, airborneElbowBend));
+        AirPose pose = rig.AirPose.Pose;
+        return ((pose.armFront, pose.armBack), (pose.elbowBend, pose.elbowBend));
     }
 
     // Elbows flex as the arm swings forward and straighten as it swings back.
