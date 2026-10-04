@@ -5,15 +5,19 @@ using UnityEngine.InputSystem;
 public sealed class PlayerInputReader : IDisposable {
     // Presses shorter than this toggle aiming instead of holding it (touchpad right-clicks are instant).
     private const float AimTapMaxDuration = 0.25f;
+    // Holding crouch crouches while held; a quicker tap latches it on or off.
+    private const float CrouchTapMaxDuration = 0.25f;
 
     private readonly InputAction move = new InputAction("Move", InputActionType.Value, expectedControlType: "Axis");
     private readonly InputAction jump = new InputAction("Jump", InputActionType.Button);
     private readonly InputAction roll = new InputAction("Roll", InputActionType.Button);
     private readonly InputAction run = new InputAction("Run", InputActionType.Button);
     private readonly InputAction aim = new InputAction("Aim", InputActionType.Button);
+    private readonly InputAction crouch = new InputAction("Crouch", InputActionType.Button);
     private readonly InputAction fire = new InputAction("Fire", InputActionType.Button);
     private readonly InputAction pointer = new InputAction("Pointer", InputActionType.Value, expectedControlType: "Vector2");
     private readonly HoldOrTapToggle aimMode = new HoldOrTapToggle(AimTapMaxDuration);
+    private readonly HoldOrTapToggle crouchMode = new HoldOrTapToggle(CrouchTapMaxDuration);
 
     public PlayerInputReader() {
         BindMovement();
@@ -33,9 +37,11 @@ public sealed class PlayerInputReader : IDisposable {
         return new PlayerCommands {
             MoveAxis = isTyping ? 0f : move.ReadValue<float>(),
             JumpPressed = !isTyping && jump.WasPressedThisFrame(),
+            JumpHeld = !isTyping && jump.IsPressed(),
             RollPressed = !isTyping && roll.WasPressedThisFrame(),
             RunHeld = !isTyping && run.IsPressed(),
             IsAiming = ReadAimMode(isPointerOverUi),
+            CrouchRequested = ReadCrouchMode(isTyping),
             FirePressed = !isPointerOverUi && fire.WasPressedThisFrame(),
             PointerScreenPosition = pointer.ReadValue<UnityEngine.Vector2>(),
         };
@@ -46,6 +52,13 @@ public sealed class PlayerInputReader : IDisposable {
             ? (false, false, false)
             : (aim.WasPressedThisFrame(), aim.WasReleasedThisFrame(), aim.IsPressed());
         return aimMode.Update(button, UnityEngine.Time.unscaledTime);
+    }
+
+    private bool ReadCrouchMode(bool isTyping) {
+        (bool wentDown, bool wentUp, bool isHeld) button = isTyping
+            ? (false, false, false)
+            : (crouch.WasPressedThisFrame(), crouch.WasReleasedThisFrame(), crouch.IsPressed());
+        return crouchMode.Update(button, UnityEngine.Time.unscaledTime);
     }
 
     private void BindMovement() {
@@ -63,6 +76,8 @@ public sealed class PlayerInputReader : IDisposable {
         run.AddBinding("<Gamepad>/leftStickPress");
         aim.AddBinding("<Mouse>/rightButton");
         aim.AddBinding("<Gamepad>/leftTrigger");
+        crouch.AddBinding("<Keyboard>/leftCtrl");
+        crouch.AddBinding("<Gamepad>/rightStickPress");
         fire.AddBinding("<Mouse>/leftButton");
         fire.AddBinding("<Gamepad>/rightTrigger");
         pointer.AddBinding("<Pointer>/position");
@@ -74,6 +89,7 @@ public sealed class PlayerInputReader : IDisposable {
         apply(roll);
         apply(run);
         apply(aim);
+        apply(crouch);
         apply(fire);
         apply(pointer);
     }

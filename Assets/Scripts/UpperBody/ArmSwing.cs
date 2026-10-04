@@ -45,13 +45,13 @@ public class ArmSwing {
     }
 
     // The back arm is opposite the front leg: it reaches forward as the front leg lands; the front arm mirrors it.
-    // A held crouch (a jump wind-up) swings both arms back.
+    // A jump wind-up swings both arms back.
     private ((float front, float back) angles, (float front, float back) elbows) GroundedPose() {
         StrideController stride = rig.Stride;
         GaitProfile gait = stride.CurrentGait;
         float contact = GaitWaves.FrontLegContact(gait.dutyFactor);
         float wave = GaitWaves.OppositeArmSwing((stride.GaitPhase, contact, settings.swingLag)) * gait.armSwing * stride.Pace.Moving;
-        float windup = stride.HeldCrouch > 0f ? -windupSwing : 0f;
+        float windup = stride.WindupCrouch > 0f ? -windupSwing : 0f;
 
         (float front, float back) angles = (windup - wave, windup + wave);
         float baseBend = gait.armBend * stride.Pace.Moving;

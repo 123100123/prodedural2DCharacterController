@@ -20,16 +20,18 @@ public sealed class AirborneState : ICharacterState {
 
     public void Launch(Vector2 velocity) => BeginFlight((velocity, false));
 
-    // Only the walking speed carries over; vertical motion of the gait is not a launch.
+    // The whole ground speed carries over (up to the run speed); vertical motion of the gait is not a launch.
     public void Fall(Vector2 walkVelocity) {
-        float carriedSpeedX = Mathf.Clamp(walkVelocity.x, -settings.air.airSpeed, settings.air.airSpeed);
+        float runSpeed = context.Rig.Stride.Run.speed;
+        float carriedSpeedX = Mathf.Clamp(walkVelocity.x, -runSpeed, runSpeed);
         BeginFlight((new Vector2(carriedSpeedX, 0f), true));
     }
 
+    // The velocity is set after the change: the state being left may write the motor velocity in its Exit.
     private void BeginFlight((Vector2 velocity, bool allowsCoyoteJump) entry) {
-        context.Rig.Motor.Velocity = entry.velocity;
         canCoyoteJump = entry.allowsCoyoteJump;
         context.Machine.ChangeTo(this);
+        context.Rig.Motor.Velocity = entry.velocity;
     }
 
     public void Enter() {

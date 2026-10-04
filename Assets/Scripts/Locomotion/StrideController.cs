@@ -118,8 +118,8 @@ public class StrideController : MonoBehaviour {
     // True while a grounded state ticks the gait this frame (false in the air, rolling or climbing).
     public bool IsDrivingGait => Time.frameCount - lastGaitFrame <= 1;
 
-    // Held by a state (e.g. a jump wind-up) to lower the body.
-    public float HeldCrouch { get; set; }
+    // Held by the jump wind-up to lower the body (the load before a jump). Crouching is a separate share of the gait.
+    public float WindupCrouch { get; set; }
 
     // The body leans past both feet toward a spot where no foothold was found, e.g. walking off a ledge. On solid ground
     // balance steps keep the feet under the body, so leaning ahead alone is never a fall.
@@ -582,7 +582,7 @@ public class StrideController : MonoBehaviour {
         return BaselineHeight + bob;
     }
 
-    private float BaselineHeight => StanceHeight + bodyHeight - CurrentGait.pelvisDrop * Pace.Moving - HeldCrouch;
+    private float BaselineHeight => StanceHeight + bodyHeight - CurrentGait.pelvisDrop * Pace.Moving - WindupCrouch;
 
     private float LowestPhase => GaitWaves.LowestPhase((CurrentGait.dutyFactor, CurrentGait.lowAfterContact));
 

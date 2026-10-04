@@ -18,7 +18,7 @@ public sealed class JumpWindupState : ICharacterState {
     public void Enter() {
         elapsed = 0f;
         context.Rig.Stride.BeginGroundedMotion(context.Rig.Motor.Velocity);
-        context.Rig.Stride.HeldCrouch = settings.jump.crouchDepth;
+        context.Rig.Stride.WindupCrouch = settings.jump.crouchDepth;
     }
 
     public void Tick(float deltaTime, PlayerCommands commands) {
@@ -37,7 +37,7 @@ public sealed class JumpWindupState : ICharacterState {
     }
 
     public void Exit() {
-        context.Rig.Stride.HeldCrouch = 0f;
+        context.Rig.Stride.WindupCrouch = 0f;
     }
 
     private Vector2 LaunchVelocity(float moveAxis) {

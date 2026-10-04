@@ -1,6 +1,8 @@
 using UnityEngine;
 
 // Composition root for the procedural character: builds the collaborators and runs one ordered tick per frame.
+// Runs ahead of the components that subscribe to its events (lights, tools), so Events exists when they enable.
+[DefaultExecutionOrder(-50)]
 public class CharacterDriver : MonoBehaviour {
     [Header("Body")]
     [SerializeField] private StrideController stride;
