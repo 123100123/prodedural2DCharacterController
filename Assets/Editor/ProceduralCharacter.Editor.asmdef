@@ -1,7 +1,9 @@
 {
     "name": "ProceduralCharacter.Editor",
     "rootNamespace": "",
-    "references": [],
+    "references": [
+        "ProceduralCharacter.Runtime"
+    ],
     "includePlatforms": [
         "Editor"
     ],
