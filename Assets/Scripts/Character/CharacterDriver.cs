@@ -41,6 +41,7 @@ public class CharacterDriver : MonoBehaviour {
 
     [Header("Camera")]
     [SerializeField] private FollowCamera followCamera = new FollowCamera();
+    [SerializeField] private CameraFeelSettings cameraFeel = new CameraFeelSettings();
 
     private PlayerInputReader input;
     private CharacterStateMachine machine;
@@ -49,10 +50,12 @@ public class CharacterDriver : MonoBehaviour {
     private ShootingStance shootingStance;
     private WeaponController weaponController;
     private PlayerCommands latestCommands;
+    // Whether the character aimed this frame and where the pointer was, for the camera to frame.
+    private (bool isAiming, Vector2 pointerWorld) cameraAim;
 
     public CharacterEvents Events { get; private set; }
     // What debug and tuning tools need; the character never reads anything back from them.
-    public CharacterParts Parts => new CharacterParts((stride, posture, torsoMotion, head, armSwing), (crouch, postureRoot), (jump, airborne, states?.Airborne, (airPose, fallSecondary), landing), (shooting, pistol, (weapon, weaponController)));
+    public CharacterParts Parts => new CharacterParts((stride, posture, torsoMotion, head, armSwing), (crouch, postureRoot), (jump, airborne, states?.Airborne, (airPose, fallSecondary), landing), (shooting, pistol, (weapon, weaponController)), (cameraFeel, followCamera));
     public PlayerCommands LatestCommands => latestCommands;
 
     // Composes here rather than in Awake: a script recompile during play mode reloads the domain,
@@ -96,6 +99,7 @@ public class CharacterDriver : MonoBehaviour {
     private void Update() {
         PlayerCommands commands = input.ReadCommands();
         latestCommands = commands;
+        cameraAim = (false, Vector2.zero);
         weaponController.Tick(Time.time, Time.deltaTime, commands.ReloadPressed);
         crouch.Tick(Time.deltaTime, (commands.CrouchRequested, machine.Current.AllowsCrouch));
         machine.Tick(Time.deltaTime, commands);
@@ -111,6 +115,7 @@ public class CharacterDriver : MonoBehaviour {
     private void PoseUpperBody(PlayerCommands commands) {
         if (commands.IsAiming) {
             shootingStance.Tick(commands, Time.time);
+            cameraAim = (true, shootingStance.AimPoint);
             armSwing.Track(Time.deltaTime);
             return;
         }
@@ -120,7 +125,7 @@ public class CharacterDriver : MonoBehaviour {
 
     private void LateUpdate() {
         rig.ApplyUpperBodyPose(Time.deltaTime);
-        followCamera.Tick(Time.deltaTime);
+        followCamera.Tick(Time.deltaTime, cameraAim);
     }
 
     private CharacterRig BuildRig() {
@@ -162,7 +167,7 @@ public class CharacterDriver : MonoBehaviour {
         posture.Initialize(rig);
         torsoMotion.Initialize(rig);
         armSwing.Initialize(rig);
-        followCamera.Initialize(rig.Body, Events);
+        followCamera.Initialize(rig.Body, (Events, cameraFeel));
         Events.Fired += _ => torsoMotion.Kick(shooting.recoilTorsoKick);
         Events.Landed += hit => torsoMotion.Kick(-LandingMath.ImpactShare(hit.impactSpeed, landing) * landing.torsoFoldKick);
     }

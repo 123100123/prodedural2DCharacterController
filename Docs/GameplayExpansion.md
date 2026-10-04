@@ -68,7 +68,7 @@ this branch. `main` is not touched until the user approves the whole batch.
 | Phase | Status | Commit |
 |---|---|---|
 | 1 Weapon | done | |
-| 2 Camera | pending | |
+| 2 Camera | done | |
 | 3 VFX | pending | |
 | 4 Audio | pending | |
 | 5 Wall slide / jump | pending | |

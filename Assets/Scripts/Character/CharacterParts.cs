@@ -3,7 +3,7 @@ using UnityEngine;
 // The collaborators a composed character hands to tools that tune and inspect it. Plain references, so the
 // character knows nothing about who uses them: the tools depend on the character, never the other way round.
 public readonly struct CharacterParts {
-    public CharacterParts((StrideController stride, LocomotionPosture posture, TorsoMotion torso, HeadLook head, ArmSwing arms) movement, (CrouchController crouch, Transform postureRoot) body, (JumpSettings jump, AirborneSettings airborne, AirborneState airborneState, (AirPoseSettings pose, FallSecondarySettings fall) air, LandingSettings landing) moves, (ShootingSettings shooting, Pistol pistol, (WeaponSettings settings, WeaponController controller) shot) weapon) {
+    public CharacterParts((StrideController stride, LocomotionPosture posture, TorsoMotion torso, HeadLook head, ArmSwing arms) movement, (CrouchController crouch, Transform postureRoot) body, (JumpSettings jump, AirborneSettings airborne, AirborneState airborneState, (AirPoseSettings pose, FallSecondarySettings fall) air, LandingSettings landing) moves, (ShootingSettings shooting, Pistol pistol, (WeaponSettings settings, WeaponController controller) shot) weapon, (CameraFeelSettings settings, FollowCamera camera) cameraRig) {
         Stride = movement.stride;
         Posture = movement.posture;
         Torso = movement.torso;
@@ -21,6 +21,8 @@ public readonly struct CharacterParts {
         Pistol = weapon.pistol;
         Weapon = weapon.shot.settings;
         WeaponController = weapon.shot.controller;
+        CameraFeel = cameraRig.settings;
+        FollowCamera = cameraRig.camera;
     }
 
     public StrideController Stride { get; }
@@ -42,4 +44,6 @@ public readonly struct CharacterParts {
     public WeaponSettings Weapon { get; }
     // The pistol's magazine, reload and shot; null until the character is composed.
     public WeaponController WeaponController { get; }
+    public CameraFeelSettings CameraFeel { get; }
+    public FollowCamera FollowCamera { get; }
 }

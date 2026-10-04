@@ -23,6 +23,7 @@ public static class MovementTuningSchema {
             new Section("JUMP", Jump()),
             new Section("FALL", Fall()),
             new Section("AIM", Aim()),
+            new Section("CAMERA", Camera()),
             new Section("TRANSITIONS", Transitions()),
             new Section("ADVANCED", Advanced()),
         };
@@ -120,6 +121,28 @@ public static class MovementTuningSchema {
             new Parameter(("Reload", "Support hand drop", Units), (0f, 1.2f), (p => p.weapon.reloadHandDrop, (p, v) => p.weapon.reloadHandDrop = v)),
             new Parameter(("Reload", "Pistol tilt", Degrees), (0f, 45f), (p => p.weapon.reloadTilt, (p, v) => p.weapon.reloadTilt = v)),
         };
+    }
+
+    // How the camera leans into the aim and shakes. A shake amount of 0 turns the shake off.
+    private static List<Parameter> Camera() {
+        List<Parameter> parameters = new List<Parameter> {
+            new Parameter(("Aim framing", "Lean toward the pointer", Share), (0f, 1f), (p => p.cameraFeel.aimFraction, (p, v) => p.cameraFeel.aimFraction = v)),
+            new Parameter(("Aim framing", "Furthest lean across", Units), (0f, 10f), (p => p.cameraFeel.maxAimOffset.x, (p, v) => p.cameraFeel.maxAimOffset.x = v)),
+            new Parameter(("Aim framing", "Furthest lean up and down", Units), (0f, 6f), (p => p.cameraFeel.maxAimOffset.y, (p, v) => p.cameraFeel.maxAimOffset.y = v)),
+        };
+        parameters.AddRange(Spring(("Aim framing blend", (p => p.cameraFeel.aimBlendSpring, (p, s) => p.cameraFeel.aimBlendSpring = s))));
+        parameters.AddRange(new[] {
+            new Parameter(("Shake", "Amount (0 is off)", Share), (0f, 1f), (p => p.cameraFeel.shakeAmount, (p, v) => p.cameraFeel.shakeAmount = v)),
+            new Parameter(("Shake", "Furthest shove", Units), (0f, 2f), (p => p.cameraFeel.maxShakeOffset, (p, v) => p.cameraFeel.maxShakeOffset = v)),
+            new Parameter(("Shake", "Furthest roll", Degrees), (0f, 10f), (p => p.cameraFeel.maxShakeRoll, (p, v) => p.cameraFeel.maxShakeRoll = v)),
+            new Parameter(("Shake", "Wander speed", Hertz), (1f, 60f), (p => p.cameraFeel.shakeFrequency, (p, v) => p.cameraFeel.shakeFrequency = v)),
+            new Parameter(("Shake", "Trauma lost per second", "1/s"), (0.2f, 6f), (p => p.cameraFeel.traumaDecay, (p, v) => p.cameraFeel.traumaDecay = v)),
+            new Parameter(("Trauma from", "A shot", Share), (0f, 1f), (p => p.cameraFeel.firedTrauma, (p, v) => p.cameraFeel.firedTrauma = v)),
+            new Parameter(("Trauma from", "A bullet hit", Share), (0f, 0.5f), (p => p.cameraFeel.shotHitTrauma, (p, v) => p.cameraFeel.shotHitTrauma = v)),
+            new Parameter(("Trauma from", "Landing: impact speed threshold", UnitsPerSecond), (0f, 30f), (p => p.cameraFeel.landingTraumaThreshold, (p, v) => p.cameraFeel.landingTraumaThreshold = v)),
+            new Parameter(("Trauma from", "Landing: trauma per speed above it", Share), (0f, 0.2f), (p => p.cameraFeel.landingTraumaPerSpeed, (p, v) => p.cameraFeel.landingTraumaPerSpeed = v)),
+        });
+        return parameters;
     }
 
     private static List<Parameter> Fall() {

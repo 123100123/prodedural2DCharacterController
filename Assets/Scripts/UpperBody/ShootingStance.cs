@@ -10,6 +10,9 @@ public sealed class ShootingStance {
     private readonly WeaponSettings weaponSettings;
     private readonly SecondOrderDynamics recoil = new SecondOrderDynamics(0f);
 
+    // Where the pointer was in the world at the last aiming tick; the camera frames the aim with it.
+    public Vector2 AimPoint { get; private set; }
+
     public ShootingStance(CharacterRig rig, (WeaponController weapon, ShootingSettings settings, WeaponSettings weaponSettings) parts) {
         this.rig = rig;
         weapon = parts.weapon;
@@ -20,6 +23,7 @@ public sealed class ShootingStance {
     // Called only while aiming.
     public void Tick(PlayerCommands commands, float now) {
         Vector2 aimPoint = PointerInWorld(commands.PointerScreenPosition);
+        AimPoint = aimPoint;
         rig.Facing.FaceToward(aimPoint.x - rig.Body.position.x);
 
         Vector2 aimDirection = ClampElevation(AimDirectionFromShoulder(aimPoint));

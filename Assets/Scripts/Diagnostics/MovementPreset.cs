@@ -5,7 +5,7 @@ using UnityEngine;
 // and what is copied out to commit a tuned configuration back into the project. Lighting has its own preset.
 [Serializable]
 public class MovementPreset : ITuningPreset<MovementPreset> {
-    public const int CurrentVersion = 3;
+    public const int CurrentVersion = 4;
 
     // Written to every saved file; lets a later change to the format recognise the files written before it.
     public int version = CurrentVersion;
@@ -22,6 +22,7 @@ public class MovementPreset : ITuningPreset<MovementPreset> {
     public float pistolCooldown;
     public float pistolMuzzleOffset;
     public WeaponSettings weapon;
+    public CameraFeelSettings cameraFeel;
     public GaitTransitionSettings transitions;
     public BalanceSettings balance;
     public IdleStanceSettings idle;
@@ -49,6 +50,7 @@ public class MovementPreset : ITuningPreset<MovementPreset> {
             pistolCooldown = 0.18f,
             pistolMuzzleOffset = 0.15f,
             weapon = new WeaponSettings(),
+            cameraFeel = new CameraFeelSettings(),
             transitions = GaitTransitionSettings.Default,
             balance = BalanceSettings.Default,
             idle = IdleStanceSettings.Default,
@@ -72,6 +74,7 @@ public class MovementPreset : ITuningPreset<MovementPreset> {
         copy.landing = landing.Clone();
         copy.shooting = shooting.Clone();
         copy.weapon = weapon.Clone();
+        copy.cameraFeel = cameraFeel.Clone();
         return copy;
     }
 

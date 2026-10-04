@@ -118,6 +118,12 @@ public sealed class ScenarioStage {
         InputSystem.QueueStateEvent(mouse, fire ? state.WithButton(MouseButton.Left) : state);
     }
 
+    // Holds aim with the pointer at a fixed screen position, so a camera that moves does not drag the pointer along.
+    public void AimAtScreen(Vector2 screen, bool fire) {
+        MouseState state = new MouseState { position = screen }.WithButton(MouseButton.Right);
+        InputSystem.QueueStateEvent(mouse, fire ? state.WithButton(MouseButton.Left) : state);
+    }
+
     public void StopAiming() => InputSystem.QueueStateEvent(mouse, new MouseState());
 
     private void QueueKeyboard() {

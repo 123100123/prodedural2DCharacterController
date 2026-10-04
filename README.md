@@ -203,6 +203,7 @@ The full-body states switch through `CharacterStateMachine`. Each state receives
   - **JUMP:** the windup, the launch height and hop, the momentum carried, the air control, the push-off, and the rising and hanging poses.
   - **FALL:** the falling poses, the prolonged-fall flail and the landing (reach, impact, squash, momentum).
   - **AIM:** arm extension, support hand, recoil and the pistol.
+  - **CAMERA:** aim framing, the screen shake (an amount of 0 turns it off) and what adds trauma to it.
   - **LIGHTING:** the ambient light, the player light and the muzzle flash (colours as red, green and blue sliders). Appears when the scene has a lighting rig; it has its own presets.
   - **TRANSITIONS:** the idle start and stop thresholds, the walk/run blend band and rate, the swing share ramp (cadence transition), the setting-off planning share, the lift overlaps, balance recovery (catch-up and emergency step), and the posture's acceleration response and blend speed.
   - **ADVANCED:** the body's height, reach and mass springs, and the posture, chest, head and arm springs and limits.
