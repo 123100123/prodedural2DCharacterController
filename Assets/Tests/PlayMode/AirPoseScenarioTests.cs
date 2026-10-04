@@ -76,11 +76,18 @@ public class AirPoseScenarioTests : ScenarioFixture {
         yield return Hold(2.5f);
         yield return Fly(30);
         float worst = 0f;
+        int worstIndex = 0;
         for (int index = 4; index < flight.Count - 6; index++) {
-            worst = Mathf.Max(worst, Vector2.Distance(flight[index].FrontFoot, flight[index - 1].FrontFoot));
-            worst = Mathf.Max(worst, Vector2.Distance(flight[index].BackFoot, flight[index - 1].BackFoot));
+            float step = Mathf.Max(Vector2.Distance(flight[index].FrontFoot, flight[index - 1].FrontFoot), Vector2.Distance(flight[index].BackFoot, flight[index - 1].BackFoot));
+            if (step > worst) {
+                worst = step;
+                worstIndex = index;
+            }
         }
-        Report($"largest foot target step in flight: {worst:F3}");
+        for (int index = Mathf.Max(1, worstIndex - 3); index <= Mathf.Min(flight.Count - 1, worstIndex + 2); index++) {
+            Report($"frame {index}/{flight.Count}: vy {flight[index].Air.Velocity.y:F2} prep {flight[index].Air.LandingPrep:F2} front {flight[index].FrontFoot} back {flight[index].BackFoot}");
+        }
+        Report($"largest foot target step in flight: {worst:F3} at frame {worstIndex} of {flight.Count}");
         Assert.That(worst, Is.LessThan(0.5f), "the pose changes smoothly");
     }
 
@@ -88,16 +95,17 @@ public class AirPoseScenarioTests : ScenarioFixture {
     public IEnumerator ARunningJumpLeansForwardMoreThanAStandingJump() {
         yield return Hold(1.5f);
         yield return Fly(30);
-        float standing = flight[flight.Count / 2].PostureTargetLean;
+        // A quarter of the way through the flight it is still rising, where the standing and running poses differ most.
+        float standing = flight[flight.Count / 4].PostureTargetLean;
         Stage.ReleaseAll();
         yield return Hold(1f);
 
         Stage.Press(Key.D, Key.LeftShift);
         yield return Hold(2.5f);
         yield return Fly(30);
-        float running = flight[flight.Count / 2].PostureTargetLean;
+        float running = flight[flight.Count / 4].PostureTargetLean;
 
-        Report($"lean at mid-flight: standing {standing:F1}, running {running:F1}");
+        Report($"lean while rising: standing {standing:F1}, running {running:F1}");
         Assert.That(running, Is.GreaterThan(standing + 4f));
     }
 

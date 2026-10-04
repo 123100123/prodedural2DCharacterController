@@ -259,7 +259,7 @@ public sealed class AirborneState : ICharacterState {
             return (false, default, 0f, fallThisFrame);
         }
 
-        float depth = Mathf.Max(fallThisFrame, LandingMath.LookAhead(fallSpeed, settings.landing));
+        float depth = Mathf.Max(fallThisFrame, LandingMath.LookAhead((fallSpeed, motor.CurrentGravity), settings.landing));
         if (!stride.TryFindGroundBelowBody(depth, out Vector2 ground)) {
             return (false, default, 0f, fallThisFrame);
         }

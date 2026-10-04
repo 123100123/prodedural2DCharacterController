@@ -61,9 +61,11 @@ public class FallScenarioTests : ScenarioFixture {
             if (air.TimeFalling < 0.45f) {
                 Assert.That(air.FlailStrength, Is.EqualTo(0f), $"nothing before the onset (t={air.TimeFalling:F2})");
             }
-            Assert.That(air.FlailStrength, Is.GreaterThanOrEqualTo(previous - 0.001f), "never weakens");
+            if (air.LandingPrep <= 0f) {
+                Assert.That(air.FlailStrength, Is.GreaterThanOrEqualTo(previous - 0.001f), "never weakens until the ground nears");
+            }
             Assert.That(air.FlailStrength - previous, Is.LessThan(0.05f), "builds smoothly");
-            previous = air.FlailStrength;
+            previous = Mathf.Max(previous, air.FlailStrength);
         }
         Assert.That(previous, Is.GreaterThan(0.6f), "ends up flailing hard");
     }

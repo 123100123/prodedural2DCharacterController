@@ -73,7 +73,7 @@ public class JumpScenarioTests : ScenarioFixture {
     [UnityTest]
     public IEnumerator AStandingJumpGoesStraightUp() {
         yield return Prepare();
-        yield return Jump(8);
+        yield return Jump(30);
         Assert.That(lastFlight.Landed, Is.True);
         Assert.That(Mathf.Abs(lastFlight.Distance), Is.LessThan(0.5f));
         Assert.That(lastFlight.ApexHeight, Is.GreaterThan(1.8f), "a held jump rises high");

@@ -46,9 +46,24 @@ public class LandingTests {
 
     [Test]
     public void TheGroundIsLookedForFurtherTheFasterTheFall() {
-        Assert.That(LandingMath.LookAhead(0f, Landing), Is.EqualTo(Landing.lookAheadMin));
-        Assert.That(LandingMath.LookAhead(40f, Landing), Is.EqualTo(40f * Landing.prepTime).Within(0.0001f));
-        Assert.That(LandingMath.LookAhead(-5f, Landing), Is.EqualTo(Landing.lookAheadMin), "rising");
+        Assert.That(LandingMath.LookAhead((0f, 0f), Landing), Is.EqualTo(Landing.lookAheadMin));
+        Assert.That(LandingMath.LookAhead((40f, 0f), Landing), Is.EqualTo(40f * Landing.prepTime).Within(0.0001f));
+        Assert.That(LandingMath.LookAhead((-5f, 48f), Landing), Is.GreaterThanOrEqualTo(Landing.lookAheadMin), "rising");
+    }
+
+    // The reach must start from nothing: at the distance where the ground first comes into view, the time to impact is
+    // the prep time, so the prep is 0 there (no jump from 0 to a share in one frame).
+    [Test]
+    public void TheReachStartsFromNothingWhereTheGroundFirstComesIntoView() {
+        const float gravity = 48f;
+        foreach (float speed in new[] { 0f, 3f, 7f, 20f, 40f }) {
+            float seen = LandingMath.LookAhead((speed, gravity), Landing);
+            if (seen <= Landing.lookAheadMin + 0.0001f) {
+                continue;
+            }
+            float timeToImpact = LandingMath.TimeToImpact((seen, speed), gravity);
+            Assert.That(LandingMath.Prep(timeToImpact, Landing.prepTime), Is.LessThan(0.02f), $"at {speed} u/s");
+        }
     }
 
     [Test]

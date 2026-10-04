@@ -17,9 +17,12 @@ public static class LandingMath {
         return 1f - Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(timeToImpact / Mathf.Max(0.01f, prepTime)));
     }
 
-    // How far below the body the ground is looked for: as far as it falls in the prep time, and at least the minimum.
-    public static float LookAhead(float fallSpeed, LandingSettings settings) {
-        return Mathf.Max(settings.lookAheadMin, Mathf.Max(0f, fallSpeed) * settings.prepTime);
+    // How far below the body the ground is looked for: as far as it falls in the prep time while speeding up (so the
+    // reach starts exactly when the ground is a prep time away, not suddenly), and at least the minimum.
+    public static float LookAhead((float fallSpeed, float gravity) fall, LandingSettings settings) {
+        float speed = Mathf.Max(0f, fall.fallSpeed);
+        float time = settings.prepTime;
+        return Mathf.Max(settings.lookAheadMin, speed * time + 0.5f * Mathf.Max(0f, fall.gravity) * time * time);
     }
 
     // 0 for a light impact, 1 for a hard one.
