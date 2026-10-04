@@ -47,6 +47,25 @@ public static class UrpLightingSetup {
                $"{QualitySettings.names.Length} quality levels. Colour space stays {PlayerSettings.colorSpace}.";
     }
 
+    // Shadows are drawn into a texture the size of the light texture, which defaults to half the screen: shadow edges are
+    // soft and blocky. Full size gives crisp edges. Returns what it did.
+    public static string UseCrispShadows() {
+        Type rendererType = Type.GetType(RendererType);
+        ScriptableObject renderer = rendererType != null ? AssetDatabase.LoadAssetAtPath(RendererPath, rendererType) as ScriptableObject : null;
+        if (renderer == null) {
+            return "Crisp shadows: the 2D Renderer asset does not exist yet; run Set Up URP 2D Lighting first.";
+        }
+        SerializedObject serialized = new SerializedObject(renderer);
+        SerializedProperty scale = serialized.FindProperty("m_LightRenderTextureScale");
+        if (scale == null) {
+            return "Crisp shadows: this pipeline version has no light render texture scale.";
+        }
+        scale.floatValue = 1f;
+        serialized.ApplyModifiedProperties();
+        AssetDatabase.SaveAssets();
+        return "Crisp shadows: the 2D Renderer draws its light and shadow textures at full size.";
+    }
+
     private static void EnsureFolder() {
         if (!AssetDatabase.IsValidFolder(SettingsFolder)) {
             AssetDatabase.CreateFolder("Assets", "Settings");

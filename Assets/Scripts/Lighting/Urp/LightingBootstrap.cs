@@ -1,11 +1,11 @@
 using UnityEngine;
 using UnityEngine.Rendering;
-using UnityEngine.Rendering.Universal;
 using UnityEngine.SceneManagement;
 
 // Lights every scene that is loaded while the Universal Render Pipeline is in use: adds the lighting rig when the scene
-// has none, gives the scene's sprites the lit material (a sprite on the default material ignores 2D lights) and makes the
-// level's solid sprites cast shadows for the lights that cast them. It does nothing under any other pipeline, so the game
+// has none and gives the scene's sprites the lit material (a sprite on the default material ignores 2D lights). The
+// level's shadow casters are authored in the scene (Tools > Procedural Character > Environment), because a caster
+// added at runtime does not keep its sprite outline in a build. It does nothing under any other pipeline, so the game
 // plays the same without the setup.
 public static class LightingBootstrap {
     private const string LitSpriteShader = "Universal Render Pipeline/2D/Sprite-Lit-Default";
@@ -37,22 +37,7 @@ public static class LightingBootstrap {
             return;
         }
         UseLitSprites(scene);
-        AddShadowCasters(scene);
         AddLightingRigIfMissing();
-    }
-
-    // The level's solid box colliders on sprites (not part of the character) shadow the lights that cast shadows. Their
-    // own surfaces still catch the light: they do not shadow themselves. The character has no casters, so a flash at
-    // the gun lights it instead of being blocked by it.
-    private static void AddShadowCasters(Scene scene) {
-        foreach (GameObject root in scene.GetRootGameObjects()) {
-            foreach (BoxCollider2D box in root.GetComponentsInChildren<BoxCollider2D>(true)) {
-                bool isLevel = !box.isTrigger && box.GetComponentInParent<CharacterDriver>() == null;
-                if (isLevel && box.TryGetComponent(out SpriteRenderer _) && box.GetComponentInChildren<ShadowCaster2D>(true) == null) {
-                    ShadowCasterFactory.TryAdd(box);
-                }
-            }
-        }
     }
 
     private static void AddLightingRigIfMissing() {

@@ -15,6 +15,7 @@ public static class EnvironmentSetup {
     private const string BackgroundRoot = "Background";
     private const float PixelsPerUnit = 32f;
     private const string MarkerSpritePrefix = "icon";
+    private const string ShadowCasterType = "UnityEngine.Rendering.Universal.ShadowCaster2D, Unity.RenderPipelines.Universal.2D.Runtime";
 
     private readonly struct LayerSpec {
         public LayerSpec(string name, string sprite, string sortingLayer, (Vector2 size, Vector2 center, float z) placement, Vector2 parallax) {
@@ -59,9 +60,11 @@ public static class EnvironmentSetup {
         string art = GenerateArt();
         string background = BuildBackground(scene);
         string lit = MakeLevelSpritesLit(scene);
+        string casters = AddShadowCasters(scene);
+        string shadows = UrpLightingSetup.UseCrispShadows();
         EditorSceneManager.MarkSceneDirty(scene);
         EditorSceneManager.SaveScene(scene);
-        return string.Join("\n", layers, art, background, lit);
+        return string.Join("\n", layers, art, background, lit, casters, shadows);
     }
 
     // ---- Sorting layers -------------------------------------------------------------------------------------------
@@ -215,6 +218,56 @@ public static class EnvironmentSetup {
             }
         }
         return null;
+    }
+
+    // ---- Shadow casters -------------------------------------------------------------------------------------------
+
+    [MenuItem("Tools/Procedural Character/Environment/Add Shadow Casters To Level Blocks")]
+    public static void AddShadowCastersFromMenu() => Debug.Log(AddShadowCasters(SceneManager.GetActiveScene()));
+
+    // Every solid block of the level (a box collider on a sprite, outside the character and the background) gets a
+    // ShadowCaster2D that shadows the layers in EnvironmentLayers.ShadowedByBlocks. Added in the Editor, the caster takes
+    // the sprite's outline as its shape, and the choice is saved in the scene (a caster added while playing would not
+    // survive a build). Blocks that already have one only have their target layers corrected.
+    public static string AddShadowCasters(Scene scene) {
+        Type casterType = Type.GetType(ShadowCasterType);
+        if (casterType == null) {
+            return "Shadow casters: the Universal Render Pipeline is not installed.";
+        }
+
+        int[] targets = Array.ConvertAll(EnvironmentLayers.ShadowedByBlocks, SortingLayer.NameToID);
+        int added = 0;
+        int total = 0;
+        foreach (GameObject root in scene.GetRootGameObjects()) {
+            if (root.name == BackgroundRoot) {
+                continue;
+            }
+            foreach (BoxCollider2D box in root.GetComponentsInChildren<BoxCollider2D>(true)) {
+                bool isLevelBlock = !box.isTrigger && box.GetComponent<SpriteRenderer>() != null && box.GetComponentInParent<CharacterDriver>() == null;
+                if (!isLevelBlock) {
+                    continue;
+                }
+                Component caster = box.GetComponent(casterType);
+                if (caster == null) {
+                    caster = box.gameObject.AddComponent(casterType);
+                    added++;
+                }
+                SetTargetLayers(caster, targets);
+                total++;
+            }
+        }
+        return $"Shadow casters: {total} level blocks cast onto {string.Join(", ", EnvironmentLayers.ShadowedByBlocks)} ({added} added).";
+    }
+
+    private static void SetTargetLayers(Component caster, int[] layerIds) {
+        SerializedObject serialized = new SerializedObject(caster);
+        SerializedProperty layers = serialized.FindProperty("m_ApplyToSortingLayers");
+        layers.arraySize = layerIds.Length;
+        for (int index = 0; index < layerIds.Length; index++) {
+            layers.GetArrayElementAtIndex(index).intValue = layerIds[index];
+        }
+        serialized.ApplyModifiedProperties();
+        EditorUtility.SetDirty(caster);
     }
 
     // ---- Lit level sprites ----------------------------------------------------------------------------------------
