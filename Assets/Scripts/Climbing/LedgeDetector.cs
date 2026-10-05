@@ -1,7 +1,8 @@
 using UnityEngine;
 
 // Physics queries for ledges: scans columns ahead for the first top surface inside a height window,
-// refines its near edge and checks that the character fits on top.
+// refines its near edge and checks that the character fits on top. One-way platforms are not ledges and block nothing
+// here: the character passes up through them instead.
 public sealed class LedgeDetector {
     private const int EdgeRefineIterations = 5;
     private const float TopTolerance = 0.1f;
@@ -36,13 +37,13 @@ public sealed class LedgeDetector {
     // A wall taller than the window ends the search: nothing behind it is reachable.
     private bool IsBlockedAboveWindow((float x, (float minTop, float maxTop) window) column) {
         Vector2 windowTop = new Vector2(column.x, column.window.maxTop + RayHeadroom);
-        return Physics2D.OverlapPoint(windowTop, settings.ledgeMask) != null;
+        return OneWayFilter.OverlapsSolidPoint(windowTop, settings.ledgeMask);
     }
 
     private bool TryFindTopInWindow((float x, (float minTop, float maxTop) window) column, out float topY) {
         Vector2 origin = new Vector2(column.x, column.window.maxTop + RayHeadroom);
         float depth = column.window.maxTop - column.window.minTop + RayHeadroom;
-        RaycastHit2D hit = Physics2D.Raycast(origin, Vector2.down, depth, settings.ledgeMask);
+        RaycastHit2D hit = OneWayFilter.Raycast((origin, Vector2.down, depth), settings.ledgeMask, OneWaySupport.None);
 
         topY = hit.point.y;
         return hit.collider != null && hit.distance > 0f && LedgeGrabPolicy.IsInWindow(topY, column.window);
@@ -69,12 +70,12 @@ public sealed class LedgeDetector {
     private bool HasStandingRoom(Ledge ledge) {
         Vector2 size = settings.standingRoom;
         Vector2 center = ledge.Corner + new Vector2(ledge.ClimbDirection * size.x / 2f, size.y / 2f + RayHeadroom);
-        return Physics2D.OverlapBox(center, size, 0f, settings.ledgeMask) == null;
+        return !OneWayFilter.OverlapsSolidBox((center, size), settings.ledgeMask);
     }
 
     private bool HasDeepEnoughTop(Ledge ledge) {
         Vector2 origin = ledge.Corner + new Vector2(ledge.ClimbDirection * settings.minTopDepth, TopTolerance);
-        RaycastHit2D hit = Physics2D.Raycast(origin, Vector2.down, 2f * TopTolerance, settings.ledgeMask);
+        RaycastHit2D hit = OneWayFilter.Raycast((origin, Vector2.down, 2f * TopTolerance), settings.ledgeMask, OneWaySupport.None);
         return hit.collider != null && hit.distance > 0f;
     }
 }

@@ -1,7 +1,7 @@
 using UnityEngine;
 
 // Physics queries for wall slides: whether solid geometry faces the body on one side at chest and knee height, and
-// where its face is.
+// where its face is. A one-way platform is never a wall.
 public static class WallProbe {
     // A surface counts as a wall when its normal is at least this horizontal.
     private const float MinWallNormalX = 0.7f;
@@ -34,7 +34,7 @@ public static class WallProbe {
     }
 
     private static bool TryHitWall((Vector2 origin, int side, float length) ray, LayerMask mask, out float faceX) {
-        RaycastHit2D hit = Physics2D.Raycast(ray.origin, Vector2.right * ray.side, ray.length, mask);
+        RaycastHit2D hit = OneWayFilter.Raycast((ray.origin, Vector2.right * ray.side, ray.length), mask, OneWaySupport.None);
         faceX = hit.point.x;
         return hit.collider != null && hit.distance > 0f && hit.normal.x * ray.side <= -MinWallNormalX;
     }

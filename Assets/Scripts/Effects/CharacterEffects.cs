@@ -17,6 +17,8 @@ public sealed class CharacterEffects {
     private const int MuzzleSparks = 3;
     private const int ImpactSparks = 6;
     private const int WallKickPuffs = 6;
+    private const int LedgeGritPuffs = 2;
+    private const int DropThroughPuffs = 3;
     // Seconds between the puffs scraped off the wall while sliding down it.
     private const float SlideDustInterval = 0.09f;
     // Seconds between the puffs a running slide kicks up, at the run speed and when nearly stopped.
@@ -102,6 +104,8 @@ public sealed class CharacterEffects {
         events.WallSlideStopped += OnWallSlideStopped;
         events.SlideStarted += OnSlideStarted;
         events.SlideStopped += OnSlideStopped;
+        events.LedgeDropped += OnLedgeDropped;
+        events.DroppedThroughPlatform += OnDroppedThroughPlatform;
         events.Fired += OnFired;
         events.ShotHit += OnShotHit;
     }
@@ -116,6 +120,8 @@ public sealed class CharacterEffects {
         events.WallSlideStopped -= OnWallSlideStopped;
         events.SlideStarted -= OnSlideStarted;
         events.SlideStopped -= OnSlideStopped;
+        events.LedgeDropped -= OnLedgeDropped;
+        events.DroppedThroughPlatform -= OnDroppedThroughPlatform;
         events.Fired -= OnFired;
         events.ShotHit -= OnShotHit;
     }
@@ -190,6 +196,33 @@ public sealed class CharacterEffects {
         for (int puff = 0; puff < count; puff++) {
             Vector2 velocity = new Vector2(kick.direction * Random.Range(0.3f, 1.2f), Random.Range(-0.8f, 0.8f));
             dust.Emit(kick.position + new Vector2(0f, Random.Range(-0.2f, 0.4f)), velocity, (size * Random.Range(0.8f, 1.2f), DustLife()), DustColor);
+        }
+    }
+
+    // A little grit knocked off the corner the hands let go of.
+    private void OnLedgeDropped((Vector2 corner, int climbDirection) drop) {
+        if (!settings.enabled) {
+            return;
+        }
+        int count = EffectMath.ScaledCount(LedgeGritPuffs, settings.dustScale);
+        float size = EffectMath.PuffSize(0.15f, Mathf.Sqrt(settings.dustScale));
+        for (int puff = 0; puff < count; puff++) {
+            Vector2 velocity = new Vector2(-drop.climbDirection * Random.Range(0.1f, 0.5f), Random.Range(-0.6f, 0f));
+            dust.Emit(drop.corner + new Vector2(-drop.climbDirection * 0.05f, 0.02f), velocity, (size * Random.Range(0.8f, 1.2f), DustLife()), DustColor);
+        }
+    }
+
+    // A few puffs off the platform the feet slip through.
+    private void OnDroppedThroughPlatform(Vector2 feet) {
+        if (!settings.enabled) {
+            return;
+        }
+        int count = EffectMath.ScaledCount(DropThroughPuffs, settings.dustScale);
+        float size = EffectMath.PuffSize(0.2f, Mathf.Sqrt(settings.dustScale));
+        for (int puff = 0; puff < count; puff++) {
+            float side = puff % 2 == 0 ? 1f : -1f;
+            Vector2 velocity = new Vector2(side * Random.Range(0.4f, 1.2f), Random.Range(0f, 0.3f));
+            dust.Emit(feet + new Vector2(side * Random.Range(0f, 0.25f), 0.05f), velocity, (size * Random.Range(0.8f, 1.2f), DustLife()), DustColor);
         }
     }
 

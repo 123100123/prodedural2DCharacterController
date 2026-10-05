@@ -41,6 +41,13 @@ public static class FootholdProbe {
     // Samples run from the desired spot back to the swinging foot (so a shorter step onto an obstacle is found)
     // and searchRadius beyond it (so a gap's far edge is found). Nearest samples come first.
     public static void CollectCandidates((float desiredX, float stanceY, Vector2 swingFrom) query, FootholdLimits limits, List<Vector2> candidates) {
+        CollectCandidates(query, (limits, OneWaySupport.At(query.stanceY + OneWayFilter.StandingTolerance)), candidates);
+    }
+
+    // support: the one-way platforms that may hold the feet (those at or below the planted foot: a step never climbs onto
+    // one, and a foot never lands on one it is below).
+    public static void CollectCandidates((float desiredX, float stanceY, Vector2 swingFrom) query, (FootholdLimits limits, OneWaySupport support) search, List<Vector2> candidates) {
+        FootholdLimits limits = search.limits;
         candidates.Clear();
         float towardSwingSign = Mathf.Sign(query.swingFrom.x - query.desiredX);
         int towardSwingCount = Mathf.FloorToInt(Mathf.Abs(query.swingFrom.x - query.desiredX) / limits.searchStep);
@@ -49,17 +56,17 @@ public static class FootholdProbe {
         for (int sample = 0; sample <= Mathf.Max(towardSwingCount, beyondCount); sample++) {
             float offset = sample * limits.searchStep;
             if (sample <= towardSwingCount) {
-                AddReachableCandidate((query.desiredX + towardSwingSign * offset, query.stanceY, query.swingFrom), limits, candidates);
+                AddReachableCandidate((query.desiredX + towardSwingSign * offset, query.stanceY, query.swingFrom), search, candidates);
             }
             if (sample > 0 && sample <= beyondCount) {
-                AddReachableCandidate((query.desiredX - towardSwingSign * offset, query.stanceY, query.swingFrom), limits, candidates);
+                AddReachableCandidate((query.desiredX - towardSwingSign * offset, query.stanceY, query.swingFrom), search, candidates);
             }
         }
     }
 
-    private static void AddReachableCandidate((float x, float stanceY, Vector2 swingFrom) column, FootholdLimits limits, List<Vector2> candidates) {
-        if (TryFindGroundInStepWindow((column.x, column.stanceY), limits, out Vector2 groundPoint)
-            && IsSwingPathClear((column.swingFrom, groundPoint), limits.groundMask)) {
+    private static void AddReachableCandidate((float x, float stanceY, Vector2 swingFrom) column, (FootholdLimits limits, OneWaySupport support) search, List<Vector2> candidates) {
+        if (TryFindGroundInStepWindow((column.x, column.stanceY), search, out Vector2 groundPoint)
+            && IsSwingPathClear((column.swingFrom, groundPoint), search.limits.groundMask)) {
             candidates.Add(groundPoint);
         }
     }
@@ -70,22 +77,33 @@ public static class FootholdProbe {
         Vector2 start = new Vector2(swing.from.x, swingHeight);
         Vector2 end = new Vector2(swing.to.x, swingHeight);
 
-        return Physics2D.Linecast(start, end, groundMask).collider == null;
+        return !OneWayFilter.Linecast((start, end), groundMask, OneWaySupport.None);
     }
 
+    // Any one-way platform below the ray's start holds it.
     public static bool TryFindGroundBelow((Vector2 origin, float maxDistance) ray, LayerMask groundMask, out Vector2 groundPoint) {
-        RaycastHit2D hit = Physics2D.Raycast(ray.origin, Vector2.down, ray.maxDistance, groundMask);
-        bool isGroundHit = hit.collider != null && hit.distance > 0f;
+        return TryFindGroundBelow(ray, (groundMask, OneWaySupport.At(ray.origin.y)), out groundPoint);
+    }
 
+    // ground.support: the one-way platforms that hold the feet this ray stands for (see OneWaySupport).
+    public static bool TryFindGroundBelow((Vector2 origin, float maxDistance) ray, (LayerMask mask, OneWaySupport support) ground, out Vector2 groundPoint) {
+        bool isGroundHit = TryFindGroundHitBelow(ray, ground, out RaycastHit2D hit);
         groundPoint = isGroundHit ? hit.point : default;
         return isGroundHit;
     }
 
+    // The ground hit itself, for what the ground is (e.g. a one-way platform to drop through).
+    public static bool TryFindGroundHitBelow((Vector2 origin, float maxDistance) ray, (LayerMask mask, OneWaySupport support) ground, out RaycastHit2D hit) {
+        hit = OneWayFilter.Raycast((ray.origin, Vector2.down, ray.maxDistance), ground.mask, ground.support);
+        return hit.collider != null && hit.distance > 0f;
+    }
+
     // A ray that starts inside a collider is rejected: that column is blocked above the step window.
-    private static bool TryFindGroundInStepWindow((float x, float stanceY) column, FootholdLimits limits, out Vector2 groundPoint) {
+    private static bool TryFindGroundInStepWindow((float x, float stanceY) column, (FootholdLimits limits, OneWaySupport support) search, out Vector2 groundPoint) {
+        FootholdLimits limits = search.limits;
         Vector2 origin = new Vector2(column.x, column.stanceY + limits.maxStepUp + RayHeadroom);
         float windowHeight = limits.maxStepUp + limits.maxStepDown + 2f * RayHeadroom;
 
-        return TryFindGroundBelow((origin, windowHeight), limits.groundMask, out groundPoint);
+        return TryFindGroundBelow((origin, windowHeight), (limits.groundMask, search.support), out groundPoint);
     }
 }

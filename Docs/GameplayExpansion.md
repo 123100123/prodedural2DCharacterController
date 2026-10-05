@@ -73,7 +73,7 @@ this branch. `main` is not touched until the user approves the whole batch.
 | 4 Audio | done | |
 | 5 Wall slide / jump | done | |
 | 6 Running slide | done | |
-| 7 Vertical input / ledges / one-way | pending | |
+| 7 Vertical input / ledges / one-way | done | |
 | 8 Physics push | pending | |
 | 9 Roll / climb tuning | pending | |
 | 10 Playground / docs | pending | |

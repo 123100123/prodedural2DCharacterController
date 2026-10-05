@@ -1,7 +1,8 @@
 using System;
 using UnityEngine;
 
-// Moves the body by velocity while a capsule hull (hips to head) slides along solid geometry.
+// Moves the body by velocity while a capsule hull (hips to head) slides along solid geometry. One-way platforms never
+// stop the hull (it passes through them from below and the sides); the feet stand on them, as on any ground.
 [Serializable]
 public class KinematicBodyMotor {
     private const float SkinWidth = 0.02f;
@@ -19,7 +20,7 @@ public class KinematicBodyMotor {
     [SerializeField] private LayerMask solidMask = Physics2D.DefaultRaycastLayers;
 
     private readonly RaycastHit2D[] hullHits = new RaycastHit2D[8];
-    private readonly Collider2D[] headroomHits = new Collider2D[1];
+    private readonly Collider2D[] headroomHits = new Collider2D[8];
     private Transform body;
     private float crouchHullDrop;
 
@@ -68,7 +69,8 @@ public class KinematicBodyMotor {
     public bool HasHeadroom(Vector2 standingPivot) {
         ContactFilter2D filter = new ContactFilter2D { useLayerMask = true, layerMask = solidMask, useTriggers = false };
         Vector2 size = hullSize - Vector2.one * (2f * SkinWidth);
-        return Physics2D.OverlapCapsule(standingPivot + hullOffset, size, CapsuleDirection2D.Vertical, 0f, filter, headroomHits) == 0;
+        int count = Physics2D.OverlapCapsule(standingPivot + hullOffset, size, CapsuleDirection2D.Vertical, 0f, filter, headroomHits);
+        return !OneWayFilter.AnySolid(headroomHits, count);
     }
 
     // How far the hull can travel sideways before touching geometry, up to maxDistance.
@@ -102,7 +104,7 @@ public class KinematicBodyMotor {
         RaycastHit2D nearest = default;
         for (int index = 0; index < hitCount; index++) {
             RaycastHit2D hit = hullHits[index];
-            if (hit.distance > 0f && (nearest.collider == null || hit.distance < nearest.distance)) {
+            if (hit.distance > 0f && (nearest.collider == null || hit.distance < nearest.distance) && !OneWayPlatform.IsOneWay(hit.collider)) {
                 nearest = hit;
             }
         }

@@ -33,6 +33,10 @@ public class CharacterDriver : MonoBehaviour {
     [SerializeField] private LandingSettings landing = new LandingSettings();
     [SerializeField] private RollSettings roll = new RollSettings();
     [SerializeField] private ClimbSettings climb = new ClimbSettings();
+    [Tooltip("Hanging from a ledge: holding, climbing on or letting go.")]
+    [SerializeField] private LedgeHangSettings ledgeHang = new LedgeHangSettings();
+    [Tooltip("One-way platforms: dropping through and landing on them.")]
+    [SerializeField] private OneWaySettings oneWay = new OneWaySettings();
     [Tooltip("Wall slide and wall jump.")]
     [SerializeField] private WallSettings wall = new WallSettings();
     [Tooltip("Running slide: crouch pressed at speed.")]
@@ -70,7 +74,7 @@ public class CharacterDriver : MonoBehaviour {
 
     public CharacterEvents Events { get; private set; }
     // What debug and tuning tools need; the character never reads anything back from them.
-    public CharacterParts Parts => new CharacterParts((stride, posture, torsoMotion, head, armSwing), (crouch, postureRoot), (jump, airborne, states?.Airborne, (airPose, fallSecondary), landing), (shooting, pistol, (weapon, weaponController)), (cameraFeel, followCamera), effects, audioSettings, (wall, states?.WallSlide), (slide, states?.Slide));
+    public CharacterParts Parts => new CharacterParts((stride, posture, torsoMotion, head, armSwing), (crouch, postureRoot), (jump, airborne, states?.Airborne, (airPose, fallSecondary), landing), (shooting, pistol, (weapon, weaponController)), (cameraFeel, followCamera), effects, audioSettings, (wall, states?.WallSlide), (slide, states?.Slide), (ledgeHang, oneWay, states?.Climb));
     public PlayerCommands LatestCommands => latestCommands;
     // The full-body state the character is in; null until the character is composed.
     public ICharacterState CurrentState => machine?.Current;
@@ -185,6 +189,7 @@ public class CharacterDriver : MonoBehaviour {
     private CharacterRig BuildRig() {
         CharacterFacing facing = new CharacterFacing((transform, authoredFacingSign));
         motor.Bind(stride.transform);
+        stride.OneWay = new OneWayPassage(oneWay);
         stride.Connect((Events, facing));
         frontArm.Initialize(authoredFacingSign);
         backArm.Initialize(authoredFacingSign);
@@ -200,7 +205,7 @@ public class CharacterDriver : MonoBehaviour {
             new JumpWindupState(context, (jump, airborne)),
             new AirborneState(context, (airborne, jump, airPose, fallSecondary, landing)),
             new RollState(context, roll),
-            new ClimbState(context, climb),
+            new ClimbState(context, (climb, ledgeHang)),
             new WallSlideState(context, wall),
             new SlideState(context, (slide, jump))));
         return built;

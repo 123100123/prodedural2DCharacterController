@@ -28,6 +28,10 @@ public sealed class CharacterEvents {
     public event Action<(Vector2 position, int direction)> SlideStarted;
     // The running slide ended (getting up, jumping out, leaving a ledge or stopping against a wall).
     public event Action SlideStopped;
+    // The character let go of a ledge it hung from: the corner its hands left, and the ledge's side (+1 right of the body).
+    public event Action<(Vector2 corner, int climbDirection)> LedgeDropped;
+    // Down + jump dropped the character through the one-way platform it stood on: where its feet left the platform.
+    public event Action<Vector2> DroppedThroughPlatform;
 
     public void RaiseFootPlanted((Vector2 position, float impactSpeed) plant) => FootPlanted?.Invoke(plant);
 
@@ -56,4 +60,8 @@ public sealed class CharacterEvents {
     public void RaiseSlideStarted((Vector2 position, int direction) slide) => SlideStarted?.Invoke(slide);
 
     public void RaiseSlideStopped() => SlideStopped?.Invoke();
+
+    public void RaiseLedgeDropped((Vector2 corner, int climbDirection) drop) => LedgeDropped?.Invoke(drop);
+
+    public void RaiseDroppedThroughPlatform(Vector2 feet) => DroppedThroughPlatform?.Invoke(feet);
 }

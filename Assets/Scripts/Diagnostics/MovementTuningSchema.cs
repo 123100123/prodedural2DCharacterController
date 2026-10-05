@@ -24,6 +24,7 @@ public static class MovementTuningSchema {
             new Section("FALL", Fall()),
             new Section("WALL", Wall()),
             new Section("SLIDE", Slide()),
+            new Section("LEDGE", Ledge()),
             new Section("AIM", Aim()),
             new Section("CAMERA", Camera()),
             new Section("EFFECTS", Effects()),
@@ -173,6 +174,21 @@ public static class MovementTuningSchema {
             new Parameter(("Pose", "Front hand forward", Units), (-1.5f, 1.5f), (p => p.slide.balanceHand.x, (p, v) => p.slide.balanceHand.x = v)),
             new Parameter(("Pose", "Front hand height", Units), (-1.5f, 1.5f), (p => p.slide.balanceHand.y, (p, v) => p.slide.balanceHand.y = v)),
             new Parameter(("Pose", "Limb ease per frame", Share), (0.01f, 1f), (p => p.slide.limbPoseEase, (p, v) => p.slide.limbPoseEase = v)),
+        };
+    }
+
+    // Hanging from a ledge and one-way platforms. The hang's on/off switch is set on the character (the panel has number
+    // rows only); the climb itself is tuned on the character for now.
+    private static List<Parameter> Ledge() {
+        return new List<Parameter> {
+            new Parameter(("Hang", "Stick or key push that counts as a choice", Share), (0.1f, 1f), (p => p.ledgeHang.intentThreshold, (p, v) => p.ledgeHang.intentThreshold = v)),
+            new Parameter(("Hang", "Same ledge not grabbed again for", Seconds), (0f, 1f), (p => p.ledgeHang.regrabLockout, (p, v) => p.ledgeHang.regrabLockout = v)),
+            new Parameter(("Idle hang", "Sway out from the wall", Units), (0f, 0.3f), (p => p.ledgeHang.swayAmplitude, (p, v) => p.ledgeHang.swayAmplitude = v)),
+            new Parameter(("Idle hang", "Sway period", Seconds), (0.5f, 6f), (p => p.ledgeHang.swayPeriod, (p, v) => p.ledgeHang.swayPeriod = v)),
+            new Parameter(("Idle hang", "Breath rise", Units), (0f, 0.15f), (p => p.ledgeHang.breathAmplitude, (p, v) => p.ledgeHang.breathAmplitude = v)),
+            new Parameter(("Idle hang", "Breath period", Seconds), (0.5f, 6f), (p => p.ledgeHang.breathPeriod, (p, v) => p.ledgeHang.breathPeriod = v)),
+            new Parameter(("One-way platforms", "Dropped-through platform ignored for", Seconds), (0.05f, 1f), (p => p.oneWay.dropThroughTime, (p, v) => p.oneWay.dropThroughTime = v)),
+            new Parameter(("One-way platforms", "Lands with the feet this far below the top", Units), (0f, 1f), (p => p.oneWay.landingCatch, (p, v) => p.oneWay.landingCatch = v)),
         };
     }
 

@@ -55,7 +55,7 @@ public sealed class WallSlideState : ICharacterState {
         float groundClearance = GroundClearance(settings.minGroundClearance);
         WallSlidePolicy.Catch wall = new WallSlidePolicy.Catch((context.Rig.Motor.Velocity.y, true), (contact.Chest, contact.Knee), (groundClearance, ledgeInReach));
         if (ledgeInReach) {
-            context.States.Climb.Grab(ledge);
+            context.States.Climb.Grab(ledge, intent.moveAxis);
             return true;
         }
         if (!WallSlidePolicy.CanCatch(wall, settings)) {
@@ -106,7 +106,7 @@ public sealed class WallSlideState : ICharacterState {
         bool ledgeInReach = context.States.Climb.TryFindLedgeInReach(wallSide, out Ledge ledge);
         switch (WallSlidePolicy.Continue((ledgeInReach, LandsNextFrame(deltaTime), contact.Knee, releasedFor), settings)) {
             case WallSlidePolicy.Outcome.Ledge:
-                context.States.Climb.Grab(ledge);
+                context.States.Climb.Grab(ledge, commands.MoveAxis);
                 return;
             case WallSlidePolicy.Outcome.Ground:
                 DropOff(false);

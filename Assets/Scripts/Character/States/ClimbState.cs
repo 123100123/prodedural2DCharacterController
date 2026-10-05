@@ -1,6 +1,8 @@
 using UnityEngine;
 
-// Ledge climb: reach the corner, hang, pull up while the feet scramble on the wall, mount a foot on top and stand.
+// Ledge climb: reach the corner, hang, pull up while the feet scramble on the wall, mount a foot on top and stand. The
+// hang waits for the player (LedgeHangPolicy): up, toward the ledge or jump climbs on; down or away lets go into a fall,
+// after which the same ledge cannot be grabbed straight back. Holding toward the ledge as it is grabbed climbs straight on.
 public sealed class ClimbState : ICharacterState {
     private enum ClimbPhase { Reach, Hang, PullUp, Mount, Stand }
 
@@ -9,7 +11,9 @@ public sealed class ClimbState : ICharacterState {
 
     private readonly StateContext context;
     private readonly ClimbSettings settings;
+    private readonly LedgeHangSettings hang;
     private readonly LedgeDetector detector;
+    private readonly LedgeRegrabLockout regrabLockout = new LedgeRegrabLockout();
 
     private Ledge ledge;
     private (Vector2 hang, Vector2 pulled, Vector2 mounted, Vector2 standing) keyframes;
@@ -17,54 +21,64 @@ public sealed class ClimbState : ICharacterState {
     private float phaseElapsed;
     private Vector2 phaseStart;
     private (LegStepper lead, LegStepper trail) legs;
+    // What the player chose for the hang so far, and how long the body has been left hanging.
+    private LedgeHangPolicy.Choice choice;
+    private float timeHanging;
 
-    public ClimbState(StateContext context, ClimbSettings settings) {
+    public ClimbState(StateContext context, (ClimbSettings climb, LedgeHangSettings hang) settings) {
         this.context = context;
-        this.settings = settings;
-        detector = new LedgeDetector(settings);
+        this.settings = settings.climb;
+        hang = settings.hang;
+        detector = new LedgeDetector(settings.climb);
     }
 
     public bool AllowsUpperBodyActions => false;
     public bool AllowsCrouch => false;
 
-    // Jump pressed on the ground next to a ledge that is too high to step onto.
-    public bool TryBeginFromStance() {
+    // Hanging from the ledge, waiting for the player's choice.
+    public bool IsHanging => context.Machine.Current == this && phase == ClimbPhase.Hang && timeHanging > 0f;
+
+    // Jump pressed on the ground next to a ledge that is too high to step onto. moveAxis: the move input as it was pressed.
+    public bool TryBeginFromStance(float moveAxis) {
         StrideController stride = context.Rig.Stride;
         (float minTop, float maxTop) window = LedgeGrabPolicy.StandingGrabWindow((stride.StanceHeight, stride.MaxStepUp), settings);
-        return TryBeginAtLedgeAhead(window);
+        return TryBeginAtLedgeAhead((window, moveAxis));
     }
 
     // Hands come near a ledge corner in the air.
-    public bool TryBeginFromAir() {
+    public bool TryBeginFromAir(float moveAxis) {
         if (!TryFindLedgeInReach(context.Rig.Facing.Sign, out Ledge found)) {
             return false;
         }
-        Grab(found);
+        Grab(found, moveAxis);
         return true;
     }
 
     // A ledge corner within the hands' reach in the air on the given side (+1 right), found without grabbing it: a wall
-    // slide asks toward its wall while the character faces away from it.
+    // slide asks toward its wall while the character faces away from it. A ledge just let go of is not found.
     public bool TryFindLedgeInReach(int direction, out Ledge found) {
         ArmLimb arm = context.Rig.FrontArm;
         (float minTop, float maxTop) window = LedgeGrabPolicy.AirGrabWindow((arm.ShoulderPosition.y, arm.Reach), settings);
-        return detector.TryFindLedge((context.Rig.Body.position.x, direction, window), out found);
+        return detector.TryFindLedge((context.Rig.Body.position.x, direction, window), out found)
+            && !regrabLockout.Blocks(found.Corner, Time.time);
     }
 
-    // Starts climbing a ledge found earlier this frame, turning toward it first.
-    public void Grab(Ledge found) {
+    // Starts climbing a ledge found earlier this frame, turning toward it first. moveAxis: the move input at the grab;
+    // holding toward the ledge climbs straight on, otherwise the character hangs.
+    public void Grab(Ledge found, float moveAxis) {
         context.Rig.Facing.FaceToward(found.ClimbDirection);
         ledge = found;
+        choice = LedgeHangPolicy.OnGrab(moveAxis * found.ClimbDirection, hang);
         context.Machine.ChangeTo(this);
     }
 
-    private bool TryBeginAtLedgeAhead((float minTop, float maxTop) window) {
+    private bool TryBeginAtLedgeAhead(((float minTop, float maxTop) window, float moveAxis) search) {
         float bodyX = context.Rig.Body.position.x;
-        if (!detector.TryFindLedge((bodyX, context.Rig.Facing.Sign, window), out Ledge found)) {
+        if (!detector.TryFindLedge((bodyX, context.Rig.Facing.Sign, search.window), out Ledge found)) {
             return false;
         }
 
-        Grab(found);
+        Grab(found, search.moveAxis);
         return true;
     }
 
@@ -73,12 +87,26 @@ public sealed class ClimbState : ICharacterState {
         keyframes = LedgeGrabPolicy.BodyKeyframes((ledge, bodyStart, context.Rig.Stride.BodyHeight), settings);
         legs = context.Rig.Stride.LegsOrderedByFacing(ledge.ClimbDirection);
         context.Rig.Motor.Velocity = Vector2.zero;
+        timeHanging = 0f;
         StartPhase((ClimbPhase.Reach, bodyStart));
     }
 
     public void Tick(float deltaTime, PlayerCommands commands) {
         phaseElapsed += deltaTime;
         float progress = Mathf.Clamp01(phaseElapsed / PhaseDuration());
+        if (phase <= ClimbPhase.Hang) {
+            LedgeHangPolicy.Choice now = LedgeHangPolicy.Decide((commands.MoveAxis * ledge.ClimbDirection, commands.VerticalAxis, commands.JumpPressed), hang);
+            choice = LedgeHangPolicy.Remember(choice, now);
+        }
+        if (phase == ClimbPhase.Hang && progress >= 1f) {
+            if (choice == LedgeHangPolicy.Choice.Drop) {
+                LetGo();
+                return;
+            }
+            if (choice == LedgeHangPolicy.Choice.Hold) {
+                timeHanging += deltaTime;
+            }
+        }
 
         MoveBodyAlongPhase(progress);
         PoseHands();
@@ -98,12 +126,26 @@ public sealed class ClimbState : ICharacterState {
         phaseElapsed = 0f;
     }
 
+    // The hang waits until the player chooses to climb; the pull-up starts from wherever the idle sway has the body.
     private void AdvancePhase() {
         if (phase == ClimbPhase.Stand) {
             StandOnTop();
             return;
         }
+        if (phase == ClimbPhase.Hang) {
+            if (choice == LedgeHangPolicy.Choice.Climb) {
+                StartPhase((ClimbPhase.PullUp, context.Rig.Body.position));
+            }
+            return;
+        }
         StartPhase((phase + 1, PhaseEndPosition()));
+    }
+
+    // Lets go into a fall straight down; the same ledge cannot be grabbed again for a moment.
+    private void LetGo() {
+        regrabLockout.Lock(ledge.Corner, Time.time + hang.regrabLockout);
+        context.Rig.Events.RaiseLedgeDropped((ledge.Corner, ledge.ClimbDirection));
+        context.States.Airborne.Drop(Vector2.zero);
     }
 
     private float PhaseDuration() {
@@ -129,6 +171,9 @@ public sealed class ClimbState : ICharacterState {
     private void MoveBodyAlongPhase(float progress) {
         Transform body = context.Rig.Body;
         Vector2 position = Vector2.Lerp(phaseStart, PhaseEndPosition(), Mathf.SmoothStep(0f, 1f, progress));
+        if (phase == ClimbPhase.Hang) {
+            position += LedgeHangPolicy.IdleSway((timeHanging, -ledge.ClimbDirection), hang);
+        }
         body.position = new Vector3(position.x, position.y, body.position.z);
     }
 

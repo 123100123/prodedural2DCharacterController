@@ -13,6 +13,8 @@ public sealed class ScenarioStage {
     // The top of the test track.
     public const float GroundTop = -5.21f;
     private const float TrackHalfLength = 400f;
+    // How thick the one-way platforms built for tests are.
+    public const float OneWayThickness = 0.4f;
 
     private readonly HashSet<Key> heldKeys = new HashSet<Key>();
     private Keyboard keyboard;
@@ -84,6 +86,15 @@ public sealed class ScenarioStage {
         return GroundTop + wall.height;
     }
 
+    // A thin one-way platform (OneWayPlatform) from startX, its top the given height above the track: the character lands
+    // on it from above and passes through it from below and the sides. Returns its top.
+    public float AddOneWayPlatform((float startX, float height, float width) platform) {
+        float top = GroundTop + platform.height;
+        GameObject block = CreateBlock(new Vector2(platform.startX + platform.width / 2f, top - OneWayThickness / 2f), new Vector2(platform.width, OneWayThickness));
+        block.AddComponent<OneWayPlatform>();
+        return top;
+    }
+
     // Lifts the whole character straight up into the open air; it falls from there.
     public void Lift(float height) => Character.transform.position += Vector3.up * height;
 
@@ -95,12 +106,17 @@ public sealed class ScenarioStage {
 
     // Lifts the character onto a new platform the given height above the track and returns when it stands there: for
     // falls from a height. The platform runs from behind the character to widthAhead in front of it.
-    public void PlaceOnPlatform((float height, float widthAhead) platform) {
+    // oneWay: a thin one-way platform (OneWayPlatform) instead of a solid block.
+    public void PlaceOnPlatform((float height, float widthAhead) platform, bool oneWay = false) {
         const float Behind = 6f;
         Transform root = Character.transform;
         float x = Stride.transform.position.x;
         float top = GroundTop + platform.height;
-        CreateBlock(new Vector2(x + (platform.widthAhead - Behind) / 2f, top - 0.5f), new Vector2(platform.widthAhead + Behind, 1f));
+        float thickness = oneWay ? OneWayThickness : 1f;
+        GameObject block = CreateBlock(new Vector2(x + (platform.widthAhead - Behind) / 2f, top - thickness / 2f), new Vector2(platform.widthAhead + Behind, thickness));
+        if (oneWay) {
+            block.AddComponent<OneWayPlatform>();
+        }
         root.position += Vector3.up * platform.height;
         Stride.TrySettleStance((x, 1, top));
         Stride.BeginGroundedMotion(Vector2.zero);
@@ -184,9 +200,10 @@ public sealed class ScenarioStage {
         CreateBlock(new Vector2(0f, GroundTop - 0.5f), new Vector2(2f * TrackHalfLength, 1f));
     }
 
-    private static void CreateBlock(Vector2 center, Vector2 size) {
+    private static GameObject CreateBlock(Vector2 center, Vector2 size) {
         GameObject block = new GameObject("scenarioGround");
         block.transform.position = center;
         block.AddComponent<BoxCollider2D>().size = size;
+        return block;
     }
 }

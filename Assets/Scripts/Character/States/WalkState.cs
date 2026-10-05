@@ -1,6 +1,7 @@
 using UnityEngine;
 
-// Grounded locomotion: the stride gait walks the character between walls, turning toward the movement direction.
+// Grounded locomotion: the stride gait walks the character between walls, turning toward the movement direction. Down +
+// jump on a one-way platform drops through it instead of jumping.
 public sealed class WalkState : ICharacterState {
     private readonly StateContext context;
 
@@ -26,7 +27,10 @@ public sealed class WalkState : ICharacterState {
             context.Rig.Facing.FaceToward(commands.MoveAxis);
         }
         if (commands.JumpPressed) {
-            if (!context.States.Climb.TryBeginFromStance()) {
+            if (commands.DownHeld && TryDropThroughPlatform()) {
+                return;
+            }
+            if (!context.States.Climb.TryBeginFromStance(commands.MoveAxis)) {
                 context.States.JumpWindup.Begin(true);
             }
             return;
@@ -48,6 +52,23 @@ public sealed class WalkState : ICharacterState {
 
     public void Exit() {
         context.Rig.Motor.Velocity = context.Rig.Stride.BodyVelocity;
+    }
+
+    // Only when everything under the feet is one-way: the feet let go of the platforms, which the ground queries ignore for
+    // a moment, and the body falls through them with the speed it walked at (no jump, no coyote jump).
+    private bool TryDropThroughPlatform() {
+        StrideController stride = context.Rig.Stride;
+        bool frontHasGround = stride.TryFindGroundUnderFoot(stride.FrontLeg, out Collider2D frontGround);
+        bool backHasGround = stride.TryFindGroundUnderFoot(stride.BackLeg, out Collider2D backGround);
+        if (!OneWayPassage.CanDropThrough((frontHasGround, OneWayPlatform.IsOneWay(frontGround)), (backHasGround, OneWayPlatform.IsOneWay(backGround)))) {
+            return false;
+        }
+
+        stride.OneWay.DropThrough((frontGround, backGround), Time.time);
+        context.Rig.Events.RaiseDroppedThroughPlatform(new Vector2(context.Rig.Body.position.x, stride.StanceHeight));
+        float runSpeed = stride.Run.speed;
+        context.States.Airborne.Drop(new Vector2(Mathf.Clamp(stride.BodyVelocity.x, -runSpeed, runSpeed), 0f));
+        return true;
     }
 
     // Running needs the run input and no aiming: aiming slows the character to a walk.

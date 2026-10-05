@@ -116,6 +116,53 @@ public class MovementPresetTests {
         Assert.That(loaded.slide.leadFoot, Is.EqualTo(defaults.leadFoot));
     }
 
+    [Test]
+    public void TheLedgeHangAndOneWaySettingsSurviveAJsonRoundTrip() {
+        MovementPreset original = MovementPreset.CodeDefaults();
+        original.ledgeHang.regrabLockout = 0.45f;
+        original.ledgeHang.swayAmplitude = 0.125f;
+        original.ledgeHang.holdable = false;
+        original.oneWay.dropThroughTime = 0.375f;
+        original.oneWay.landingCatch = 0.5f;
+
+        MovementPreset loaded = MovementPreset.FromJson(original.ToJson());
+        Assert.That(loaded.ledgeHang.regrabLockout, Is.EqualTo(0.45f));
+        Assert.That(loaded.ledgeHang.swayAmplitude, Is.EqualTo(0.125f));
+        Assert.That(loaded.ledgeHang.holdable, Is.False);
+        Assert.That(loaded.oneWay.dropThroughTime, Is.EqualTo(0.375f));
+        Assert.That(loaded.oneWay.landingCatch, Is.EqualTo(0.5f));
+        Assert.That(loaded.ToJson(), Is.EqualTo(original.ToJson()));
+    }
+
+    // A preset saved at version 8, before the ledge hang and one-way settings existed, loads them at their defaults.
+    [Test]
+    public void AVersionEightPresetLoadsTheLedgeHangAndOneWayDefaults() {
+        MovementPreset saved = MovementPreset.CodeDefaults();
+        saved.run.lean = 18.5f;
+        saved.slide.boostSpeed = 9.5f;
+        saved.version = 8;
+        string versionEight = WithoutObject(WithoutObject(saved.ToJson(), "ledgeHang"), "oneWay");
+        Assert.That(versionEight, Does.Not.Contain("\"ledgeHang\""));
+        Assert.That(versionEight, Does.Not.Contain("\"oneWay\""));
+        Assert.That(versionEight, Does.Contain("\"slide\""), "only the new settings are taken out");
+
+        MovementPreset loaded = MovementPreset.FromJson(versionEight);
+        LedgeHangSettings hangDefaults = new LedgeHangSettings();
+        OneWaySettings oneWayDefaults = new OneWaySettings();
+        Assert.That(MovementPreset.CurrentVersion, Is.GreaterThan(8));
+        Assert.That(loaded.version, Is.EqualTo(8), "what the file says");
+        Assert.That(loaded.run.lean, Is.EqualTo(18.5f));
+        Assert.That(loaded.slide.boostSpeed, Is.EqualTo(9.5f));
+        Assert.That(loaded.ledgeHang, Is.Not.Null);
+        Assert.That(loaded.ledgeHang.holdable, Is.True);
+        Assert.That(loaded.ledgeHang.intentThreshold, Is.EqualTo(hangDefaults.intentThreshold));
+        Assert.That(loaded.ledgeHang.regrabLockout, Is.EqualTo(hangDefaults.regrabLockout));
+        Assert.That(loaded.ledgeHang.swayPeriod, Is.EqualTo(hangDefaults.swayPeriod));
+        Assert.That(loaded.oneWay, Is.Not.Null);
+        Assert.That(loaded.oneWay.dropThroughTime, Is.EqualTo(oneWayDefaults.dropThroughTime));
+        Assert.That(loaded.oneWay.landingCatch, Is.EqualTo(oneWayDefaults.landingCatch));
+    }
+
     // The JSON with one object-valued field (and the comma before it) removed.
     private static string WithoutObject(string json, string field) {
         int key = json.IndexOf("\"" + field + "\"", System.StringComparison.Ordinal);
@@ -141,7 +188,11 @@ public class MovementPresetTests {
         copy.posture.maxTotalLean = 1f;
         copy.wall.maxSlideSpeed = 99f;
         copy.slide.boostSpeed = 99f;
+        copy.ledgeHang.regrabLockout = 99f;
+        copy.oneWay.dropThroughTime = 99f;
         Assert.That(original.walk.speed, Is.EqualTo(GaitProfile.Walk.speed));
+        Assert.That(original.ledgeHang.regrabLockout, Is.EqualTo(new LedgeHangSettings().regrabLockout));
+        Assert.That(original.oneWay.dropThroughTime, Is.EqualTo(new OneWaySettings().dropThroughTime));
         Assert.That(original.posture.maxTotalLean, Is.EqualTo(PostureSettings.Default.maxTotalLean));
         Assert.That(original.wall.maxSlideSpeed, Is.EqualTo(new WallSettings().maxSlideSpeed));
         Assert.That(original.slide.boostSpeed, Is.EqualTo(new SlideSettings().boostSpeed));

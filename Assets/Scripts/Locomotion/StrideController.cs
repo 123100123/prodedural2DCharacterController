@@ -73,6 +73,8 @@ public class StrideController : MonoBehaviour {
     private float anchorX;
     private CharacterEvents events;
     private CharacterFacing facing;
+    // The one-way platforms the character is dropping through; the composition hands it the character's settings.
+    private OneWayPassage oneWay = new OneWayPassage(new OneWaySettings());
 
     public LegStepper FrontLeg => frontLeg;
     public LegStepper BackLeg => backLeg;
@@ -85,6 +87,14 @@ public class StrideController : MonoBehaviour {
     public float MaxStepDown => footholdLimits.maxStepDown;
     public float StanceHeight => (frontLeg.FootTarget.y + backLeg.FootTarget.y) / 2f;
     public LayerMask GroundMask => footholdLimits.groundMask;
+    public OneWayPassage OneWay { get => oneWay; set => oneWay = value ?? oneWay; }
+    // The one-way platforms that hold feet standing at the given height: those whose top is at or below it.
+    public OneWaySupport SupportAt(float feetY) => new OneWaySupport(feetY + OneWayFilter.StandingTolerance, (oneWay, Time.time));
+    // In the air: the one-way platforms the falling body would stand on, those at or below its standing feet (with the
+    // landing catch). A platform the body is rising or passing through from below holds nothing.
+    public OneWaySupport AirSupport => new OneWaySupport(transform.position.y - bodyHeight + oneWay.Settings.landingCatch, (oneWay, Time.time));
+    // The ground and support for a ray standing for feet at the given height.
+    public (LayerMask mask, OneWaySupport support) GroundAt(float feetY) => (footholdLimits.groundMask, SupportAt(feetY));
     public Vector2 BodyVelocity => Carriage.Velocity;
 
     // The walk, run and crouch profiles with how crouched the character is: asks "the gait at a speed".
@@ -259,18 +269,26 @@ public class StrideController : MonoBehaviour {
     // Ground below the body within standing height plus extraDepth (e.g. this frame's fall distance).
     public bool TryFindGroundBelowBody(float extraDepth, out Vector2 ground) {
         Vector2 origin = transform.position;
-        return FootholdProbe.TryFindGroundBelow((origin, bodyHeight + extraDepth), footholdLimits.groundMask, out ground);
+        return FootholdProbe.TryFindGroundBelow((origin, bodyHeight + extraDepth), (footholdLimits.groundMask, AirSupport), out ground);
+    }
+
+    // The collider under a foot it stands on, if any.
+    public bool TryFindGroundUnderFoot(LegStepper leg, out Collider2D ground) {
+        Vector2 origin = leg.FootTarget + Vector2.up * GroundContactTolerance;
+        bool found = FootholdProbe.TryFindGroundHitBelow((origin, 2f * GroundContactTolerance), GroundAt(leg.FootTarget.y), out RaycastHit2D hit);
+        ground = found ? hit.collider : null;
+        return found;
     }
 
     private bool TryFindStanceGround((float x, float groundY) column, out Vector2 ground) {
         Vector2 origin = new Vector2(column.x, column.groundY + footholdLimits.maxStepUp);
         float depth = footholdLimits.maxStepUp + footholdLimits.maxStepDown;
-        return FootholdProbe.TryFindGroundBelow((origin, depth), footholdLimits.groundMask, out ground);
+        return FootholdProbe.TryFindGroundBelow((origin, depth), GroundAt(column.groundY), out ground);
     }
 
     private bool IsFootOnGround(LegStepper leg) {
         Vector2 origin = leg.FootTarget + Vector2.up * GroundContactTolerance;
-        return FootholdProbe.TryFindGroundBelow((origin, 2f * GroundContactTolerance), footholdLimits.groundMask, out _);
+        return FootholdProbe.TryFindGroundBelow((origin, 2f * GroundContactTolerance), GroundAt(leg.FootTarget.y), out _);
     }
 
     // ---- Speed -----------------------------------------------------------------------------------------------
@@ -545,7 +563,7 @@ public class StrideController : MonoBehaviour {
             ForwardSign = Mathf.Sign(step.desiredX - transform.position.x),
         };
 
-        FootholdProbe.CollectCandidates((request.DesiredX, request.PlantedFoot.y, step.stepping.FootTarget), footholdLimits, footholdCandidates);
+        FootholdProbe.CollectCandidates((request.DesiredX, request.PlantedFoot.y, step.stepping.FootTarget), (footholdLimits, SupportAt(request.PlantedFoot.y)), footholdCandidates);
         return FootholdPlanner.TryChooseFoothold(request, (footholdCandidates, footholdLimits), out foothold);
     }
 

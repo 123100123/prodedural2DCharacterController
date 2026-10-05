@@ -9,6 +9,7 @@ public sealed class PlayerInputReader : IDisposable {
     private const float CrouchTapMaxDuration = 0.25f;
 
     private readonly InputAction move = new InputAction("Move", InputActionType.Value, expectedControlType: "Axis");
+    private readonly InputAction vertical = new InputAction("Vertical", InputActionType.Value, expectedControlType: "Axis");
     private readonly InputAction jump = new InputAction("Jump", InputActionType.Button);
     private readonly InputAction roll = new InputAction("Roll", InputActionType.Button);
     private readonly InputAction run = new InputAction("Run", InputActionType.Button);
@@ -19,6 +20,7 @@ public sealed class PlayerInputReader : IDisposable {
     private readonly InputAction pointer = new InputAction("Pointer", InputActionType.Value, expectedControlType: "Vector2");
     private readonly HoldOrTapToggle aimMode = new HoldOrTapToggle(AimTapMaxDuration);
     private readonly HoldOrTapToggle crouchMode = new HoldOrTapToggle(CrouchTapMaxDuration);
+    private readonly VerticalIntent verticalIntent = new VerticalIntent();
 
     // Scenario hook: while set, supplies the pointer's screen position instead of the mouse, so a test's aim does not
     // depend on how the Editor's Game view maps (or remaps) virtual pointer coordinates. Unset in normal play.
@@ -39,8 +41,12 @@ public sealed class PlayerInputReader : IDisposable {
     public PlayerCommands ReadCommands() {
         bool isTyping = UiInputCapture.IsKeyboardCaptured;
         bool isPointerOverUi = UiInputCapture.IsPointerCaptured;
+        (float axis, bool upPressed, bool downPressed) upDown = verticalIntent.Update(isTyping ? 0f : vertical.ReadValue<float>());
         return new PlayerCommands {
             MoveAxis = isTyping ? 0f : move.ReadValue<float>(),
+            VerticalAxis = upDown.axis,
+            UpPressed = upDown.upPressed,
+            DownPressed = upDown.downPressed,
             JumpPressed = !isTyping && jump.WasPressedThisFrame(),
             JumpHeld = !isTyping && jump.IsPressed(),
             RollPressed = !isTyping && roll.WasPressedThisFrame(),
@@ -72,6 +78,9 @@ public sealed class PlayerInputReader : IDisposable {
         move.AddCompositeBinding("1DAxis").With("Negative", "<Keyboard>/a").With("Positive", "<Keyboard>/d");
         move.AddCompositeBinding("1DAxis").With("Negative", "<Keyboard>/leftArrow").With("Positive", "<Keyboard>/rightArrow");
         move.AddBinding("<Gamepad>/leftStick/x");
+        vertical.AddCompositeBinding("1DAxis").With("Negative", "<Keyboard>/s").With("Positive", "<Keyboard>/w");
+        vertical.AddCompositeBinding("1DAxis").With("Negative", "<Keyboard>/downArrow").With("Positive", "<Keyboard>/upArrow");
+        vertical.AddBinding("<Gamepad>/leftStick/y");
     }
 
     private void BindActions() {
@@ -94,6 +103,7 @@ public sealed class PlayerInputReader : IDisposable {
 
     private void ForEachAction(Action<InputAction> apply) {
         apply(move);
+        apply(vertical);
         apply(jump);
         apply(roll);
         apply(run);

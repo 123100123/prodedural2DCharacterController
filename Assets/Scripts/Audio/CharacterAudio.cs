@@ -19,6 +19,8 @@ public sealed class CharacterAudio {
     private const float WallCatchLevel = 0.5f;
     private const float SlideLevel = 0.55f;
     private const float SlidePitch = 0.8f;
+    private const float LedgeReleaseLevel = 0.35f;
+    private const float DropThroughLevel = 0.45f;
     private const float DefaultHalfWidth = 10f;
 
     private readonly CharacterAudioSettings settings;
@@ -102,6 +104,8 @@ public sealed class CharacterAudio {
         events.WallJumped += OnWallJumped;
         events.WallSlideStarted += OnWallSlideStarted;
         events.SlideStarted += OnSlideStarted;
+        events.LedgeDropped += OnLedgeDropped;
+        events.DroppedThroughPlatform += OnDroppedThroughPlatform;
         events.Fired += OnFired;
         events.DryFired += OnDryFired;
         events.ShotHit += OnShotHit;
@@ -118,6 +122,8 @@ public sealed class CharacterAudio {
         events.WallJumped -= OnWallJumped;
         events.WallSlideStarted -= OnWallSlideStarted;
         events.SlideStarted -= OnSlideStarted;
+        events.LedgeDropped -= OnLedgeDropped;
+        events.DroppedThroughPlatform -= OnDroppedThroughPlatform;
         events.Fired -= OnFired;
         events.DryFired -= OnDryFired;
         events.ShotHit -= OnShotHit;
@@ -154,6 +160,12 @@ public sealed class CharacterAudio {
 
     // A soft scuff as the feet catch the wall.
     private void OnWallSlideStarted((Vector2 contact, int wallSide) slide) => PlayAt(SoundId.Footstep, (WallCatchLevel, 0.8f), slide.contact.x);
+
+    // A soft scuff of the hands leaving the ledge.
+    private void OnLedgeDropped((Vector2 corner, int climbDirection) drop) => PlayAt(SoundId.Footstep, (LedgeReleaseLevel, 1.15f), drop.corner.x);
+
+    // The feet scuffing off the platform they drop through.
+    private void OnDroppedThroughPlatform(Vector2 feet) => PlayAt(SoundId.Footstep, (DropThroughLevel, 0.85f), feet.x);
 
     // The brush of the body dropping onto the ground: the roll's tumble, lower.
     private void OnSlideStarted((Vector2 position, int direction) slide) => PlayAt(SoundId.Roll, (SlideLevel, SlidePitch), slide.position.x);

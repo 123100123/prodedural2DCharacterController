@@ -136,7 +136,7 @@ public sealed class SlideState : ICharacterState {
         Transform body = context.Rig.Body;
         Vector2 origin = (Vector2)body.position + Vector2.up * GroundProbeHeadroom;
         float depth = GroundProbeHeadroom + Mathf.Max(0f, body.position.y - groundY) + context.Rig.Stride.MaxStepDown;
-        if (!FootholdProbe.TryFindGroundBelow((origin, depth), context.Rig.Stride.GroundMask, out Vector2 ground)) {
+        if (!FootholdProbe.TryFindGroundBelow((origin, depth), context.Rig.Stride.GroundAt(groundY), out Vector2 ground)) {
             return false;
         }
         groundY = ground.y;

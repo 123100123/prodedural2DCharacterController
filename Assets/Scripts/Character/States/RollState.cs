@@ -158,7 +158,7 @@ public sealed class RollState : ICharacterState {
         Vector2 origin = (Vector2)body.position + Vector2.up * GroundProbeHeadroom;
         float depth = GroundProbeHeadroom + (body.position.y - groundY) + settings.maxGroundDrop;
 
-        if (!FootholdProbe.TryFindGroundBelow((origin, depth), context.Rig.Stride.GroundMask, out Vector2 ground)) {
+        if (!FootholdProbe.TryFindGroundBelow((origin, depth), context.Rig.Stride.GroundAt(groundY), out Vector2 ground)) {
             return false;
         }
         groundY = ground.y;
@@ -263,7 +263,7 @@ public sealed class RollState : ICharacterState {
         Vector2 origin = new Vector2(shoulder.x + direction * settings.handReachAhead, shoulder.y);
         float depth = shoulder.y - groundY + settings.maxGroundDrop;
 
-        bool hasGround = FootholdProbe.TryFindGroundBelow((origin, depth), context.Rig.Stride.GroundMask, out Vector2 ground);
+        bool hasGround = FootholdProbe.TryFindGroundBelow((origin, depth), context.Rig.Stride.GroundAt(groundY), out Vector2 ground);
         return hasGround ? ground : new Vector2(origin.x, groundY);
     }
 
@@ -332,7 +332,7 @@ public sealed class RollState : ICharacterState {
 
         for (int sample = 0; sample <= sampleCount; sample++) {
             Vector2 origin = new Vector2(search.preferredX + shiftSign * sample * FootholdSearchStep, groundY + stride.MaxStepUp);
-            if (FootholdProbe.TryFindGroundBelow((origin, stride.MaxStepUp + stride.MaxStepDown), stride.GroundMask, out Vector2 ground)) {
+            if (FootholdProbe.TryFindGroundBelow((origin, stride.MaxStepUp + stride.MaxStepDown), stride.GroundAt(groundY), out Vector2 ground)) {
                 return ground;
             }
         }
