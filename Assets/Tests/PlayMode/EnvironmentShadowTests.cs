@@ -31,6 +31,12 @@ public class EnvironmentShadowTests {
         Assert.That(lighting, Is.Not.Null, "the scene has a lighting rig");
         Bounds bounds = GameObject.Find(BlockName).GetComponent<SpriteRenderer>().bounds;
         block = new Rect(bounds.min.x, bounds.min.y, bounds.size.x, bounds.size.y);
+        // The probes compare the raised block's shadow with the lit background beside it; the playground built against the
+        // block's right edge casts shadows of its own there, so it is switched off for those (only its pictures keep it).
+        GameObject playground = GameObject.Find("Playground");
+        if (playground != null && !TestContext.CurrentContext.Test.Name.Contains("Playground")) {
+            playground.SetActive(false);
+        }
         yield return Frames(5);
     }
 
@@ -96,6 +102,25 @@ public class EnvironmentShadowTests {
         };
         foreach ((string name, Vector2 center, float size) view in views) {
             System.IO.File.WriteAllBytes(System.IO.Path.Combine(folder, view.name + ".png"), Capture(view.center, view.size).EncodeToPNG());
+        }
+        yield return null;
+    }
+
+    // The playground area (crates and targets, then the slide gap, ledge and platforms, then the wall-jump pit), when the
+    // scene has one: Temp/LocomotionScenarios/playground*.png.
+    [UnityTest]
+    public IEnumerator SavesPicturesOfThePlayground() {
+        GameObject floor = GameObject.Find("Playground")?.transform.Find("Floor")?.gameObject;
+        if (floor == null) {
+            Assert.Ignore("The scene has no playground.");
+        }
+        string folder = System.IO.Path.Combine(Application.dataPath, "..", "Temp", "LocomotionScenarios");
+        System.IO.Directory.CreateDirectory(folder);
+        Bounds bounds = floor.GetComponent<BoxCollider2D>().bounds;
+        (string name, float along)[] views = { ("playground", 24f), ("playground-platforms", 66f), ("playground-pit", 104f) };
+        foreach ((string name, float along) view in views) {
+            Vector2 center = new Vector2(bounds.min.x + view.along, bounds.max.y + 3f);
+            System.IO.File.WriteAllBytes(System.IO.Path.Combine(folder, view.name + ".png"), Capture(center, 13.1f).EncodeToPNG());
         }
         yield return null;
     }

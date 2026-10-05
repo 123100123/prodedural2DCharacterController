@@ -67,13 +67,15 @@ this branch. `main` is not touched until the user approves the whole batch.
 
 | Phase | Status | Commit |
 |---|---|---|
-| 1 Weapon | done | |
-| 2 Camera | done | |
-| 3 VFX | done | |
-| 4 Audio | done | |
-| 5 Wall slide / jump | done | |
-| 6 Running slide | done | |
-| 7 Vertical input / ledges / one-way | done | |
-| 8 Physics push | done | |
-| 9 Roll / climb tuning | done | |
-| 10 Playground / docs | pending | |
+| 1 Weapon | done | 8169009 |
+| 2 Camera | done | 0bd45e2 |
+| 3 VFX | done | 2521edf |
+| 4 Audio | done | 13ce077 |
+| 5 Wall slide / jump | done | fe3603a |
+| 6 Running slide | done | 86366c9 |
+| 7 Vertical input / ledges / one-way | done | 1962896 |
+| 8 Physics push | done | f54ee41 |
+| 9 Roll / climb tuning | done | 276ddf7 |
+| 10 Playground / docs | done | this commit |
+
+Also on the branch: `e54982c` (test seam: scenario tests aim at world points, independent of the Game view) and `f463c6d` (fixes from the verifier pass: disposal of recomposed collaborators, casing, audio and aim edge cases).

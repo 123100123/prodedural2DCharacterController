@@ -12,7 +12,7 @@ using UnityEngine.SceneManagement;
 // that were not made here. Run it from Tools > Procedural Character > Environment, or through the MCP.
 public static class EnvironmentSetup {
     private const string ArtFolder = "Assets/Art/Background";
-    private const string LitMaterialPath = "Packages/com.unity.render-pipelines.universal/Runtime/Materials/Sprite-Lit-Default.mat";
+    internal const string LitMaterialPath = "Packages/com.unity.render-pipelines.universal/Runtime/Materials/Sprite-Lit-Default.mat";
     private const string BackgroundRoot = "Background";
     private const float PixelsPerUnit = 32f;
     private const string GridSprite = "bg_grid";
@@ -24,7 +24,7 @@ public static class EnvironmentSetup {
     private const float GridDepth = 10f;
     private const string MarkerSpritePrefix = "icon";
     private const string PrefabFolder = "Assets/Prefabs";
-    private const string LampPrefabPath = PrefabFolder + "/Lamp.prefab";
+    internal const string LampPrefabPath = PrefabFolder + "/Lamp.prefab";
     private const string LampComponentType = "LampLight, ProceduralCharacter.Lighting";
     private const string ShadowCasterType = "UnityEngine.Rendering.Universal.ShadowCaster2D, Unity.RenderPipelines.Universal.2D.Runtime";
 
@@ -266,7 +266,7 @@ public static class EnvironmentSetup {
     [MenuItem("Tools/Procedural Character/Environment/Add Shadow Casters To Level Blocks")]
     public static void AddShadowCastersFromMenu() => Debug.Log(AddShadowCasters(SceneManager.GetActiveScene()));
 
-    // Every solid block of the level (a box collider on a sprite, outside the character and the background) gets a
+    // Every solid block of the level (a box collider on a sprite, outside the character, the targets and the background) gets a
     // ShadowCaster2D that shadows the layers in EnvironmentLayers.ShadowedByBlocks. Added in the Editor, the caster takes
     // the sprite's outline as its shape, and the choice is saved in the scene (a caster added while playing would not
     // survive a build). Blocks that already have one only have their target layers corrected.
@@ -284,7 +284,9 @@ public static class EnvironmentSetup {
                 continue;
             }
             foreach (BoxCollider2D box in root.GetComponentsInChildren<BoxCollider2D>(true)) {
-                bool isLevelBlock = !box.isTrigger && box.GetComponent<SpriteRenderer>() != null && box.GetComponentInParent<CharacterDriver>() == null;
+                // A shooting target is not a block: it vanishes when shot and a caster would go on shadowing where it was.
+                bool isLevelBlock = !box.isTrigger && box.GetComponent<SpriteRenderer>() != null && box.GetComponentInParent<CharacterDriver>() == null
+                    && box.GetComponent<ShootingTarget>() == null;
                 if (!isLevelBlock) {
                     continue;
                 }

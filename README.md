@@ -10,15 +10,25 @@ _Results_
 
 Open `Assets/Scenes/SampleScene.unity` and press Play.
 
+Controls are listed below. To try the moves, climb onto the raised block at the right end of the level and walk right into the playground (Tools > Procedural Character > Build Playground rebuilds it).
+
+## Controls
+
 | Action | Keyboard / mouse | Gamepad |
 |---|---|---|
-| Walk | A / D (or ← / →) | Left stick |
-| Run (while walking, not while aiming) | Hold Left Shift | Press left stick |
-| Crouch (hold, or tap to latch on and off) | Left Ctrl | Press right stick |
-| Jump (climbs instead when a too-high ledge is ahead); release early for a hop | Space | South button |
-| Roll toward the facing direction (disabled by default) | C | East button |
-| Shooting mode: face and aim at the pointer | Hold right mouse button | Left trigger |
-| Fire (in shooting mode; logs a debug message) | Left mouse button | Right trigger |
+| Move left / right | A / D (or ← / →) | Left stick |
+| Vertical (up / down: climb out of a hang, let go, drop through) | W / S (or ↑ / ↓) | Left stick up / down |
+| Jump (hold for height, release early for a hop; climbs instead when a too-high ledge is ahead) | Space | South button |
+| Run (while walking; not while aiming) | Hold Left Shift | Press left stick |
+| Crouch (hold, or tap to latch on and off); pressed while running it slides | Left Ctrl | Press right stick |
+| Roll toward the facing direction (disabled by default; toggle it in F1) | C | East button |
+| Aim: face and aim at the pointer (hold, or tap to latch on and off) | Right mouse button | Left trigger |
+| Fire (while aiming) | Left mouse button | Right trigger |
+| Reload (also automatic on an empty pull) | R | West button |
+| Drop through a one-way platform | Down + Space | Stick down + South button |
+| Wall slide: in the air, hold toward a wall | A / D into the wall | Left stick into the wall |
+| Wall jump: while sliding, kicks off away from the wall | Space | South button |
+| Ledge hang: hold on, climb up (Up or toward the ledge), let go (Down) | W or toward / S | Stick up or toward / stick down |
 | Open or close the locomotion tuning panel | F1 | |
 
 ## Project layout
@@ -27,11 +37,17 @@ Assets/
   Art/Characters/      inverseRobo.psb (rigged PSB character)
   Art/Sprites/         debug icons and the ground tile
   Scenes/              SampleScene
-  Editor/              ProceduralCharacter.Editor assembly: the one-time URP 2D lighting setup menu
+  Editor/              ProceduralCharacter.Editor assembly: the URP 2D lighting setup, Environment menu and Build Playground menu
   Scripts/             ProceduralCharacter.Runtime assembly
     Character/         CharacterDriver (composition root), facing, kinematic motor, rig, crouch, jump momentum, air pose, landing
     Character/States/  Walk, JumpWindup, Airborne, Roll, Climb and their settings
-    Climbing/          ledge detection and grab rules
+    Climbing/          ledge detection and grab rules, the holdable hang
+    Weapon/            pistol: hitscan shot, magazine, reload motion, tracers, shooting targets
+    Effects/           pooled procedural particles (dust, sparks, smoke, casings)
+    Audio/             clips synthesized in code and the pooled voices
+    Platforms/         one-way platforms
+    Props/             pushable crates
+    Environment/       sorting layers and the dot-grid background
     Lighting/          lighting settings and the muzzle flash envelope (pure)
     Lighting/Urp/      ProceduralCharacter.Lighting assembly (compiled only with URP): the lighting rig, muzzle flash light, shadow casters
     Diagnostics/       ProceduralCharacter.Diagnostics assembly: tuning domains and presets, telemetry, debug lines (the character never references it)
@@ -231,8 +247,6 @@ The full-body states switch through `CharacterStateMachine`. Each state receives
   - [ ] Character and ground prefabs
   - [ ] A crouch-slide and a sneak gait (one more profile in `GaitSet`)
   - [ ] Per-area ambient light zones
-  - [ ] Footstep and landing sounds and dust on `CharacterEvents`
-  - [ ] Projectiles and hit reactions for the pistol
   - [ ] Foot alignment to slopes
   - [ ] Step curves as `AnimationCurve`s
   - [ ] Allow the character to fall over when losing balance

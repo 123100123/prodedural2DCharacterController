@@ -7,7 +7,7 @@ using UnityEngine.Rendering;
 using UnityEngine.TestTools;
 
 // The level's shadow casters as authored in the scene (the test stage switches the blocks off, so inactive ones are
-// included): every solid block has one, and it shadows the wall and the ruins
+// included): every solid block (crates too, not the shootable targets) has one, and it shadows the wall and the ruins
 // behind it and the level in front. They are read by name so this needs no URP reference;
 // without the Universal Render Pipeline the scenarios are skipped.
 public class ShadowCasterScenarioTests : ScenarioFixture {
@@ -42,7 +42,8 @@ public class ShadowCasterScenarioTests : ScenarioFixture {
         List<Component> casters = Casters();
         int blocks = 0;
         foreach (BoxCollider2D box in Object.FindObjectsByType<BoxCollider2D>(FindObjectsInactive.Include, FindObjectsSortMode.None)) {
-            bool isLevelBlock = !box.isTrigger && box.GetComponent<SpriteRenderer>() != null;
+            // A shooting target is not a block: it vanishes when shot, and a caster would go on shadowing where it was.
+            bool isLevelBlock = !box.isTrigger && box.GetComponent<SpriteRenderer>() != null && box.GetComponent<ShootingTarget>() == null;
             if (!isLevelBlock) {
                 continue;
             }
