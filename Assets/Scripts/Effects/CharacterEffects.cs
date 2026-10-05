@@ -23,6 +23,10 @@ public sealed class CharacterEffects {
     private const float SlideDustInterval = 0.09f;
     // Seconds between the puffs a running slide kicks up, at the run speed and when nearly stopped.
     private static readonly (float fast, float slow) GroundSlideDustInterval = (0.035f, 0.12f);
+    // Seconds between the puffs a pushed crate scuffs up at its base, at the push speed and when barely moving.
+    private static readonly (float fast, float slow) PushDustInterval = (0.08f, 0.2f);
+    // A pushed crate slower than this (u/s) raises no dust; at this many u/s it raises the most.
+    private static readonly (float min, float full) PushDustSpeed = (0.3f, 2.2f);
     private const float CasingBackOffset = 0.35f;
     private const float CasingSpin = 720f;
 
@@ -49,6 +53,11 @@ public sealed class CharacterEffects {
     // The running slide's direction (+1 right, -1 left), 0 when not sliding; and the time to its next puff.
     private int groundSlideDirection;
     private float groundSlideDustDue;
+    // The crate being pushed and which way (+1 right, -1 left), null when not pushing; the time to its next puff; and
+    // which bottom corner (leading or trailing) puffs next.
+    private (Collider2D crate, int direction) pushed;
+    private float pushDustDue;
+    private bool pushDustLeads;
 
     public CharacterEffects(CharacterRig rig, EffectsSettings settings) {
         this.rig = rig;
@@ -80,6 +89,7 @@ public sealed class CharacterEffects {
         Casings.Tick(deltaTime);
         EmitSlideDust(deltaTime);
         EmitGroundSlideDust(deltaTime);
+        EmitPushDust(deltaTime);
     }
 
     public void Dispose() {
@@ -106,6 +116,8 @@ public sealed class CharacterEffects {
         events.SlideStopped += OnSlideStopped;
         events.LedgeDropped += OnLedgeDropped;
         events.DroppedThroughPlatform += OnDroppedThroughPlatform;
+        events.PushStarted += OnPushStarted;
+        events.PushStopped += OnPushStopped;
         events.Fired += OnFired;
         events.ShotHit += OnShotHit;
     }
@@ -122,6 +134,8 @@ public sealed class CharacterEffects {
         events.SlideStopped -= OnSlideStopped;
         events.LedgeDropped -= OnLedgeDropped;
         events.DroppedThroughPlatform -= OnDroppedThroughPlatform;
+        events.PushStarted -= OnPushStarted;
+        events.PushStopped -= OnPushStopped;
         events.Fired -= OnFired;
         events.ShotHit -= OnShotHit;
     }
@@ -276,6 +290,41 @@ public sealed class CharacterEffects {
         Vector2 velocity = new Vector2(-groundSlideDirection * Random.Range(0.4f, 1.6f) * (0.4f + share), Random.Range(0.3f, 1f) * (0.5f + share));
         float size = EffectMath.PuffSize(share, Mathf.Sqrt(settings.dustScale));
         dust.Emit(heel, velocity, (size * Random.Range(0.7f, 1.1f), DustLife() * 0.8f), DustColor);
+    }
+
+    private void OnPushStarted((Collider2D crate, int direction) push) {
+        pushed = push;
+        pushDustDue = 0f;
+    }
+
+    private void OnPushStopped() => pushed = (null, 0);
+
+    // While a pushed crate slides, a little dust now and then at its base, by turns at the leading and the trailing bottom
+    // corner, drifting back from the push: more often and bigger the faster it slides.
+    private void EmitPushDust(float deltaTime) {
+        if (pushed.crate == null || !settings.enabled || settings.dustScale <= 0f) {
+            return;
+        }
+        Rigidbody2D body = pushed.crate.attachedRigidbody;
+        float speed = body != null ? Mathf.Abs(body.linearVelocity.x) : 0f;
+        if (speed < PushDustSpeed.min) {
+            return;
+        }
+        pushDustDue -= deltaTime;
+        if (pushDustDue > 0f) {
+            return;
+        }
+        float share = Mathf.InverseLerp(PushDustSpeed.min, PushDustSpeed.full, speed);
+        pushDustDue = Mathf.Lerp(PushDustInterval.slow, PushDustInterval.fast, share);
+        pushDustLeads = !pushDustLeads;
+
+        Bounds bounds = pushed.crate.bounds;
+        float leadingX = pushed.direction > 0 ? bounds.max.x : bounds.min.x;
+        float trailingX = pushed.direction > 0 ? bounds.min.x : bounds.max.x;
+        Vector2 corner = new Vector2(pushDustLeads ? leadingX : trailingX, bounds.min.y + 0.05f);
+        Vector2 velocity = new Vector2(-pushed.direction * Random.Range(0.2f, 0.8f) * (0.5f + share), Random.Range(0.15f, 0.6f));
+        float size = EffectMath.PuffSize(0.2f + 0.3f * share, Mathf.Sqrt(settings.dustScale));
+        dust.Emit(corner, velocity, (size * Random.Range(0.7f, 1.1f), DustLife() * 0.7f), DustColor);
     }
 
     // ---- Gun ------------------------------------------------------------------------------------------------

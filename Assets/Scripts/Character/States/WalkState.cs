@@ -1,12 +1,14 @@
 using UnityEngine;
 
 // Grounded locomotion: the stride gait walks the character between walls, turning toward the movement direction. Down +
-// jump on a one-way platform drops through it instead of jumping.
+// jump on a one-way platform drops through it instead of jumping. Walking into a crate (a dynamic body) pushes it.
 public sealed class WalkState : ICharacterState {
     private readonly StateContext context;
+    private readonly CratePusher pusher;
 
-    public WalkState(StateContext context) {
+    public WalkState(StateContext context, CratePusher pusher) {
         this.context = context;
+        this.pusher = pusher;
     }
 
     public bool AllowsUpperBodyActions => true;
@@ -43,6 +45,8 @@ public sealed class WalkState : ICharacterState {
             return;
         }
 
+        // The push takes hold or lets go before the gait steps, and limits the gait's speed while it lasts.
+        pusher.Tick(commands);
         context.Rig.Stride.TickWalk(deltaTime, GaitIntent(commands));
 
         if (context.Rig.Stride.IsPastSupportEdge || context.Rig.Stride.HasLostGround) {
@@ -51,6 +55,7 @@ public sealed class WalkState : ICharacterState {
     }
 
     public void Exit() {
+        pusher.Release();
         context.Rig.Motor.Velocity = context.Rig.Stride.BodyVelocity;
     }
 

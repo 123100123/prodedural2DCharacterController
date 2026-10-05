@@ -95,6 +95,17 @@ public sealed class ScenarioStage {
         return top;
     }
 
+    // A crate (PushableCrate: a dynamic body) standing on the track, its face toward the character at faceX and the crate
+    // reaching away from it toward side (+1 right of the face, -1 left). Returns its body.
+    public Rigidbody2D AddCrate((float faceX, int side) face, (Vector2 size, float mass) crate) {
+        GameObject box = new GameObject("scenarioCrate");
+        box.transform.position = new Vector2(face.faceX + face.side * crate.size.x / 2f, GroundTop + crate.size.y / 2f);
+        box.AddComponent<SpriteRenderer>();
+        PushableCrate pushable = box.AddComponent<PushableCrate>();
+        pushable.Configure(crate);
+        return pushable.Body;
+    }
+
     // Lifts the whole character straight up into the open air; it falls from there.
     public void Lift(float height) => Character.transform.position += Vector3.up * height;
 

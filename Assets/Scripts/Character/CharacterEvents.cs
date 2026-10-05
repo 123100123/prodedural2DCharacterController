@@ -32,6 +32,11 @@ public sealed class CharacterEvents {
     public event Action<(Vector2 corner, int climbDirection)> LedgeDropped;
     // Down + jump dropped the character through the one-way platform it stood on: where its feet left the platform.
     public event Action<Vector2> DroppedThroughPlatform;
+    // The walking character took hold of a crate (a dynamic body) to push it: its collider, and which way (+1 right, -1
+    // left) the push goes.
+    public event Action<(Collider2D crate, int direction)> PushStarted;
+    // The push let go (walking away, aiming, jumping, the crate getting away or the walk ending).
+    public event Action PushStopped;
 
     public void RaiseFootPlanted((Vector2 position, float impactSpeed) plant) => FootPlanted?.Invoke(plant);
 
@@ -64,4 +69,8 @@ public sealed class CharacterEvents {
     public void RaiseLedgeDropped((Vector2 corner, int climbDirection) drop) => LedgeDropped?.Invoke(drop);
 
     public void RaiseDroppedThroughPlatform(Vector2 feet) => DroppedThroughPlatform?.Invoke(feet);
+
+    public void RaisePushStarted((Collider2D crate, int direction) push) => PushStarted?.Invoke(push);
+
+    public void RaisePushStopped() => PushStopped?.Invoke();
 }

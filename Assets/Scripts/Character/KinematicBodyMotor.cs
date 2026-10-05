@@ -5,7 +5,8 @@ using UnityEngine;
 // stop the hull (it passes through them from below and the sides); the feet stand on them, as on any ground.
 [Serializable]
 public class KinematicBodyMotor {
-    private const float SkinWidth = 0.02f;
+    // The gap the hull keeps from geometry it moves against.
+    public const float SkinWidth = 0.02f;
 
     [Tooltip("Hull size: covers the torso and head, not the legs (feet handle ground contact).")]
     [SerializeField] private Vector2 hullSize = new Vector2(0.8f, 2.45f);

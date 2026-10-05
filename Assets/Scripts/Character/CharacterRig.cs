@@ -32,6 +32,9 @@ public sealed class CharacterRig {
     // Set by a state whose pose needs the body to keep the way it faces (a running slide faces along the slide): aiming
     // then points the arms without turning the character.
     public bool HoldsFacing { get; set; }
+    // Degrees the torso leans forward into a push on top of the locomotion posture, already blended in and out (0 when
+    // not pushing); set by the push pose every frame.
+    public float PushLean { get; set; }
 
     // Applies this frame's arm and head requests; parts nobody posed relax toward rest.
     public void ApplyUpperBodyPose(float deltaTime) {

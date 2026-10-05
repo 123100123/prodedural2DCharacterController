@@ -25,6 +25,7 @@ public static class MovementTuningSchema {
             new Section("WALL", Wall()),
             new Section("SLIDE", Slide()),
             new Section("LEDGE", Ledge()),
+            new Section("PUSH", Push()),
             new Section("AIM", Aim()),
             new Section("CAMERA", Camera()),
             new Section("EFFECTS", Effects()),
@@ -189,6 +190,20 @@ public static class MovementTuningSchema {
             new Parameter(("Idle hang", "Breath period", Seconds), (0.5f, 6f), (p => p.ledgeHang.breathPeriod, (p, v) => p.ledgeHang.breathPeriod = v)),
             new Parameter(("One-way platforms", "Dropped-through platform ignored for", Seconds), (0.05f, 1f), (p => p.oneWay.dropThroughTime, (p, v) => p.oneWay.dropThroughTime = v)),
             new Parameter(("One-way platforms", "Lands with the feet this far below the top", Units), (0f, 1f), (p => p.oneWay.landingCatch, (p, v) => p.oneWay.landingCatch = v)),
+        };
+    }
+
+    // Pushing crates. The on/off switch is set on the character (the panel has number rows only).
+    private static List<Parameter> Push() {
+        return new List<Parameter> {
+            new Parameter(("Force", "Push speed", UnitsPerSecond), (0.3f, 6f), (p => p.push.pushSpeed, (p, v) => p.push.pushSpeed = v)),
+            new Parameter(("Force", "Strongest push", Newtons), (0f, 2000f), (p => p.push.maxForce, (p, v) => p.push.maxForce = v)),
+            new Parameter(("Force", "Speed slack between body and crate", UnitsPerSecond), (0f, 2f), (p => p.push.speedSlack, (p, v) => p.push.speedSlack = v)),
+            new Parameter(("Contact", "Contact skin", Units), (0.01f, 0.4f), (p => p.push.contactSkin, (p, v) => p.push.contactSkin = v)),
+            new Parameter(("Contact", "Lets go this far from the face", Units), (0.05f, 1.5f), (p => p.push.releaseDistance, (p, v) => p.push.releaseDistance = v)),
+            new Parameter(("Pose", "Lean into the push", Degrees), (-5f, 35f), (p => p.push.lean, (p, v) => p.push.lean = v)),
+            new Parameter(("Pose", "Hands above the shoulder", Units), (-2f, 1f), (p => p.push.handHeight, (p, v) => p.push.handHeight = v)),
+            new Parameter(("Pose", "Blend time", Seconds), (0.02f, 1f), (p => p.push.blendTime, (p, v) => p.push.blendTime = v)),
         };
     }
 

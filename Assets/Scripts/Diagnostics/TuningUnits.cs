@@ -11,6 +11,7 @@ public static class TuningUnits {
     public const string Degrees = "°";
     public const string Share = "share";
     public const string Multiple = "×";
+    public const string Newtons = "N";
 
     // A spring's frequency, damping and response; a spring whose frequency another tab already owns omits it.
     public static IEnumerable<TuningParameter<TPreset>> Spring<TPreset>((string group, (Func<TPreset, SpringSettings> read, Action<TPreset, SpringSettings> write) access) spring, bool includeFrequency = true) {

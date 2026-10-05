@@ -41,6 +41,8 @@ public class CharacterDriver : MonoBehaviour {
     [SerializeField] private WallSettings wall = new WallSettings();
     [Tooltip("Running slide: crouch pressed at speed.")]
     [SerializeField] private SlideSettings slide = new SlideSettings();
+    [Tooltip("Pushing crates (dynamic bodies) by walking into them.")]
+    [SerializeField] private PushSettings push = new PushSettings();
 
     [Header("Shooting")]
     [SerializeField] private ShootingSettings shooting = new ShootingSettings();
@@ -62,6 +64,8 @@ public class CharacterDriver : MonoBehaviour {
     private CharacterStates states;
     private CharacterRig rig;
     private ShootingStance shootingStance;
+    private CratePusher cratePusher;
+    private PushPose pushPose;
     private WeaponController weaponController;
     private CharacterEffects characterEffects;
     private CharacterAudio characterAudio;
@@ -74,7 +78,7 @@ public class CharacterDriver : MonoBehaviour {
 
     public CharacterEvents Events { get; private set; }
     // What debug and tuning tools need; the character never reads anything back from them.
-    public CharacterParts Parts => new CharacterParts((stride, posture, torsoMotion, head, armSwing), (crouch, postureRoot), (jump, airborne, states?.Airborne, (airPose, fallSecondary), landing), (shooting, pistol, (weapon, weaponController)), (cameraFeel, followCamera), effects, audioSettings, (wall, states?.WallSlide), (slide, states?.Slide), (ledgeHang, oneWay, states?.Climb));
+    public CharacterParts Parts => new CharacterParts((stride, posture, torsoMotion, head, armSwing), (crouch, postureRoot), (jump, airborne, states?.Airborne, (airPose, fallSecondary), landing), (shooting, pistol, (weapon, weaponController)), (cameraFeel, followCamera), effects, audioSettings, (wall, states?.WallSlide), (slide, states?.Slide), (ledgeHang, oneWay, states?.Climb), (push, cratePusher, pushPose));
     public PlayerCommands LatestCommands => latestCommands;
     // The full-body state the character is in; null until the character is composed.
     public ICharacterState CurrentState => machine?.Current;
@@ -113,6 +117,7 @@ public class CharacterDriver : MonoBehaviour {
             Events.Landed -= foldTorsoOnLanding;
         }
         followCamera.Dispose();
+        cratePusher?.Release();
         input?.Dispose();
         weaponController?.Dispose();
         characterAudio?.Dispose();
@@ -138,6 +143,8 @@ public class CharacterDriver : MonoBehaviour {
         Events = new CharacterEvents();
         rig = BuildRig();
         crouch.Initialize(rig);
+        cratePusher = new CratePusher(rig, push);
+        pushPose = new PushPose(rig, (cratePusher, push));
         states = BuildStates();
         weaponController = new WeaponController(pistol, weapon, (Events, transform));
         shootingStance = new ShootingStance(rig, (weaponController, shooting, weapon));
@@ -161,6 +168,7 @@ public class CharacterDriver : MonoBehaviour {
         // A running slide holds the crouch whatever the input, so its hull stays low and it hands a full crouch to the walk.
         crouch.Tick(Time.deltaTime, (commands.CrouchRequested || states.Slide.HoldsCrouch, machine.Current.AllowsCrouch));
         machine.Tick(Time.deltaTime, commands);
+        pushPose.Tick(Time.deltaTime);
         posture.Tick(Time.deltaTime);
 
         if (machine.Current.AllowsUpperBodyActions) {
@@ -169,7 +177,11 @@ public class CharacterDriver : MonoBehaviour {
         }
     }
 
-    // Aiming drives the arms and head; otherwise the head stays level and the arms swing with the legs.
+    // The push drives the crate at the physics rate (the walk decided this frame whether it pushes).
+    private void FixedUpdate() => cratePusher?.FixedTick(Time.fixedDeltaTime);
+
+    // Aiming drives the arms and head; otherwise the head stays level and the arms swing with the legs, and a push
+    // blends the hands onto the crate and the head toward them.
     private void PoseUpperBody(PlayerCommands commands) {
         if (commands.IsAiming) {
             shootingStance.Tick(commands, Time.time);
@@ -179,6 +191,7 @@ public class CharacterDriver : MonoBehaviour {
         }
         rig.Head.HoldLevel();
         armSwing.Tick(Time.deltaTime);
+        pushPose.PoseArmsAndHead();
     }
 
     private void LateUpdate() {
@@ -201,7 +214,7 @@ public class CharacterDriver : MonoBehaviour {
         CharacterStates built = new CharacterStates();
         StateContext context = new StateContext((machine, rig, built));
         built.Register((
-            new WalkState(context),
+            new WalkState(context, cratePusher),
             new JumpWindupState(context, (jump, airborne)),
             new AirborneState(context, (airborne, jump, airPose, fallSecondary, landing)),
             new RollState(context, roll),

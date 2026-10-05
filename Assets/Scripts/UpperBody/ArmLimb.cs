@@ -37,6 +37,9 @@ public class ArmLimb {
     // Valid for the current frame only; an arm without a request relaxes.
     public void ReachToward(Vector2 worldTarget) => requestedTarget = worldTarget;
 
+    // Where something asked the hand to go this frame so far (null: nothing has), so a later layer can blend over it.
+    public Vector2? RequestedTarget => requestedTarget;
+
     public void ApplyPose(float deltaTime) {
         float ease = FrameRateEase.FractionForFrame(poseEase, deltaTime);
         EaseTowardRequest(ease);

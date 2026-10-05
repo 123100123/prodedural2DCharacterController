@@ -152,6 +152,9 @@ public class StrideController : MonoBehaviour {
     public float WindupCrouch { get; set; }
     // Carries the body at the ground speed it has, whatever the move input (the jump wind-up of a moving character).
     public bool HoldGroundSpeed { get; set; }
+    // The fastest (u/s, either way) the gait heads for, e.g. while pushing a crate; infinity when nothing limits it. Not
+    // serialized: a script reload clears it, and the push sets it again every frame it lasts.
+    public float SpeedLimit { get; set; } = float.PositiveInfinity;
 
     // The body leans past both feet toward a spot where no foothold was found, e.g. walking off a ledge. On solid ground
     // balance steps keep the feet under the body, so leaning ahead alone is never a fall.
@@ -302,6 +305,8 @@ public class StrideController : MonoBehaviour {
         intendedSpeed = Preview.IsActive
             ? Preview.IntendedSpeed((input.direction, facing?.Sign ?? 1, walk.speed, run.speed))
             : Gaits.TargetSpeed((input.direction, input.running));
+        float limit = Mathf.Max(0f, SpeedLimit);
+        intendedSpeed = Mathf.Clamp(intendedSpeed, -limit, limit);
         groundSpeed = GroundSpeedRamp.Step((groundSpeed, intendedSpeed, CurrentGait), input.deltaTime);
     }
 

@@ -21,6 +21,14 @@ public sealed class CharacterAudio {
     private const float SlidePitch = 0.8f;
     private const float LedgeReleaseLevel = 0.35f;
     private const float DropThroughLevel = 0.45f;
+    private const float PushContactLevel = 0.4f;
+    private const float PushContactPitch = 0.75f;
+    // The scrape of a pushed crate: the roll's brush, low, repeated while the crate slides; quieter and sparser the
+    // slower it goes.
+    private const float ScrapeLevel = 0.3f;
+    private const float ScrapePitch = 0.55f;
+    private static readonly (float fast, float slow) ScrapeInterval = (0.24f, 0.4f);
+    private static readonly (float min, float full) ScrapeSpeed = (0.3f, 2.2f);
     private const float DefaultHalfWidth = 10f;
 
     private readonly CharacterAudioSettings settings;
@@ -43,6 +51,9 @@ public sealed class CharacterAudio {
     private float voiceClock;
     private bool magazineInPending;
     private float magazineInAt;
+    // The crate being pushed (null when not pushing) and the game time of its next scrape.
+    private Collider2D pushedCrate;
+    private float scrapeAt;
 
     public CharacterAudio(CharacterRig rig, CharacterAudioSettings settings, CasingPool casings) {
         this.rig = rig;
@@ -87,6 +98,7 @@ public sealed class CharacterAudio {
             magazineInPending = false;
             PlayAt(SoundId.MagazineIn, (1f, 1f), rig.Body.position.x);
         }
+        ScrapePushedCrate();
     }
 
     public void Dispose() {
@@ -106,6 +118,8 @@ public sealed class CharacterAudio {
         events.SlideStarted += OnSlideStarted;
         events.LedgeDropped += OnLedgeDropped;
         events.DroppedThroughPlatform += OnDroppedThroughPlatform;
+        events.PushStarted += OnPushStarted;
+        events.PushStopped += OnPushStopped;
         events.Fired += OnFired;
         events.DryFired += OnDryFired;
         events.ShotHit += OnShotHit;
@@ -124,6 +138,8 @@ public sealed class CharacterAudio {
         events.SlideStarted -= OnSlideStarted;
         events.LedgeDropped -= OnLedgeDropped;
         events.DroppedThroughPlatform -= OnDroppedThroughPlatform;
+        events.PushStarted -= OnPushStarted;
+        events.PushStopped -= OnPushStopped;
         events.Fired -= OnFired;
         events.DryFired -= OnDryFired;
         events.ShotHit -= OnShotHit;
@@ -169,6 +185,30 @@ public sealed class CharacterAudio {
 
     // The brush of the body dropping onto the ground: the roll's tumble, lower.
     private void OnSlideStarted((Vector2 position, int direction) slide) => PlayAt(SoundId.Roll, (SlideLevel, SlidePitch), slide.position.x);
+
+    // The hands meeting the crate: a soft, low thump.
+    private void OnPushStarted((Collider2D crate, int direction) push) {
+        pushedCrate = push.crate;
+        scrapeAt = clock;
+        PlayAt(SoundId.Footstep, (PushContactLevel, PushContactPitch), push.crate != null ? push.crate.bounds.center.x : rig.Body.position.x);
+    }
+
+    private void OnPushStopped() => pushedCrate = null;
+
+    // While the pushed crate slides, a low brush now and then.
+    private void ScrapePushedCrate() {
+        if (pushedCrate == null || clock < scrapeAt) {
+            return;
+        }
+        Rigidbody2D body = pushedCrate.attachedRigidbody;
+        float speed = body != null ? Mathf.Abs(body.linearVelocity.x) : 0f;
+        if (speed < ScrapeSpeed.min) {
+            return;
+        }
+        float share = Mathf.InverseLerp(ScrapeSpeed.min, ScrapeSpeed.full, speed);
+        scrapeAt = clock + Mathf.Lerp(ScrapeInterval.slow, ScrapeInterval.fast, share);
+        PlayAt(SoundId.Roll, (ScrapeLevel * Mathf.Lerp(0.5f, 1f, share), ScrapePitch), pushedCrate.bounds.center.x);
+    }
 
     private void OnFired((Vector2 muzzle, Vector2 direction) shot) => PlayAt(SoundId.Gunshot, (1f, 1f), shot.muzzle.x);
 

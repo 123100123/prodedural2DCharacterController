@@ -22,6 +22,7 @@ public sealed class MovementTuning {
     private readonly SlideSettings slide;
     private readonly LedgeHangSettings ledgeHang;
     private readonly OneWaySettings oneWay;
+    private readonly PushSettings push;
 
     public MovementTuning(CharacterParts parts) {
         stride = parts.Stride;
@@ -45,6 +46,7 @@ public sealed class MovementTuning {
         slide = parts.Slide;
         ledgeHang = parts.LedgeHang;
         oneWay = parts.OneWay;
+        push = parts.Push;
     }
 
     public MovementPreset Capture() {
@@ -69,6 +71,7 @@ public sealed class MovementTuning {
             slide = slide.Clone(),
             ledgeHang = ledgeHang.Clone(),
             oneWay = oneWay.Clone(),
+            push = push.Clone(),
             transitions = stride.Transitions,
             balance = stride.Balance,
             idle = stride.IdleStance,
@@ -103,6 +106,7 @@ public sealed class MovementTuning {
         slide.CopyFrom(preset.slide);
         ledgeHang.CopyFrom(preset.ledgeHang);
         oneWay.CopyFrom(preset.oneWay);
+        push.CopyFrom(preset.push);
         stride.Transitions = preset.transitions;
         stride.Balance = preset.balance;
         stride.IdleStance = preset.idle;

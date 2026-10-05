@@ -163,6 +163,55 @@ public class MovementPresetTests {
         Assert.That(loaded.oneWay.landingCatch, Is.EqualTo(oneWayDefaults.landingCatch));
     }
 
+    [Test]
+    public void ThePushSettingsSurviveAJsonRoundTrip() {
+        MovementPreset original = MovementPreset.CodeDefaults();
+        original.push.pushSpeed = 1.75f;
+        original.push.maxForce = 512f;
+        original.push.contactSkin = 0.125f;
+        original.push.lean = 18.5f;
+        original.push.handHeight = -0.625f;
+        original.push.blendTime = 0.25f;
+        original.push.enabled = false;
+
+        MovementPreset loaded = MovementPreset.FromJson(original.ToJson());
+        Assert.That(loaded.push.pushSpeed, Is.EqualTo(1.75f));
+        Assert.That(loaded.push.maxForce, Is.EqualTo(512f));
+        Assert.That(loaded.push.contactSkin, Is.EqualTo(0.125f));
+        Assert.That(loaded.push.lean, Is.EqualTo(18.5f));
+        Assert.That(loaded.push.handHeight, Is.EqualTo(-0.625f));
+        Assert.That(loaded.push.blendTime, Is.EqualTo(0.25f));
+        Assert.That(loaded.push.enabled, Is.False);
+        Assert.That(loaded.ToJson(), Is.EqualTo(original.ToJson()));
+    }
+
+    // A preset saved at version 9, before the push settings existed, loads them at their defaults.
+    [Test]
+    public void AVersionNinePresetLoadsThePushDefaults() {
+        MovementPreset saved = MovementPreset.CodeDefaults();
+        saved.run.lean = 17.5f;
+        saved.oneWay.dropThroughTime = 0.375f;
+        saved.version = 9;
+        string versionNine = WithoutObject(saved.ToJson(), "push");
+        Assert.That(versionNine, Does.Not.Contain("\"push\""));
+        Assert.That(versionNine, Does.Contain("\"oneWay\""), "only the push settings are taken out");
+
+        MovementPreset loaded = MovementPreset.FromJson(versionNine);
+        PushSettings defaults = new PushSettings();
+        Assert.That(MovementPreset.CurrentVersion, Is.GreaterThan(9));
+        Assert.That(loaded.version, Is.EqualTo(9), "what the file says");
+        Assert.That(loaded.run.lean, Is.EqualTo(17.5f));
+        Assert.That(loaded.oneWay.dropThroughTime, Is.EqualTo(0.375f));
+        Assert.That(loaded.push, Is.Not.Null);
+        Assert.That(loaded.push.enabled, Is.True);
+        Assert.That(loaded.push.pushSpeed, Is.EqualTo(defaults.pushSpeed));
+        Assert.That(loaded.push.maxForce, Is.EqualTo(defaults.maxForce));
+        Assert.That(loaded.push.contactSkin, Is.EqualTo(defaults.contactSkin));
+        Assert.That(loaded.push.releaseDistance, Is.EqualTo(defaults.releaseDistance));
+        Assert.That(loaded.push.lean, Is.EqualTo(defaults.lean));
+        Assert.That(loaded.push.blendTime, Is.EqualTo(defaults.blendTime));
+    }
+
     // The JSON with one object-valued field (and the comma before it) removed.
     private static string WithoutObject(string json, string field) {
         int key = json.IndexOf("\"" + field + "\"", System.StringComparison.Ordinal);
@@ -190,9 +239,11 @@ public class MovementPresetTests {
         copy.slide.boostSpeed = 99f;
         copy.ledgeHang.regrabLockout = 99f;
         copy.oneWay.dropThroughTime = 99f;
+        copy.push.pushSpeed = 99f;
         Assert.That(original.walk.speed, Is.EqualTo(GaitProfile.Walk.speed));
         Assert.That(original.ledgeHang.regrabLockout, Is.EqualTo(new LedgeHangSettings().regrabLockout));
         Assert.That(original.oneWay.dropThroughTime, Is.EqualTo(new OneWaySettings().dropThroughTime));
+        Assert.That(original.push.pushSpeed, Is.EqualTo(new PushSettings().pushSpeed));
         Assert.That(original.posture.maxTotalLean, Is.EqualTo(PostureSettings.Default.maxTotalLean));
         Assert.That(original.wall.maxSlideSpeed, Is.EqualTo(new WallSettings().maxSlideSpeed));
         Assert.That(original.slide.boostSpeed, Is.EqualTo(new SlideSettings().boostSpeed));

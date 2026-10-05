@@ -36,8 +36,9 @@ public class LocomotionPosture {
         AccelerationLean = MeasureAccelerationLean(deltaTime);
         TargetLean = rig.Stride.IsDrivingGait ? PostureLean.Total((BaseLean(), AccelerationLean), settings) : AirLean();
         float forwardLean = lean.Update((TargetLean, deltaTime), settings.spring);
-        // Turning about +z leans an authored right-facing rig back, so forward is the opposite of the authored facing.
-        rig.PostureRoot.localRotation = Quaternion.Euler(0f, 0f, -forwardLean * rig.Facing.AuthoredSign) * restRotation;
+        // Turning about +z leans an authored right-facing rig back, so forward is the opposite of the authored facing. A
+        // push's lean is added outside the slow spring: the push pose blends it in and out on its own, quicker spring.
+        rig.PostureRoot.localRotation = Quaternion.Euler(0f, 0f, -(forwardLean + rig.PushLean) * rig.Facing.AuthoredSign) * restRotation;
     }
 
     // In the air the posture takes the lean of the flight pose; with no flight (rolling, climbing) it relaxes upright.
