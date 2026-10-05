@@ -30,7 +30,15 @@ public class FollowCamera {
     private (SecondOrderDynamics x, SecondOrderDynamics y, SecondOrderDynamics kick, SecondOrderDynamics aim) springs;
     private Vector2 previousBodyPosition;
     private Vector2 framedOffset;
-    private float baseRoll;
+    private CharacterEvents events;
+    private Action<(Vector2 position, float impactSpeed)> onLanded;
+    private Action<(Vector2 position, float impactSpeed)> onFootPlanted;
+    private Action<(Vector2 muzzle, Vector2 direction)> onFired;
+    private Action<ShotHit> onShotHit;
+    // The camera's own roll without the shake, taken once. It is serialized so that a script reload in play mode (which
+    // calls Initialize again, possibly mid-shake) keeps the original instead of reading the shaken rotation.
+    [SerializeField, HideInInspector] private float baseRoll;
+    [SerializeField, HideInInspector] private bool hasBaseRoll;
 
     // The camera's shake, for tools and tests.
     public CameraShake Shake => shake;
@@ -45,15 +53,36 @@ public class FollowCamera {
         Vector2 start = FollowPoint(0f);
         springs = (new SecondOrderDynamics(start.x), new SecondOrderDynamics(start.y), new SecondOrderDynamics(0f), new SecondOrderDynamics(0f));
         previousBodyPosition = body.position;
-        baseRoll = targetCamera != null ? targetCamera.transform.eulerAngles.z : 0f;
+        if (!hasBaseRoll && targetCamera != null) {
+            baseRoll = targetCamera.transform.eulerAngles.z;
+            hasBaseRoll = true;
+        }
 
-        parts.events.Landed += landing => {
+        Dispose();
+        events = parts.events;
+        onLanded = landing => {
             springs.kick.AddVelocity(-landing.impactSpeed * landingKickPerSpeed);
             shake.AddTrauma(CameraShake.LandingTrauma(landing.impactSpeed, feel));
         };
-        parts.events.FootPlanted += KickOnHeavyPlant;
-        parts.events.Fired += _ => shake.AddTrauma(feel.firedTrauma);
-        parts.events.ShotHit += _ => shake.AddTrauma(feel.shotHitTrauma);
+        onFootPlanted = KickOnHeavyPlant;
+        onFired = _ => shake.AddTrauma(feel.firedTrauma);
+        onShotHit = _ => shake.AddTrauma(feel.shotHitTrauma);
+        events.Landed += onLanded;
+        events.FootPlanted += onFootPlanted;
+        events.Fired += onFired;
+        events.ShotHit += onShotHit;
+    }
+
+    // Stops listening to the character's events (the camera is initialized again on recomposition, and at teardown).
+    public void Dispose() {
+        if (events == null) {
+            return;
+        }
+        events.Landed -= onLanded;
+        events.FootPlanted -= onFootPlanted;
+        events.Fired -= onFired;
+        events.ShotHit -= onShotHit;
+        events = null;
     }
 
     // The aim: whether the character is aiming, and where the pointer is in the world.

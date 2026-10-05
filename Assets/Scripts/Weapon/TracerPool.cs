@@ -25,6 +25,8 @@ public sealed class TracerPool {
         }
     }
 
+    public GameObject Root => root;
+
     // How many tracers are visible right now.
     public int ActiveCount {
         get {

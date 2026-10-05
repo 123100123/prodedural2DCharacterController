@@ -63,6 +63,7 @@ public sealed class CharacterEffects {
     }
 
     public CasingPool Casings { get; }
+    public GameObject Root => root;
     // Live particles of each kind, for tests and tools.
     public int DustCount => dust.Count;
     public int SmokeCount => smoke.Count;

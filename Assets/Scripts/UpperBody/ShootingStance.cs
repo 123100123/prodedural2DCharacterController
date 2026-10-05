@@ -4,6 +4,9 @@ using UnityEngine;
 // follows it with the head, fires on click. While the weapon reloads, the support hand fetches the magazine and the
 // pistol tilts up; the reload itself runs in the weapon whether or not the character is aiming.
 public sealed class ShootingStance {
+    // How far ahead of the body the aim point is held when there is no camera to read the pointer through.
+    private const float NoCameraAimDistance = 5f;
+
     private readonly CharacterRig rig;
     private readonly WeaponController weapon;
     private readonly ShootingSettings settings;
@@ -61,6 +64,9 @@ public sealed class ShootingStance {
 
     private Vector2 PointerInWorld(Vector2 screenPosition) {
         Camera camera = settings.aimCamera != null ? settings.aimCamera : Camera.main;
+        if (camera == null) {
+            return (Vector2)rig.Body.position + Vector2.right * (rig.Facing.Sign * NoCameraAimDistance);
+        }
         float depth = rig.Body.position.z - camera.transform.position.z;
         return camera.ScreenToWorldPoint(new Vector3(screenPosition.x, screenPosition.y, depth));
     }

@@ -59,6 +59,9 @@ public class CharacterDriver : MonoBehaviour {
     private WeaponController weaponController;
     private CharacterEffects characterEffects;
     private CharacterAudio characterAudio;
+    private System.Action<(Vector2 muzzle, Vector2 direction)> kickTorsoOnFire;
+    private System.Action<(Vector2 position, float impactSpeed)> foldTorsoOnLanding;
+    private System.Func<Vector2> scenarioPointerSource;
     private PlayerCommands latestCommands;
     // Whether the character aimed this frame and where the pointer was, for the camera to frame.
     private (bool isAiming, Vector2 pointerWorld) cameraAim;
@@ -70,8 +73,14 @@ public class CharacterDriver : MonoBehaviour {
     // The full-body state the character is in; null until the character is composed.
     public ICharacterState CurrentState => machine?.Current;
     // Scenario hook: supplies the pointer's screen position in place of the mouse (null goes back to the mouse).
+    // Kept here as well, so it can be set before the input reader exists.
     public System.Func<Vector2> ScenarioPointerSource {
-        set => input.PointerSource = value;
+        set {
+            scenarioPointerSource = value;
+            if (input != null) {
+                input.PointerSource = value;
+            }
+        }
     }
     // The dust, smoke, sparks and casings; null until the character is composed.
     public CharacterEffects Effects => characterEffects;
@@ -89,7 +98,15 @@ public class CharacterDriver : MonoBehaviour {
 
     private void OnDisable() => input?.Disable();
 
-    private void OnDestroy() {
+    private void OnDestroy() => DisposeCollaborators();
+
+    // Disposes what the last composition built, and the camera's and torso's listeners on the character's events.
+    private void DisposeCollaborators() {
+        if (Events != null) {
+            Events.Fired -= kickTorsoOnFire;
+            Events.Landed -= foldTorsoOnLanding;
+        }
+        followCamera.Dispose();
         input?.Dispose();
         weaponController?.Dispose();
         characterAudio?.Dispose();
@@ -104,8 +121,13 @@ public class CharacterDriver : MonoBehaviour {
     }
 
     private void ComposeCharacter() {
+        // A script reload in play mode clears the collaborators but leaves their scene objects behind; the marked
+        // roots of the previous composition are destroyed here so the new one is the only one.
+        DisposeCollaborators();
+        OwnedRoot.DestroyOwnedBy(transform);
         ReportRigProblems();
         input = new PlayerInputReader();
+        input.PointerSource = scenarioPointerSource;
         machine = new CharacterStateMachine();
         Events = new CharacterEvents();
         rig = BuildRig();
@@ -116,6 +138,9 @@ public class CharacterDriver : MonoBehaviour {
         ComposeSecondaryMotion();
         characterEffects = new CharacterEffects(rig, effects);
         characterAudio = new CharacterAudio(rig, audioSettings, characterEffects.Casings);
+        OwnedRoot.Mark(weaponController.Tracers.Root, transform);
+        OwnedRoot.Mark(characterEffects.Root, transform);
+        OwnedRoot.Mark(characterAudio.Root, transform);
         states.Walk.Begin();
     }
 
@@ -126,7 +151,7 @@ public class CharacterDriver : MonoBehaviour {
         cameraAim = (false, Vector2.zero);
         weaponController.Tick(Time.time, Time.deltaTime, commands.ReloadPressed);
         characterEffects.Tick(Time.deltaTime);
-        characterAudio.Tick(Time.deltaTime);
+        characterAudio.Tick((Time.deltaTime, Time.unscaledDeltaTime));
         crouch.Tick(Time.deltaTime, (commands.CrouchRequested, machine.Current.AllowsCrouch));
         machine.Tick(Time.deltaTime, commands);
         posture.Tick(Time.deltaTime);
@@ -195,7 +220,9 @@ public class CharacterDriver : MonoBehaviour {
         torsoMotion.Initialize(rig);
         armSwing.Initialize(rig);
         followCamera.Initialize(rig.Body, (Events, cameraFeel));
-        Events.Fired += _ => torsoMotion.Kick(shooting.recoilTorsoKick);
-        Events.Landed += hit => torsoMotion.Kick(-LandingMath.ImpactShare(hit.impactSpeed, landing) * landing.torsoFoldKick);
+        kickTorsoOnFire = _ => torsoMotion.Kick(shooting.recoilTorsoKick);
+        foldTorsoOnLanding = hit => torsoMotion.Kick(-LandingMath.ImpactShare(hit.impactSpeed, landing) * landing.torsoFoldKick);
+        Events.Fired += kickTorsoOnFire;
+        Events.Landed += foldTorsoOnLanding;
     }
 }

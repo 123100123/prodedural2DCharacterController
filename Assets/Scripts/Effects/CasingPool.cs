@@ -30,6 +30,8 @@ public sealed class CasingPool {
     private readonly (float lifetime, float fade)[] lives = new (float, float)[Size];
     private readonly bool[] active = new bool[Size];
     private readonly bool[] touched = new bool[Size];
+    // Time.fixedTime when each casing was thrown: until a physics step has run after that, its contacts are the old ones.
+    private readonly float[] thrownAtFixedTime = new float[Size];
     private readonly Collider2D[] colliders = new Collider2D[Size];
 
     public CasingPool(Transform parent, Material material) {
@@ -74,6 +76,7 @@ public sealed class CasingPool {
         lives[index] = life;
         active[index] = true;
         touched[index] = false;
+        thrownAtFixedTime[index] = Time.fixedTime;
         renderers[index].color = Color.white;
     }
 
@@ -83,7 +86,7 @@ public sealed class CasingPool {
                 continue;
             }
             ages[index] += deltaTime;
-            if (!touched[index] && colliders[index].IsTouchingLayers(Physics2D.DefaultRaycastLayers)) {
+            if (!touched[index] && PhysicsHasSteppedSince((thrownAtFixedTime[index], Time.fixedTime)) && colliders[index].IsTouchingLayers(Physics2D.DefaultRaycastLayers)) {
                 touched[index] = true;
                 FirstContact?.Invoke(bodies[index].position);
             }
@@ -104,6 +107,10 @@ public sealed class CasingPool {
             }
         }
     }
+
+    // Moving a casing's transform only reaches the physics world at the next step, so a casing taken over from the ground
+    // still reports its old contact until fixed time has advanced past the moment it was thrown.
+    public static bool PhysicsHasSteppedSince((float thrownAtFixedTime, float fixedTimeNow) clock) => clock.fixedTimeNow > clock.thrownAtFixedTime;
 
     // The slot to reuse: the first free one, otherwise the one that has lain longest.
     public static int PickSlot(bool[] active, float[] ages) {

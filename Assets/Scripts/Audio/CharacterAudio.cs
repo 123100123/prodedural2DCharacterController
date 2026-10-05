@@ -33,7 +33,10 @@ public sealed class CharacterAudio {
     private readonly List<IShotReceiver> receivers = new List<IShotReceiver>();
     private AudioListener addedListener;
     private Camera viewCamera;
+    // The voices play in real time, so their busy times run on the unscaled clock; the reload's magazine click is a
+    // gameplay timer and runs on the game clock, which stops and slows with the game.
     private float clock;
+    private float voiceClock;
     private bool magazineInPending;
     private float magazineInAt;
 
@@ -67,12 +70,15 @@ public sealed class CharacterAudio {
         }
     }
 
+    public GameObject Root => root;
+
     // True when the scene had no audio listener and this host added one to the main camera.
     public bool AddedListener => addedListener != null;
     public int PlaysOf(SoundId id) => plays[(int)id];
 
-    public void Tick(float deltaTime) {
-        clock += deltaTime;
+    public void Tick((float deltaTime, float unscaledDeltaTime) frame) {
+        clock += frame.deltaTime;
+        voiceClock += frame.unscaledDeltaTime;
         if (magazineInPending && clock >= magazineInAt) {
             magazineInPending = false;
             PlayAt(SoundId.MagazineIn, (1f, 1f), rig.Body.position.x);
@@ -205,15 +211,15 @@ public sealed class CharacterAudio {
         float volume = Mathf.Clamp01(gain * (1f + UnityEngine.Random.Range(-jitter, jitter) * 0.5f));
         AudioClip clip = bank.Clip(id, NextVariant(id));
 
-        int voice = AudioMath.PickVoice(startedAt, endsAt, clock);
+        int voice = AudioMath.PickVoice(startedAt, endsAt, voiceClock);
         AudioSource source = voices[voice];
         source.clip = clip;
         source.volume = volume;
         source.pitch = pitch;
         source.panStereo = AudioMath.Pan(x, ViewOf());
         source.Play();
-        startedAt[voice] = clock;
-        endsAt[voice] = clock + clip.length / pitch;
+        startedAt[voice] = voiceClock;
+        endsAt[voice] = voiceClock + clip.length / pitch;
 
         plays[(int)id]++;
         Played?.Invoke(id);
