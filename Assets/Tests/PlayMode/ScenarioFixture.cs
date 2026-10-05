@@ -18,11 +18,14 @@ public abstract class ScenarioFixture {
 
     protected ScenarioStage Stage { get; private set; }
     protected GaitRecorder Recorder { get; private set; }
+    // True leaves the scene's own level in place instead of the flat test track (see ScenarioStage.Load). Override it
+    // rather than loading the stage again: a second load would add a second pair of virtual devices.
+    protected virtual bool KeepsTheLevel => false;
 
     [UnitySetUp]
     public IEnumerator LoadStage() {
         Stage = new ScenarioStage();
-        yield return Stage.Load();
+        yield return Stage.Load(KeepsTheLevel);
         Recorder = new GaitRecorder((Stage.Character, Stage.Stride));
         Stage.Sampler.Recorder = Recorder;
         report.Clear();

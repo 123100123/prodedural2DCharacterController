@@ -15,6 +15,8 @@ public sealed class ScenarioStage {
     private const float TrackHalfLength = 400f;
     // How thick the one-way platforms built for tests are.
     public const float OneWayThickness = 0.4f;
+    // Names of the virtual devices a stage adds (the Input System numbers repeats: ScenarioKeyboard1, ...).
+    private const string DevicePrefix = "Scenario";
 
     private readonly HashSet<Key> heldKeys = new HashSet<Key>();
     private Keyboard keyboard;
@@ -37,8 +39,9 @@ public sealed class ScenarioStage {
 #endif
         Time.captureDeltaTime = FrameTime;
         RouteAllInputToTheGame();
-        keyboard = InputSystem.AddDevice<Keyboard>("ScenarioKeyboard");
-        mouse = InputSystem.AddDevice<Mouse>("ScenarioMouse");
+        RemoveStaleDevices();
+        keyboard = InputSystem.AddDevice<Keyboard>(DevicePrefix + "Keyboard");
+        mouse = InputSystem.AddDevice<Mouse>(DevicePrefix + "Mouse");
         if (!keepTheLevel) {
             ReplaceLevelWithTestTrack();
         }
@@ -55,12 +58,14 @@ public sealed class ScenarioStage {
         if (Sampler != null) {
             Sampler.ResendHeldInput = null;
         }
-        if (keyboard != null) {
+        if (keyboard != null && keyboard.added) {
             InputSystem.RemoveDevice(keyboard);
         }
-        if (mouse != null) {
+        if (mouse != null && mouse.added) {
             InputSystem.RemoveDevice(mouse);
         }
+        keyboard = null;
+        mouse = null;
         InputSystem.settings.editorInputBehaviorInPlayMode = savedInputSettings.editor;
         InputSystem.settings.backgroundBehavior = savedInputSettings.background;
     }
@@ -194,6 +199,20 @@ public sealed class ScenarioStage {
         Key[] keys = new Key[heldKeys.Count];
         heldKeys.CopyTo(keys);
         InputSystem.QueueStateEvent(keyboard, new KeyboardState(keys));
+    }
+
+    // Virtual devices a run left behind (a test aborted before its TearDown, or a stage loaded twice): each pair adds
+    // controls to every binding that matches it, and enough of them overflow the Input System's per-binding control limit.
+    private static void RemoveStaleDevices() {
+        List<InputDevice> stale = new List<InputDevice>();
+        foreach (InputDevice device in InputSystem.devices) {
+            if (device.name.StartsWith(DevicePrefix, System.StringComparison.Ordinal)) {
+                stale.Add(device);
+            }
+        }
+        foreach (InputDevice device in stale) {
+            InputSystem.RemoveDevice(device);
+        }
     }
 
     // Without Game view focus the editor would otherwise drop keyboard input and reset devices.

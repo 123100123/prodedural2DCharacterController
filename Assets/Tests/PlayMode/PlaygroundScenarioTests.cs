@@ -12,11 +12,7 @@ public class PlaygroundScenarioTests : ScenarioFixture {
 
     private Vector2 Body => Stage.Stride.transform.position;
 
-    [UnitySetUp]
-    public IEnumerator LoadTheRealLevel() {
-        yield return Stage.Load(true);
-        yield return null;
-    }
+    protected override bool KeepsTheLevel => true;
 
     private static Transform Playground() {
         GameObject root = GameObject.Find(RootName);

@@ -63,7 +63,8 @@ public sealed class SecondOrderDynamics {
         float targetVelocity = (step.target - previousTarget) / step.deltaTime;
         previousTarget = step.target;
         (float k1, float k2, float k3) = Coefficients(settings);
-        float stableK2 = Mathf.Max(k2, step.deltaTime * step.deltaTime / 2f + step.deltaTime * k1 / 2f, step.deltaTime * k1);
+        // Nested two-argument Max: the params overload would allocate an array every call, and this runs every frame.
+        float stableK2 = Mathf.Max(Mathf.Max(k2, step.deltaTime * step.deltaTime / 2f + step.deltaTime * k1 / 2f), step.deltaTime * k1);
 
         Value += step.deltaTime * Velocity;
         Velocity += step.deltaTime * (step.target + k3 * targetVelocity - Value - k1 * Velocity) / stableK2;

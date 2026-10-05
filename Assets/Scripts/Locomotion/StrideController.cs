@@ -16,6 +16,8 @@ public class StrideController : MonoBehaviour {
     private const float SettledBodySpeed = 0.2f;
     // A gait swing may outlast its forecast by this share before its time ceiling finishes it (the clock stalled).
     private const float SwingCeilingSlack = 1.15f;
+    // A landing foot with no ground at its spot looks for it this many even steps in toward the body pivot.
+    private const int LandingEdgeSearchSteps = 4;
 
     [SerializeField] private LegStepper frontLeg;
     [SerializeField] private LegStepper backLeg;
@@ -252,11 +254,13 @@ public class StrideController : MonoBehaviour {
 
     // The feet take where the gait has them at this speed: either side of the body standing, or the leading foot ahead
     // and the other trailing behind when moving, with the trailing foot to step first once the gait picks up. leadIsFront:
-    // the leg that was reaching forward in the air, which lands first. False if either foot finds no ground.
+    // the leg that was reaching forward in the air, which lands first. A foot whose spot is past the edge of the ground
+    // (landing near a platform's end, or on one narrower than the stance) takes the last ground between its spot and the
+    // body instead, so the body lands on what is under it. False if a foot finds no ground even under the body.
     public bool TrySettleLanding((float centerX, int facingSign, float groundY) landing, (float speedX, bool leadIsFront, float movingShare) motion) {
         LandingStance.Columns columns = LandingStance.Of((landing.centerX, landing.facingSign, motion.speedX), (StanceHalfWidth, Gaits, motion.movingShare));
-        if (!TryFindStanceGround((columns.Lead, landing.groundY), out Vector2 leadGround)
-            || !TryFindStanceGround((columns.Trail, landing.groundY), out Vector2 trailGround)) {
+        if (!TryFindLandingGround((columns.Lead, landing.centerX, landing.groundY), out Vector2 leadGround)
+            || !TryFindLandingGround((columns.Trail, landing.centerX, landing.groundY), out Vector2 trailGround)) {
             return false;
         }
 
@@ -281,6 +285,18 @@ public class StrideController : MonoBehaviour {
         bool found = FootholdProbe.TryFindGroundHitBelow((origin, 2f * GroundContactTolerance), GroundAt(leg.FootTarget.y), out RaycastHit2D hit);
         ground = found ? hit.collider : null;
         return found;
+    }
+
+    // Ground for a landing foot at footX or, past an edge, the outermost ground on the way in to the body's column.
+    private bool TryFindLandingGround((float footX, float centerX, float groundY) column, out Vector2 ground) {
+        for (int step = 0; step <= LandingEdgeSearchSteps; step++) {
+            float x = Mathf.Lerp(column.footX, column.centerX, step / (float)LandingEdgeSearchSteps);
+            if (TryFindStanceGround((x, column.groundY), out ground)) {
+                return true;
+            }
+        }
+        ground = default;
+        return false;
     }
 
     private bool TryFindStanceGround((float x, float groundY) column, out Vector2 ground) {
