@@ -17,6 +17,13 @@ public sealed class CharacterEvents {
     public event Action<int> ReloadFinished;
     // A roll's hands met the ground: where, and which way (+1 right, -1 left) the roll travels.
     public event Action<(Vector2 position, int direction)> Rolled;
+    // A jump kicked off a wall: where the feet left it, and which way (+1 right, -1 left) the character flies.
+    public event Action<(Vector2 position, int direction)> WallJumped;
+    // The character caught a wall and began sliding down it: the wall face beside the body, and the wall's side (+1 right
+    // of the body, -1 left).
+    public event Action<(Vector2 contact, int wallSide)> WallSlideStarted;
+    // The slide ended (a wall jump, dropping off, landing or climbing a ledge).
+    public event Action WallSlideStopped;
 
     public void RaiseFootPlanted((Vector2 position, float impactSpeed) plant) => FootPlanted?.Invoke(plant);
 
@@ -35,4 +42,10 @@ public sealed class CharacterEvents {
     public void RaiseReloadFinished(int rounds) => ReloadFinished?.Invoke(rounds);
 
     public void RaiseRolled((Vector2 position, int direction) roll) => Rolled?.Invoke(roll);
+
+    public void RaiseWallJumped((Vector2 position, int direction) kick) => WallJumped?.Invoke(kick);
+
+    public void RaiseWallSlideStarted((Vector2 contact, int wallSide) slide) => WallSlideStarted?.Invoke(slide);
+
+    public void RaiseWallSlideStopped() => WallSlideStopped?.Invoke();
 }

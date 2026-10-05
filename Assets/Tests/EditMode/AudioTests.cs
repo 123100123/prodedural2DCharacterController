@@ -230,7 +230,7 @@ public class AudioTests {
         MovementPreset loaded = MovementPreset.FromJson("{\"version\":5,\"run\":{\"lean\":21}}");
         CharacterAudioSettings defaults = new CharacterAudioSettings();
 
-        Assert.That(MovementPreset.CurrentVersion, Is.EqualTo(6));
+        Assert.That(MovementPreset.CurrentVersion, Is.GreaterThan(5));
         Assert.That(loaded.run.lean, Is.EqualTo(21f));
         Assert.That(loaded.audio, Is.Not.Null);
         Assert.That(loaded.audio.masterVolume, Is.EqualTo(defaults.masterVolume));

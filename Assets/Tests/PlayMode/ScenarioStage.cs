@@ -10,7 +10,8 @@ using UnityEngine.SceneManagement;
 public sealed class ScenarioStage {
     public const float FrameTime = 1f / 60f;
     private const string ScenePath = "Assets/Scenes/SampleScene.unity";
-    private const float GroundTop = -5.21f;
+    // The top of the test track.
+    public const float GroundTop = -5.21f;
     private const float TrackHalfLength = 400f;
 
     private readonly HashSet<Key> heldKeys = new HashSet<Key>();
@@ -74,6 +75,17 @@ public sealed class ScenarioStage {
         CreateBlock(new Vector2(ledge.startX + ledge.width / 2f, GroundTop + ledge.height / 2f), new Vector2(ledge.width, ledge.height));
         return GroundTop + ledge.height;
     }
+
+    // A wall standing on the track: its face toward the character at faceX, the block reaching away from it toward side
+    // (+1 the wall is right of the face's open side, -1 left). Returns the top of the wall.
+    public float AddWall((float faceX, int side, float height) wall) {
+        const float Thickness = 4f;
+        CreateBlock(new Vector2(wall.faceX + wall.side * Thickness / 2f, GroundTop + wall.height / 2f), new Vector2(Thickness, wall.height));
+        return GroundTop + wall.height;
+    }
+
+    // Lifts the whole character straight up into the open air; it falls from there.
+    public void Lift(float height) => Character.transform.position += Vector3.up * height;
 
     // A block hanging over the track from startX whose underside is the given height above it: a low ceiling.
     public void AddCeiling((float startX, float clearance, float width) ceiling) {

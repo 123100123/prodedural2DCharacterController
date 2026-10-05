@@ -33,6 +33,8 @@ public class CharacterDriver : MonoBehaviour {
     [SerializeField] private LandingSettings landing = new LandingSettings();
     [SerializeField] private RollSettings roll = new RollSettings();
     [SerializeField] private ClimbSettings climb = new ClimbSettings();
+    [Tooltip("Wall slide and wall jump.")]
+    [SerializeField] private WallSettings wall = new WallSettings();
 
     [Header("Shooting")]
     [SerializeField] private ShootingSettings shooting = new ShootingSettings();
@@ -63,8 +65,10 @@ public class CharacterDriver : MonoBehaviour {
 
     public CharacterEvents Events { get; private set; }
     // What debug and tuning tools need; the character never reads anything back from them.
-    public CharacterParts Parts => new CharacterParts((stride, posture, torsoMotion, head, armSwing), (crouch, postureRoot), (jump, airborne, states?.Airborne, (airPose, fallSecondary), landing), (shooting, pistol, (weapon, weaponController)), (cameraFeel, followCamera), effects, audioSettings);
+    public CharacterParts Parts => new CharacterParts((stride, posture, torsoMotion, head, armSwing), (crouch, postureRoot), (jump, airborne, states?.Airborne, (airPose, fallSecondary), landing), (shooting, pistol, (weapon, weaponController)), (cameraFeel, followCamera), effects, audioSettings, (wall, states?.WallSlide));
     public PlayerCommands LatestCommands => latestCommands;
+    // The full-body state the character is in; null until the character is composed.
+    public ICharacterState CurrentState => machine?.Current;
     // Scenario hook: supplies the pointer's screen position in place of the mouse (null goes back to the mouse).
     public System.Func<Vector2> ScenarioPointerSource {
         set => input.PointerSource = value;
@@ -168,7 +172,8 @@ public class CharacterDriver : MonoBehaviour {
             new JumpWindupState(context, (jump, airborne)),
             new AirborneState(context, (airborne, jump, airPose, fallSecondary, landing)),
             new RollState(context, roll),
-            new ClimbState(context, climb)));
+            new ClimbState(context, climb),
+            new WallSlideState(context, wall)));
         return built;
     }
 

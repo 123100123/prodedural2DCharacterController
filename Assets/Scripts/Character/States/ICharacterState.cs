@@ -1,4 +1,4 @@
-// One exclusive full-body behaviour (walking, airborne, rolling, climbing).
+// One exclusive full-body behaviour (walking, airborne, rolling, climbing, sliding down a wall).
 public interface ICharacterState {
     // Whether upper-body actions such as aiming and shooting may run on top of this state.
     bool AllowsUpperBodyActions { get; }

@@ -15,6 +15,8 @@ public sealed class CharacterAudio {
     private const float TargetHitLevel = 0.9f;
     private const float JumpLevel = 0.5f;
     private const float RollLevel = 0.7f;
+    private const float WallKickLevel = 0.9f;
+    private const float WallCatchLevel = 0.5f;
     private const float DefaultHalfWidth = 10f;
 
     private readonly CharacterAudioSettings settings;
@@ -89,6 +91,8 @@ public sealed class CharacterAudio {
         events.Landed += OnLanded;
         events.Jumped += OnJumped;
         events.Rolled += OnRolled;
+        events.WallJumped += OnWallJumped;
+        events.WallSlideStarted += OnWallSlideStarted;
         events.Fired += OnFired;
         events.DryFired += OnDryFired;
         events.ShotHit += OnShotHit;
@@ -102,6 +106,8 @@ public sealed class CharacterAudio {
         events.Landed -= OnLanded;
         events.Jumped -= OnJumped;
         events.Rolled -= OnRolled;
+        events.WallJumped -= OnWallJumped;
+        events.WallSlideStarted -= OnWallSlideStarted;
         events.Fired -= OnFired;
         events.DryFired -= OnDryFired;
         events.ShotHit -= OnShotHit;
@@ -129,6 +135,15 @@ public sealed class CharacterAudio {
     private void OnJumped(Vector2 launchVelocity) => PlayAt(SoundId.Jump, (JumpLevel, 1f), rig.Body.position.x);
 
     private void OnRolled((Vector2 position, int direction) roll) => PlayAt(SoundId.Roll, (RollLevel, 1f), roll.position.x);
+
+    // The feet striking the wall, then the whoosh of the jump.
+    private void OnWallJumped((Vector2 position, int direction) kick) {
+        PlayAt(SoundId.Footstep, (WallKickLevel, 0.9f), kick.position.x);
+        PlayAt(SoundId.Jump, (JumpLevel, 1f), kick.position.x);
+    }
+
+    // A soft scuff as the feet catch the wall.
+    private void OnWallSlideStarted((Vector2 contact, int wallSide) slide) => PlayAt(SoundId.Footstep, (WallCatchLevel, 0.8f), slide.contact.x);
 
     private void OnFired((Vector2 muzzle, Vector2 direction) shot) => PlayAt(SoundId.Gunshot, (1f, 1f), shot.muzzle.x);
 

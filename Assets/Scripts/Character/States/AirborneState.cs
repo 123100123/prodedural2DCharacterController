@@ -1,7 +1,8 @@
 using UnityEngine;
 
 // Ballistic flight after a jump or a fall: air steering that keeps the momentum the flight started with, a jump cut
-// short by releasing the button, flight leg pose, coyote jump, buffered jump, ledge grabs and landing.
+// short by releasing the button, flight leg pose, coyote jump, buffered jump, ledge grabs, catching a wall to slide down
+// it (and the wall jump's steering lockout) and landing.
 public sealed class AirborneState : ICharacterState {
     private readonly StateContext context;
     private readonly (AirborneSettings air, JumpSettings jump, AirPoseSettings pose, FallSecondarySettings fall, LandingSettings landing) settings;
@@ -31,6 +32,8 @@ public sealed class AirborneState : ICharacterState {
     private bool hasPredictedGround;
     private Vector2 predictedGround;
     private float lastImpactSpeed;
+    // After a wall jump, steering back toward the wall is ignored for a moment.
+    private SteeringLockout steeringLockout;
 
     public AirborneState(StateContext context, (AirborneSettings air, JumpSettings jump, AirPoseSettings pose, FallSecondarySettings fall, LandingSettings landing) settings) {
         this.context = context;
@@ -64,6 +67,15 @@ public sealed class AirborneState : ICharacterState {
         BeginFlight((new Vector2(carriedSpeedX, 0f), true, false));
     }
 
+    // Leaving a wall or a hold without a jump: the flight carries on with the velocity it had, vertical speed included.
+    public void Drop(Vector2 velocity) {
+        jump = (0f, 0f, false, true);
+        BeginFlight((velocity, false, false));
+    }
+
+    // Set right after a launch (entering the flight clears it).
+    public void LockSteering(SteeringLockout lockout) => steeringLockout = lockout;
+
     // The velocity is set after the change: the state being left may write the motor velocity in its Exit.
     private void BeginFlight((Vector2 velocity, bool allowsCoyoteJump, bool isJump) entry) {
         canCoyoteJump = entry.allowsCoyoteJump;
@@ -82,6 +94,7 @@ public sealed class AirborneState : ICharacterState {
         aimSuppression = 0f;
         landingPrep = 0f;
         hasPredictedGround = false;
+        steeringLockout = SteeringLockout.None;
         secondary.Begin(++flightCount);
         legs = context.Rig.Stride.LegsOrderedByFacing(context.Rig.Facing.Sign);
     }
@@ -91,16 +104,18 @@ public sealed class AirborneState : ICharacterState {
         timeSinceLaunch += deltaTime;
         timeFalling += context.Rig.Motor.Velocity.y < 0f ? deltaTime : 0f;
         jumpBufferLeft -= deltaTime;
+        steeringLockout = steeringLockout.Tick(deltaTime);
+        float steering = steeringLockout.Filter(commands.MoveAxis);
 
         if (!commands.IsAiming) {
-            context.Rig.Facing.FaceToward(commands.MoveAxis);
+            context.Rig.Facing.FaceToward(steering);
         }
-        if (commands.JumpPressed) {
-            JumpOrBufferJump();
+        if (commands.JumpPressed && JumpOrBufferJump()) {
+            return;
         }
 
         CutJumpShortWhenReleased((commands.JumpHeld, deltaTime));
-        SteerHorizontally((commands.MoveAxis, deltaTime));
+        SteerHorizontally((steering, deltaTime));
         context.Rig.Motor.ApplyGravity(deltaTime);
         if (TryTouchDown(ProbeGroundBelow(deltaTime))) {
             return;
@@ -108,6 +123,9 @@ public sealed class AirborneState : ICharacterState {
 
         context.Rig.Motor.MoveWithCollisions(deltaTime);
         if (context.States.Climb.TryBeginFromAir()) {
+            return;
+        }
+        if (context.States.WallSlide.TryBeginFromAir((commands.MoveAxis, jumpBufferLeft > 0f))) {
             return;
         }
         SolvePose((commands.IsAiming, deltaTime));
@@ -166,7 +184,8 @@ public sealed class AirborneState : ICharacterState {
         context.Rig.AirPose = AirPoseFrame.None;
     }
 
-    private void JumpOrBufferJump() {
+    // True when a jump off a wall just left started a new flight (the rest of this frame belongs to it).
+    private bool JumpOrBufferJump() {
         KinematicBodyMotor motor = context.Rig.Motor;
         if (canCoyoteJump && timeInAir <= settings.air.coyoteTime) {
             float fullHeight = JumpMomentum.FullHeight(settings.jump, context.Rig.Stride.CrouchShare);
@@ -176,9 +195,13 @@ public sealed class AirborneState : ICharacterState {
             snapshot.LaunchedByJump = true;
             snapshot.LaunchVelocity = motor.Velocity;
             canCoyoteJump = false;
-            return;
+            return false;
+        }
+        if (context.States.WallSlide.TryCoyoteWallJump()) {
+            return true;
         }
         jumpBufferLeft = settings.air.jumpBufferTime;
+        return false;
     }
 
     private void SteerHorizontally((float moveAxis, float deltaTime) steering) {

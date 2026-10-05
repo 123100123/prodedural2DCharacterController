@@ -16,6 +16,9 @@ public sealed class CharacterEffects {
     private const int MuzzleSmokePuffs = 2;
     private const int MuzzleSparks = 3;
     private const int ImpactSparks = 6;
+    private const int WallKickPuffs = 6;
+    // Seconds between the puffs scraped off the wall while sliding down it.
+    private const float SlideDustInterval = 0.09f;
     private const float CasingBackOffset = 0.35f;
     private const float CasingSpin = 720f;
 
@@ -36,6 +39,9 @@ public sealed class CharacterEffects {
     private readonly ParticleEmitter dust;
     private readonly ParticleEmitter smoke;
     private readonly ParticleEmitter sparks;
+    // The wall being slid down (its face and side, +1 right of the body), 0 when not sliding; and the time to the next puff.
+    private (int side, float faceX) slidingWall;
+    private float slideDustDue;
 
     public CharacterEffects(CharacterRig rig, EffectsSettings settings) {
         this.rig = rig;
@@ -62,7 +68,10 @@ public sealed class CharacterEffects {
     public int SmokeCount => smoke.Count;
     public int SparkCount => sparks.Count;
 
-    public void Tick(float deltaTime) => Casings.Tick(deltaTime);
+    public void Tick(float deltaTime) {
+        Casings.Tick(deltaTime);
+        EmitSlideDust(deltaTime);
+    }
 
     public void Dispose() {
         Unsubscribe();
@@ -81,6 +90,9 @@ public sealed class CharacterEffects {
         events.Landed += OnLanded;
         events.Jumped += OnJumped;
         events.Rolled += OnRolled;
+        events.WallJumped += OnWallJumped;
+        events.WallSlideStarted += OnWallSlideStarted;
+        events.WallSlideStopped += OnWallSlideStopped;
         events.Fired += OnFired;
         events.ShotHit += OnShotHit;
     }
@@ -90,6 +102,9 @@ public sealed class CharacterEffects {
         events.Landed -= OnLanded;
         events.Jumped -= OnJumped;
         events.Rolled -= OnRolled;
+        events.WallJumped -= OnWallJumped;
+        events.WallSlideStarted -= OnWallSlideStarted;
+        events.WallSlideStopped -= OnWallSlideStopped;
         events.Fired -= OnFired;
         events.ShotHit -= OnShotHit;
     }
@@ -152,6 +167,42 @@ public sealed class CharacterEffects {
             Vector2 velocity = new Vector2(-roll.direction * Random.Range(0.5f, 2.5f), Random.Range(0.2f, 1f));
             dust.Emit(roll.position + Vector2.up * 0.05f, velocity, (size * Random.Range(0.8f, 1.2f), DustLife()), DustColor);
         }
+    }
+
+    // A burst off the wall where the feet kicked it, thrown back against the jump.
+    private void OnWallJumped((Vector2 position, int direction) kick) {
+        if (!settings.enabled) {
+            return;
+        }
+        int count = EffectMath.ScaledCount(WallKickPuffs, settings.dustScale);
+        float size = EffectMath.PuffSize(0.4f, Mathf.Sqrt(settings.dustScale));
+        for (int puff = 0; puff < count; puff++) {
+            Vector2 velocity = new Vector2(kick.direction * Random.Range(0.3f, 1.2f), Random.Range(-0.8f, 0.8f));
+            dust.Emit(kick.position + new Vector2(0f, Random.Range(-0.2f, 0.4f)), velocity, (size * Random.Range(0.8f, 1.2f), DustLife()), DustColor);
+        }
+    }
+
+    private void OnWallSlideStarted((Vector2 contact, int wallSide) slide) {
+        slidingWall = (slide.wallSide, slide.contact.x);
+        slideDustDue = 0f;
+    }
+
+    private void OnWallSlideStopped() => slidingWall = (0, 0f);
+
+    // While sliding, a small puff now and then scraped off the wall at the feet, drifting up and out from it.
+    private void EmitSlideDust(float deltaTime) {
+        if (slidingWall.side == 0 || !settings.enabled || settings.dustScale <= 0f) {
+            return;
+        }
+        slideDustDue -= deltaTime;
+        if (slideDustDue > 0f) {
+            return;
+        }
+        slideDustDue = SlideDustInterval;
+        float feetY = Mathf.Min(rig.Stride.FrontLeg.FootTarget.y, rig.Stride.BackLeg.FootTarget.y);
+        Vector2 velocity = new Vector2(-slidingWall.side * Random.Range(0.2f, 0.7f), Random.Range(0.6f, 1.4f));
+        float size = EffectMath.PuffSize(0.25f, Mathf.Sqrt(settings.dustScale));
+        dust.Emit(new Vector2(slidingWall.faceX, feetY + Random.Range(0f, 0.3f)), velocity, (size * Random.Range(0.7f, 1.1f), DustLife() * 0.6f), DustColor);
     }
 
     // ---- Gun ------------------------------------------------------------------------------------------------

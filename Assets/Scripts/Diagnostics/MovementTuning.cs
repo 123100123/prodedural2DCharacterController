@@ -18,6 +18,7 @@ public sealed class MovementTuning {
     private readonly CameraFeelSettings cameraFeel;
     private readonly EffectsSettings effects;
     private readonly CharacterAudioSettings audio;
+    private readonly WallSettings wall;
 
     public MovementTuning(CharacterParts parts) {
         stride = parts.Stride;
@@ -37,6 +38,7 @@ public sealed class MovementTuning {
         cameraFeel = parts.CameraFeel;
         effects = parts.Effects;
         audio = parts.Audio;
+        wall = parts.Wall;
     }
 
     public MovementPreset Capture() {
@@ -57,6 +59,7 @@ public sealed class MovementTuning {
             cameraFeel = cameraFeel.Clone(),
             effects = effects.Clone(),
             audio = audio.Clone(),
+            wall = wall.Clone(),
             transitions = stride.Transitions,
             balance = stride.Balance,
             idle = stride.IdleStance,
@@ -87,6 +90,7 @@ public sealed class MovementTuning {
         cameraFeel.CopyFrom(preset.cameraFeel);
         effects.CopyFrom(preset.effects);
         audio.CopyFrom(preset.audio);
+        wall.CopyFrom(preset.wall);
         stride.Transitions = preset.transitions;
         stride.Balance = preset.balance;
         stride.IdleStance = preset.idle;

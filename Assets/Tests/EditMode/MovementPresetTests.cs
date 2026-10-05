@@ -39,13 +39,69 @@ public class MovementPresetTests {
     }
 
     [Test]
+    public void TheWallSettingsSurviveAJsonRoundTrip() {
+        MovementPreset original = MovementPreset.CodeDefaults();
+        original.wall.maxSlideSpeed = 5.5f;
+        original.wall.jumpVelocity = new UnityEngine.Vector2(8.25f, 12.5f);
+        original.wall.steeringLockout = 0.2f;
+
+        MovementPreset loaded = MovementPreset.FromJson(original.ToJson());
+        Assert.That(loaded.wall.maxSlideSpeed, Is.EqualTo(5.5f));
+        Assert.That(loaded.wall.jumpVelocity, Is.EqualTo(new UnityEngine.Vector2(8.25f, 12.5f)));
+        Assert.That(loaded.wall.steeringLockout, Is.EqualTo(0.2f));
+        Assert.That(loaded.ToJson(), Is.EqualTo(original.ToJson()));
+    }
+
+    // A preset saved at version 6, before the wall settings existed, loads them at their defaults.
+    [Test]
+    public void AVersionSixPresetLoadsTheWallDefaults() {
+        MovementPreset saved = MovementPreset.CodeDefaults();
+        saved.run.lean = 19f;
+        saved.version = 6;
+        string versionSix = WithoutObject(saved.ToJson(), "wall");
+        Assert.That(versionSix, Does.Not.Contain("\"wall\""));
+        Assert.That(versionSix, Does.Contain("\"audio\""), "only the wall settings are taken out");
+
+        MovementPreset loaded = MovementPreset.FromJson(versionSix);
+        WallSettings defaults = new WallSettings();
+        Assert.That(MovementPreset.CurrentVersion, Is.GreaterThan(6));
+        Assert.That(loaded.version, Is.EqualTo(6), "what the file says");
+        Assert.That(loaded.run.lean, Is.EqualTo(19f));
+        Assert.That(loaded.wall, Is.Not.Null);
+        Assert.That(loaded.wall.enabled, Is.True);
+        Assert.That(loaded.wall.maxSlideSpeed, Is.EqualTo(defaults.maxSlideSpeed));
+        Assert.That(loaded.wall.jumpVelocity, Is.EqualTo(defaults.jumpVelocity));
+        Assert.That(loaded.wall.coyoteTime, Is.EqualTo(defaults.coyoteTime));
+        Assert.That(loaded.wall.footReach, Is.EqualTo(defaults.footReach));
+    }
+
+    // The JSON with one object-valued field (and the comma before it) removed.
+    private static string WithoutObject(string json, string field) {
+        int key = json.IndexOf("\"" + field + "\"", System.StringComparison.Ordinal);
+        Assert.That(key, Is.GreaterThan(0), $"the file has {field}");
+        int open = json.IndexOf('{', key);
+        int depth = 0;
+        int close = open;
+        for (; close < json.Length; close++) {
+            depth += json[close] == '{' ? 1 : json[close] == '}' ? -1 : 0;
+            if (depth == 0) {
+                break;
+            }
+        }
+        int comma = json.LastIndexOf(',', key);
+        return json.Substring(0, comma) + json.Substring(close + 1);
+    }
+
+    [Test]
     public void ACopyIsIndependent() {
         MovementPreset original = Sample();
         MovementPreset copy = original.Copy();
         copy.walk.speed = 99f;
         copy.posture.maxTotalLean = 1f;
+        copy.wall.maxSlideSpeed = 99f;
         Assert.That(original.walk.speed, Is.EqualTo(GaitProfile.Walk.speed));
         Assert.That(original.posture.maxTotalLean, Is.EqualTo(PostureSettings.Default.maxTotalLean));
+        Assert.That(original.wall.maxSlideSpeed, Is.EqualTo(new WallSettings().maxSlideSpeed));
     }
 
     [Test]

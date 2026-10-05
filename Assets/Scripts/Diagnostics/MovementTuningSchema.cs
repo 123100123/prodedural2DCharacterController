@@ -22,6 +22,7 @@ public static class MovementTuningSchema {
             new Section("CROUCH", Crouch()),
             new Section("JUMP", Jump()),
             new Section("FALL", Fall()),
+            new Section("WALL", Wall()),
             new Section("AIM", Aim()),
             new Section("CAMERA", Camera()),
             new Section("EFFECTS", Effects()),
@@ -122,6 +123,32 @@ public static class MovementTuningSchema {
             new Parameter(("Reload", "Duration", Seconds), (0.1f, 4f), (p => p.weapon.reloadDuration, (p, v) => p.weapon.reloadDuration = v)),
             new Parameter(("Reload", "Support hand drop", Units), (0f, 1.2f), (p => p.weapon.reloadHandDrop, (p, v) => p.weapon.reloadHandDrop = v)),
             new Parameter(("Reload", "Pistol tilt", Degrees), (0f, 45f), (p => p.weapon.reloadTilt, (p, v) => p.weapon.reloadTilt = v)),
+        };
+    }
+
+    // Wall slide and wall jump. The on/off switch is set on the character (the panel has number rows only).
+    private static List<Parameter> Wall() {
+        return new List<Parameter> {
+            new Parameter(("Slide", "Top slide speed", UnitsPerSecond), (0.5f, 15f), (p => p.wall.maxSlideSpeed, (p, v) => p.wall.maxSlideSpeed = v)),
+            new Parameter(("Slide", "Slide speed change", UnitsPerSecondSquared), (1f, 120f), (p => p.wall.slideAcceleration, (p, v) => p.wall.slideAcceleration = v)),
+            new Parameter(("Slide", "Catches the wall below this rise speed", UnitsPerSecond), (0f, 6f), (p => p.wall.catchRiseSpeed, (p, v) => p.wall.catchRiseSpeed = v)),
+            new Parameter(("Slide", "Let-go grace", Seconds), (0f, 0.5f), (p => p.wall.releaseGrace, (p, v) => p.wall.releaseGrace = v)),
+            new Parameter(("Detection", "Reach past the body side", Units), (0f, 0.6f), (p => p.wall.detectionDistance, (p, v) => p.wall.detectionDistance = v)),
+            new Parameter(("Detection", "Chest probe height", Units), (0f, 2f), (p => p.wall.chestProbeHeight, (p, v) => p.wall.chestProbeHeight = v)),
+            new Parameter(("Detection", "Least wall height (chest to knee)", Units), (0.5f, 3.5f), (p => p.wall.minWallHeight, (p, v) => p.wall.minWallHeight = v)),
+            new Parameter(("Detection", "No slide this close above the ground", Units), (0f, 3f), (p => p.wall.minGroundClearance, (p, v) => p.wall.minGroundClearance = v)),
+            new Parameter(("Wall jump", "Speed away from the wall", UnitsPerSecond), (0f, 20f), (p => p.wall.jumpVelocity.x, (p, v) => p.wall.jumpVelocity.x = v)),
+            new Parameter(("Wall jump", "Speed up", UnitsPerSecond), (0f, 25f), (p => p.wall.jumpVelocity.y, (p, v) => p.wall.jumpVelocity.y = v)),
+            new Parameter(("Wall jump", "Steering back locked for", Seconds), (0f, 0.6f), (p => p.wall.steeringLockout, (p, v) => p.wall.steeringLockout = v)),
+            new Parameter(("Wall jump", "Coyote time after leaving", Seconds), (0f, 0.4f), (p => p.wall.coyoteTime, (p, v) => p.wall.coyoteTime = v)),
+            new Parameter(("Pose", "Lean out", Degrees), (-10f, 30f), (p => p.wall.leanOut, (p, v) => p.wall.leanOut = v)),
+            new Parameter(("Pose", "Braced hand above the shoulder", Units), (-1.5f, 2f), (p => p.wall.handAboveShoulder, (p, v) => p.wall.handAboveShoulder = v)),
+            new Parameter(("Pose", "Free hand forward", Units), (-1.5f, 1.5f), (p => p.wall.freeHand.x, (p, v) => p.wall.freeHand.x = v)),
+            new Parameter(("Pose", "Free hand height", Units), (-2f, 1f), (p => p.wall.freeHand.y, (p, v) => p.wall.freeHand.y = v)),
+            new Parameter(("Pose", "Front foot reach (share of leg)", Share), (0.3f, 1f), (p => p.wall.footReach.x, (p, v) => p.wall.footReach.x = v)),
+            new Parameter(("Pose", "Back foot reach (share of leg)", Share), (0.3f, 1f), (p => p.wall.footReach.y, (p, v) => p.wall.footReach.y = v)),
+            new Parameter(("Pose", "Feet gap from the wall", Units), (0f, 0.5f), (p => p.wall.footWallGap, (p, v) => p.wall.footWallGap = v)),
+            new Parameter(("Pose", "Limb ease per frame", Share), (0.01f, 1f), (p => p.wall.limbPoseEase, (p, v) => p.wall.limbPoseEase = v)),
         };
     }
 

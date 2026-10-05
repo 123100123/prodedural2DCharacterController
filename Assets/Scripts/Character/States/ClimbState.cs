@@ -36,9 +36,26 @@ public sealed class ClimbState : ICharacterState {
 
     // Hands come near a ledge corner in the air.
     public bool TryBeginFromAir() {
+        if (!TryFindLedgeInReach(context.Rig.Facing.Sign, out Ledge found)) {
+            return false;
+        }
+        Grab(found);
+        return true;
+    }
+
+    // A ledge corner within the hands' reach in the air on the given side (+1 right), found without grabbing it: a wall
+    // slide asks toward its wall while the character faces away from it.
+    public bool TryFindLedgeInReach(int direction, out Ledge found) {
         ArmLimb arm = context.Rig.FrontArm;
         (float minTop, float maxTop) window = LedgeGrabPolicy.AirGrabWindow((arm.ShoulderPosition.y, arm.Reach), settings);
-        return TryBeginAtLedgeAhead(window);
+        return detector.TryFindLedge((context.Rig.Body.position.x, direction, window), out found);
+    }
+
+    // Starts climbing a ledge found earlier this frame, turning toward it first.
+    public void Grab(Ledge found) {
+        context.Rig.Facing.FaceToward(found.ClimbDirection);
+        ledge = found;
+        context.Machine.ChangeTo(this);
     }
 
     private bool TryBeginAtLedgeAhead((float minTop, float maxTop) window) {
@@ -47,8 +64,7 @@ public sealed class ClimbState : ICharacterState {
             return false;
         }
 
-        ledge = found;
-        context.Machine.ChangeTo(this);
+        Grab(found);
         return true;
     }
 
