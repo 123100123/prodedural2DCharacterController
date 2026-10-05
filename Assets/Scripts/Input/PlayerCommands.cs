@@ -12,6 +12,8 @@ public struct PlayerCommands {
     public bool IsAiming;
     // Crouch is held, or was latched on by a quick tap.
     public bool CrouchRequested;
+    // The crouch button went down this frame (a press while running starts a slide).
+    public bool CrouchPressed;
     public bool FirePressed;
     public bool ReloadPressed;
     public Vector2 PointerScreenPosition;

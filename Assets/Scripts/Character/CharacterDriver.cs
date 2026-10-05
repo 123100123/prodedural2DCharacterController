@@ -35,6 +35,8 @@ public class CharacterDriver : MonoBehaviour {
     [SerializeField] private ClimbSettings climb = new ClimbSettings();
     [Tooltip("Wall slide and wall jump.")]
     [SerializeField] private WallSettings wall = new WallSettings();
+    [Tooltip("Running slide: crouch pressed at speed.")]
+    [SerializeField] private SlideSettings slide = new SlideSettings();
 
     [Header("Shooting")]
     [SerializeField] private ShootingSettings shooting = new ShootingSettings();
@@ -68,7 +70,7 @@ public class CharacterDriver : MonoBehaviour {
 
     public CharacterEvents Events { get; private set; }
     // What debug and tuning tools need; the character never reads anything back from them.
-    public CharacterParts Parts => new CharacterParts((stride, posture, torsoMotion, head, armSwing), (crouch, postureRoot), (jump, airborne, states?.Airborne, (airPose, fallSecondary), landing), (shooting, pistol, (weapon, weaponController)), (cameraFeel, followCamera), effects, audioSettings, (wall, states?.WallSlide));
+    public CharacterParts Parts => new CharacterParts((stride, posture, torsoMotion, head, armSwing), (crouch, postureRoot), (jump, airborne, states?.Airborne, (airPose, fallSecondary), landing), (shooting, pistol, (weapon, weaponController)), (cameraFeel, followCamera), effects, audioSettings, (wall, states?.WallSlide), (slide, states?.Slide));
     public PlayerCommands LatestCommands => latestCommands;
     // The full-body state the character is in; null until the character is composed.
     public ICharacterState CurrentState => machine?.Current;
@@ -152,7 +154,8 @@ public class CharacterDriver : MonoBehaviour {
         weaponController.Tick(Time.time, Time.deltaTime, commands.ReloadPressed);
         characterEffects.Tick(Time.deltaTime);
         characterAudio.Tick((Time.deltaTime, Time.unscaledDeltaTime));
-        crouch.Tick(Time.deltaTime, (commands.CrouchRequested, machine.Current.AllowsCrouch));
+        // A running slide holds the crouch whatever the input, so its hull stays low and it hands a full crouch to the walk.
+        crouch.Tick(Time.deltaTime, (commands.CrouchRequested || states.Slide.HoldsCrouch, machine.Current.AllowsCrouch));
         machine.Tick(Time.deltaTime, commands);
         posture.Tick(Time.deltaTime);
 
@@ -198,7 +201,8 @@ public class CharacterDriver : MonoBehaviour {
             new AirborneState(context, (airborne, jump, airPose, fallSecondary, landing)),
             new RollState(context, roll),
             new ClimbState(context, climb),
-            new WallSlideState(context, wall)));
+            new WallSlideState(context, wall),
+            new SlideState(context, (slide, jump))));
         return built;
     }
 

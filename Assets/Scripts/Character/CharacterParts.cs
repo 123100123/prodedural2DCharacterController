@@ -3,7 +3,7 @@ using UnityEngine;
 // The collaborators a composed character hands to tools that tune and inspect it. Plain references, so the
 // character knows nothing about who uses them: the tools depend on the character, never the other way round.
 public readonly struct CharacterParts {
-    public CharacterParts((StrideController stride, LocomotionPosture posture, TorsoMotion torso, HeadLook head, ArmSwing arms) movement, (CrouchController crouch, Transform postureRoot) body, (JumpSettings jump, AirborneSettings airborne, AirborneState airborneState, (AirPoseSettings pose, FallSecondarySettings fall) air, LandingSettings landing) moves, (ShootingSettings shooting, Pistol pistol, (WeaponSettings settings, WeaponController controller) shot) weapon, (CameraFeelSettings settings, FollowCamera camera) cameraRig, EffectsSettings effects, CharacterAudioSettings audio, (WallSettings settings, WallSlideState state) wall) {
+    public CharacterParts((StrideController stride, LocomotionPosture posture, TorsoMotion torso, HeadLook head, ArmSwing arms) movement, (CrouchController crouch, Transform postureRoot) body, (JumpSettings jump, AirborneSettings airborne, AirborneState airborneState, (AirPoseSettings pose, FallSecondarySettings fall) air, LandingSettings landing) moves, (ShootingSettings shooting, Pistol pistol, (WeaponSettings settings, WeaponController controller) shot) weapon, (CameraFeelSettings settings, FollowCamera camera) cameraRig, EffectsSettings effects, CharacterAudioSettings audio, (WallSettings settings, WallSlideState state) wall, (SlideSettings settings, SlideState state) slide) {
         Stride = movement.stride;
         Posture = movement.posture;
         Torso = movement.torso;
@@ -27,6 +27,8 @@ public readonly struct CharacterParts {
         Audio = audio;
         Wall = wall.settings;
         WallSlide = wall.state;
+        Slide = slide.settings;
+        SlideState = slide.state;
     }
 
     public StrideController Stride { get; }
@@ -55,4 +57,7 @@ public readonly struct CharacterParts {
     public WallSettings Wall { get; }
     // The wall slide, for whether and where it slides; null until the character is composed.
     public WallSlideState WallSlide { get; }
+    public SlideSettings Slide { get; }
+    // The running slide, for whether, which way and how fast it slides; null until the character is composed.
+    public SlideState SlideState { get; }
 }

@@ -19,6 +19,8 @@ public sealed class CharacterEffects {
     private const int WallKickPuffs = 6;
     // Seconds between the puffs scraped off the wall while sliding down it.
     private const float SlideDustInterval = 0.09f;
+    // Seconds between the puffs a running slide kicks up, at the run speed and when nearly stopped.
+    private static readonly (float fast, float slow) GroundSlideDustInterval = (0.035f, 0.12f);
     private const float CasingBackOffset = 0.35f;
     private const float CasingSpin = 720f;
 
@@ -42,6 +44,9 @@ public sealed class CharacterEffects {
     // The wall being slid down (its face and side, +1 right of the body), 0 when not sliding; and the time to the next puff.
     private (int side, float faceX) slidingWall;
     private float slideDustDue;
+    // The running slide's direction (+1 right, -1 left), 0 when not sliding; and the time to its next puff.
+    private int groundSlideDirection;
+    private float groundSlideDustDue;
 
     public CharacterEffects(CharacterRig rig, EffectsSettings settings) {
         this.rig = rig;
@@ -72,6 +77,7 @@ public sealed class CharacterEffects {
     public void Tick(float deltaTime) {
         Casings.Tick(deltaTime);
         EmitSlideDust(deltaTime);
+        EmitGroundSlideDust(deltaTime);
     }
 
     public void Dispose() {
@@ -94,6 +100,8 @@ public sealed class CharacterEffects {
         events.WallJumped += OnWallJumped;
         events.WallSlideStarted += OnWallSlideStarted;
         events.WallSlideStopped += OnWallSlideStopped;
+        events.SlideStarted += OnSlideStarted;
+        events.SlideStopped += OnSlideStopped;
         events.Fired += OnFired;
         events.ShotHit += OnShotHit;
     }
@@ -106,6 +114,8 @@ public sealed class CharacterEffects {
         events.WallJumped -= OnWallJumped;
         events.WallSlideStarted -= OnWallSlideStarted;
         events.WallSlideStopped -= OnWallSlideStopped;
+        events.SlideStarted -= OnSlideStarted;
+        events.SlideStopped -= OnSlideStopped;
         events.Fired -= OnFired;
         events.ShotHit -= OnShotHit;
     }
@@ -204,6 +214,35 @@ public sealed class CharacterEffects {
         Vector2 velocity = new Vector2(-slidingWall.side * Random.Range(0.2f, 0.7f), Random.Range(0.6f, 1.4f));
         float size = EffectMath.PuffSize(0.25f, Mathf.Sqrt(settings.dustScale));
         dust.Emit(new Vector2(slidingWall.faceX, feetY + Random.Range(0f, 0.3f)), velocity, (size * Random.Range(0.7f, 1.1f), DustLife() * 0.6f), DustColor);
+    }
+
+    private void OnSlideStarted((Vector2 position, int direction) slide) {
+        groundSlideDirection = slide.direction;
+        groundSlideDustDue = 0f;
+    }
+
+    private void OnSlideStopped() => groundSlideDirection = 0;
+
+    // While sliding along the ground, a trail of puffs where the lead heel scrapes it, thrown back and up: more often and
+    // bigger the faster the slide.
+    private void EmitGroundSlideDust(float deltaTime) {
+        if (groundSlideDirection == 0 || !settings.enabled || settings.dustScale <= 0f) {
+            return;
+        }
+        float share = Mathf.Clamp01(Mathf.Abs(rig.Motor.Velocity.x) / Mathf.Max(0.01f, rig.Stride.Run.speed));
+        groundSlideDustDue -= deltaTime;
+        if (groundSlideDustDue > 0f) {
+            return;
+        }
+        groundSlideDustDue = Mathf.Lerp(GroundSlideDustInterval.slow, GroundSlideDustInterval.fast, share);
+
+        Vector2 front = rig.Stride.FrontLeg.FootTarget;
+        Vector2 back = rig.Stride.BackLeg.FootTarget;
+        float heelX = (front.x - back.x) * groundSlideDirection >= 0f ? front.x : back.x;
+        Vector2 heel = new Vector2(heelX, Mathf.Min(front.y, back.y) + 0.05f);
+        Vector2 velocity = new Vector2(-groundSlideDirection * Random.Range(0.4f, 1.6f) * (0.4f + share), Random.Range(0.3f, 1f) * (0.5f + share));
+        float size = EffectMath.PuffSize(share, Mathf.Sqrt(settings.dustScale));
+        dust.Emit(heel, velocity, (size * Random.Range(0.7f, 1.1f), DustLife() * 0.8f), DustColor);
     }
 
     // ---- Gun ------------------------------------------------------------------------------------------------

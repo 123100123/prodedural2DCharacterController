@@ -23,6 +23,7 @@ public static class MovementTuningSchema {
             new Section("JUMP", Jump()),
             new Section("FALL", Fall()),
             new Section("WALL", Wall()),
+            new Section("SLIDE", Slide()),
             new Section("AIM", Aim()),
             new Section("CAMERA", Camera()),
             new Section("EFFECTS", Effects()),
@@ -149,6 +150,29 @@ public static class MovementTuningSchema {
             new Parameter(("Pose", "Back foot reach (share of leg)", Share), (0.3f, 1f), (p => p.wall.footReach.y, (p, v) => p.wall.footReach.y = v)),
             new Parameter(("Pose", "Feet gap from the wall", Units), (0f, 0.5f), (p => p.wall.footWallGap, (p, v) => p.wall.footWallGap = v)),
             new Parameter(("Pose", "Limb ease per frame", Share), (0.01f, 1f), (p => p.wall.limbPoseEase, (p, v) => p.wall.limbPoseEase = v)),
+        };
+    }
+
+    // The running slide. The on/off switch is set on the character (the panel has number rows only).
+    private static List<Parameter> Slide() {
+        return new List<Parameter> {
+            new Parameter(("Start", "Slides from this share of the run speed (run input not held)", Share), (0f, 1.5f), (p => p.slide.entrySpeedShare, (p, v) => p.slide.entrySpeedShare = v)),
+            new Parameter(("Start", "Boost speed", UnitsPerSecond), (0f, 20f), (p => p.slide.boostSpeed, (p, v) => p.slide.boostSpeed = v)),
+            new Parameter(("Start", "Cooldown", Seconds), (0f, 2f), (p => p.slide.cooldown, (p, v) => p.slide.cooldown = v)),
+            new Parameter(("Motion", "Friction", UnitsPerSecondSquared), (0.5f, 40f), (p => p.slide.friction, (p, v) => p.slide.friction = v)),
+            new Parameter(("Motion", "Ends below this speed", UnitsPerSecond), (0f, 6f), (p => p.slide.minSpeed, (p, v) => p.slide.minSpeed = v)),
+            new Parameter(("Motion", "Ground follow ease per frame", Share), (0.01f, 1f), (p => p.slide.groundFollowEase, (p, v) => p.slide.groundFollowEase = v)),
+            new Parameter(("Pose", "Pelvis height", Units), (0.4f, 2.4f), (p => p.slide.pelvisHeight, (p, v) => p.slide.pelvisHeight = v)),
+            new Parameter(("Pose", "Lean back", Degrees), (-20f, 45f), (p => p.slide.leanBack, (p, v) => p.slide.leanBack = v)),
+            new Parameter(("Pose", "Lead foot forward", Units), (-1f, 2.5f), (p => p.slide.leadFoot.x, (p, v) => p.slide.leadFoot.x = v)),
+            new Parameter(("Pose", "Lead foot height", Units), (0f, 1f), (p => p.slide.leadFoot.y, (p, v) => p.slide.leadFoot.y = v)),
+            new Parameter(("Pose", "Trail foot forward", Units), (-2f, 1f), (p => p.slide.trailFoot.x, (p, v) => p.slide.trailFoot.x = v)),
+            new Parameter(("Pose", "Trail foot height", Units), (0f, 1f), (p => p.slide.trailFoot.y, (p, v) => p.slide.trailFoot.y = v)),
+            new Parameter(("Pose", "Back hand forward of the shoulder", Units), (-2f, 1f), (p => p.slide.trailingHand.x, (p, v) => p.slide.trailingHand.x = v)),
+            new Parameter(("Pose", "Back hand above the ground", Units), (0f, 2f), (p => p.slide.trailingHand.y, (p, v) => p.slide.trailingHand.y = v)),
+            new Parameter(("Pose", "Front hand forward", Units), (-1.5f, 1.5f), (p => p.slide.balanceHand.x, (p, v) => p.slide.balanceHand.x = v)),
+            new Parameter(("Pose", "Front hand height", Units), (-1.5f, 1.5f), (p => p.slide.balanceHand.y, (p, v) => p.slide.balanceHand.y = v)),
+            new Parameter(("Pose", "Limb ease per frame", Share), (0.01f, 1f), (p => p.slide.limbPoseEase, (p, v) => p.slide.limbPoseEase = v)),
         };
     }
 

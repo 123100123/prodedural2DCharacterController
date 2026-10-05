@@ -35,6 +35,9 @@ public sealed class WalkState : ICharacterState {
             context.States.Roll.Begin();
             return;
         }
+        if (context.States.Slide.TryBeginFromWalk(commands)) {
+            return;
+        }
 
         context.Rig.Stride.TickWalk(deltaTime, GaitIntent(commands));
 

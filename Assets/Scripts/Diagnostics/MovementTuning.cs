@@ -19,6 +19,7 @@ public sealed class MovementTuning {
     private readonly EffectsSettings effects;
     private readonly CharacterAudioSettings audio;
     private readonly WallSettings wall;
+    private readonly SlideSettings slide;
 
     public MovementTuning(CharacterParts parts) {
         stride = parts.Stride;
@@ -39,6 +40,7 @@ public sealed class MovementTuning {
         effects = parts.Effects;
         audio = parts.Audio;
         wall = parts.Wall;
+        slide = parts.Slide;
     }
 
     public MovementPreset Capture() {
@@ -60,6 +62,7 @@ public sealed class MovementTuning {
             effects = effects.Clone(),
             audio = audio.Clone(),
             wall = wall.Clone(),
+            slide = slide.Clone(),
             transitions = stride.Transitions,
             balance = stride.Balance,
             idle = stride.IdleStance,
@@ -91,6 +94,7 @@ public sealed class MovementTuning {
         effects.CopyFrom(preset.effects);
         audio.CopyFrom(preset.audio);
         wall.CopyFrom(preset.wall);
+        slide.CopyFrom(preset.slide);
         stride.Transitions = preset.transitions;
         stride.Balance = preset.balance;
         stride.IdleStance = preset.idle;

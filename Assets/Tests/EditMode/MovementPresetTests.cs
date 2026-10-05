@@ -75,6 +75,47 @@ public class MovementPresetTests {
         Assert.That(loaded.wall.footReach, Is.EqualTo(defaults.footReach));
     }
 
+    [Test]
+    public void TheSlideSettingsSurviveAJsonRoundTrip() {
+        MovementPreset original = MovementPreset.CodeDefaults();
+        original.slide.boostSpeed = 11.5f;
+        original.slide.friction = 6.25f;
+        original.slide.leadFoot = new UnityEngine.Vector2(1.5f, 0.125f);
+        original.slide.enabled = false;
+
+        MovementPreset loaded = MovementPreset.FromJson(original.ToJson());
+        Assert.That(loaded.slide.boostSpeed, Is.EqualTo(11.5f));
+        Assert.That(loaded.slide.friction, Is.EqualTo(6.25f));
+        Assert.That(loaded.slide.leadFoot, Is.EqualTo(new UnityEngine.Vector2(1.5f, 0.125f)));
+        Assert.That(loaded.slide.enabled, Is.False);
+        Assert.That(loaded.ToJson(), Is.EqualTo(original.ToJson()));
+    }
+
+    // A preset saved at version 7, before the slide settings existed, loads them at their defaults.
+    [Test]
+    public void AVersionSevenPresetLoadsTheSlideDefaults() {
+        MovementPreset saved = MovementPreset.CodeDefaults();
+        saved.run.lean = 18f;
+        saved.wall.maxSlideSpeed = 4.5f;
+        saved.version = 7;
+        string versionSeven = WithoutObject(saved.ToJson(), "slide");
+        Assert.That(versionSeven, Does.Not.Contain("\"slide\""));
+        Assert.That(versionSeven, Does.Contain("\"wall\""), "only the slide settings are taken out");
+
+        MovementPreset loaded = MovementPreset.FromJson(versionSeven);
+        SlideSettings defaults = new SlideSettings();
+        Assert.That(MovementPreset.CurrentVersion, Is.GreaterThan(7));
+        Assert.That(loaded.version, Is.EqualTo(7), "what the file says");
+        Assert.That(loaded.run.lean, Is.EqualTo(18f));
+        Assert.That(loaded.wall.maxSlideSpeed, Is.EqualTo(4.5f));
+        Assert.That(loaded.slide, Is.Not.Null);
+        Assert.That(loaded.slide.enabled, Is.True);
+        Assert.That(loaded.slide.boostSpeed, Is.EqualTo(defaults.boostSpeed));
+        Assert.That(loaded.slide.friction, Is.EqualTo(defaults.friction));
+        Assert.That(loaded.slide.cooldown, Is.EqualTo(defaults.cooldown));
+        Assert.That(loaded.slide.leadFoot, Is.EqualTo(defaults.leadFoot));
+    }
+
     // The JSON with one object-valued field (and the comma before it) removed.
     private static string WithoutObject(string json, string field) {
         int key = json.IndexOf("\"" + field + "\"", System.StringComparison.Ordinal);
@@ -99,9 +140,11 @@ public class MovementPresetTests {
         copy.walk.speed = 99f;
         copy.posture.maxTotalLean = 1f;
         copy.wall.maxSlideSpeed = 99f;
+        copy.slide.boostSpeed = 99f;
         Assert.That(original.walk.speed, Is.EqualTo(GaitProfile.Walk.speed));
         Assert.That(original.posture.maxTotalLean, Is.EqualTo(PostureSettings.Default.maxTotalLean));
         Assert.That(original.wall.maxSlideSpeed, Is.EqualTo(new WallSettings().maxSlideSpeed));
+        Assert.That(original.slide.boostSpeed, Is.EqualTo(new SlideSettings().boostSpeed));
     }
 
     [Test]

@@ -17,6 +17,8 @@ public sealed class CharacterAudio {
     private const float RollLevel = 0.7f;
     private const float WallKickLevel = 0.9f;
     private const float WallCatchLevel = 0.5f;
+    private const float SlideLevel = 0.55f;
+    private const float SlidePitch = 0.8f;
     private const float DefaultHalfWidth = 10f;
 
     private readonly CharacterAudioSettings settings;
@@ -99,6 +101,7 @@ public sealed class CharacterAudio {
         events.Rolled += OnRolled;
         events.WallJumped += OnWallJumped;
         events.WallSlideStarted += OnWallSlideStarted;
+        events.SlideStarted += OnSlideStarted;
         events.Fired += OnFired;
         events.DryFired += OnDryFired;
         events.ShotHit += OnShotHit;
@@ -114,6 +117,7 @@ public sealed class CharacterAudio {
         events.Rolled -= OnRolled;
         events.WallJumped -= OnWallJumped;
         events.WallSlideStarted -= OnWallSlideStarted;
+        events.SlideStarted -= OnSlideStarted;
         events.Fired -= OnFired;
         events.DryFired -= OnDryFired;
         events.ShotHit -= OnShotHit;
@@ -150,6 +154,9 @@ public sealed class CharacterAudio {
 
     // A soft scuff as the feet catch the wall.
     private void OnWallSlideStarted((Vector2 contact, int wallSide) slide) => PlayAt(SoundId.Footstep, (WallCatchLevel, 0.8f), slide.contact.x);
+
+    // The brush of the body dropping onto the ground: the roll's tumble, lower.
+    private void OnSlideStarted((Vector2 position, int direction) slide) => PlayAt(SoundId.Roll, (SlideLevel, SlidePitch), slide.position.x);
 
     private void OnFired((Vector2 muzzle, Vector2 direction) shot) => PlayAt(SoundId.Gunshot, (1f, 1f), shot.muzzle.x);
 

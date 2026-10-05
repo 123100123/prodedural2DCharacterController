@@ -27,7 +27,9 @@ public sealed class ShootingStance {
     public void Tick(PlayerCommands commands, float now) {
         Vector2 aimPoint = PointerInWorld(commands.PointerScreenPosition);
         AimPoint = aimPoint;
-        rig.Facing.FaceToward(aimPoint.x - rig.Body.position.x);
+        if (!rig.HoldsFacing) {
+            rig.Facing.FaceToward(aimPoint.x - rig.Body.position.x);
+        }
 
         Vector2 aimDirection = ClampElevation(AimDirectionFromShoulder(aimPoint));
         float reloadProgress = weapon.ReloadProgress(now);

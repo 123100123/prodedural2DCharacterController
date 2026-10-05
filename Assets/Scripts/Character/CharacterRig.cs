@@ -29,6 +29,9 @@ public sealed class CharacterRig {
     public Transform Body => Stride.transform;
     // The pose the upper body takes while the character is in the air; none on the ground.
     public AirPoseFrame AirPose { get; set; }
+    // Set by a state whose pose needs the body to keep the way it faces (a running slide faces along the slide): aiming
+    // then points the arms without turning the character.
+    public bool HoldsFacing { get; set; }
 
     // Applies this frame's arm and head requests; parts nobody posed relax toward rest.
     public void ApplyUpperBodyPose(float deltaTime) {

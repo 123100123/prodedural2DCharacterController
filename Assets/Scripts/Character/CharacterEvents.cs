@@ -24,6 +24,10 @@ public sealed class CharacterEvents {
     public event Action<(Vector2 contact, int wallSide)> WallSlideStarted;
     // The slide ended (a wall jump, dropping off, landing or climbing a ledge).
     public event Action WallSlideStopped;
+    // A running slide began: the ground under the body, and which way (+1 right, -1 left) it slides.
+    public event Action<(Vector2 position, int direction)> SlideStarted;
+    // The running slide ended (getting up, jumping out, leaving a ledge or stopping against a wall).
+    public event Action SlideStopped;
 
     public void RaiseFootPlanted((Vector2 position, float impactSpeed) plant) => FootPlanted?.Invoke(plant);
 
@@ -48,4 +52,8 @@ public sealed class CharacterEvents {
     public void RaiseWallSlideStarted((Vector2 contact, int wallSide) slide) => WallSlideStarted?.Invoke(slide);
 
     public void RaiseWallSlideStopped() => WallSlideStopped?.Invoke();
+
+    public void RaiseSlideStarted((Vector2 position, int direction) slide) => SlideStarted?.Invoke(slide);
+
+    public void RaiseSlideStopped() => SlideStopped?.Invoke();
 }

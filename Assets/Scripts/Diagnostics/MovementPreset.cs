@@ -5,7 +5,7 @@ using UnityEngine;
 // and what is copied out to commit a tuned configuration back into the project. Lighting has its own preset.
 [Serializable]
 public class MovementPreset : ITuningPreset<MovementPreset> {
-    public const int CurrentVersion = 7;
+    public const int CurrentVersion = 8;
 
     // Written to every saved file; lets a later change to the format recognise the files written before it.
     public int version = CurrentVersion;
@@ -26,6 +26,7 @@ public class MovementPreset : ITuningPreset<MovementPreset> {
     public EffectsSettings effects;
     public CharacterAudioSettings audio;
     public WallSettings wall;
+    public SlideSettings slide;
     public GaitTransitionSettings transitions;
     public BalanceSettings balance;
     public IdleStanceSettings idle;
@@ -57,6 +58,7 @@ public class MovementPreset : ITuningPreset<MovementPreset> {
             effects = new EffectsSettings(),
             audio = new CharacterAudioSettings(),
             wall = new WallSettings(),
+            slide = new SlideSettings(),
             transitions = GaitTransitionSettings.Default,
             balance = BalanceSettings.Default,
             idle = IdleStanceSettings.Default,
@@ -84,6 +86,7 @@ public class MovementPreset : ITuningPreset<MovementPreset> {
         copy.effects = effects.Clone();
         copy.audio = audio.Clone();
         copy.wall = wall.Clone();
+        copy.slide = slide.Clone();
         return copy;
     }
 

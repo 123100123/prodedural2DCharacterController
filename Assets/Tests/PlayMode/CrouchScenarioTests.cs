@@ -98,6 +98,8 @@ public class CrouchScenarioTests : ScenarioFixture {
 
     [UnityTest]
     public IEnumerator CrouchingFromARunSlowsThroughTheRampWithoutSlidingOrSnapping() {
+        // A crouch pressed at a run slides (SlideScenarioTests); with the slide switched off it is the crouch ramp.
+        Stage.Character.Parts.Slide.enabled = false;
         Stage.Press(Key.D, Key.LeftShift);
         yield return Hold(3f);
         float runSpeed = Mathf.Abs(Stage.Stride.GroundSpeed);
