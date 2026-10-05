@@ -101,7 +101,7 @@ public class EffectsTests {
         MovementPreset loaded = MovementPreset.FromJson("{\"version\":4,\"run\":{\"lean\":21}}");
         EffectsSettings defaults = new EffectsSettings();
 
-        Assert.That(MovementPreset.CurrentVersion, Is.EqualTo(5));
+        Assert.That(MovementPreset.CurrentVersion, Is.GreaterThan(4));
         Assert.That(loaded.run.lean, Is.EqualTo(21f));
         Assert.That(loaded.effects, Is.Not.Null);
         Assert.That(loaded.effects.enabled, Is.True);

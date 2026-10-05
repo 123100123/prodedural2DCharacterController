@@ -29,6 +29,8 @@ public sealed class CasingPool {
     private readonly float[] ages = new float[Size];
     private readonly (float lifetime, float fade)[] lives = new (float, float)[Size];
     private readonly bool[] active = new bool[Size];
+    private readonly bool[] touched = new bool[Size];
+    private readonly Collider2D[] colliders = new Collider2D[Size];
 
     public CasingPool(Transform parent, Material material) {
         root = new GameObject("Casings");
@@ -52,6 +54,9 @@ public sealed class CasingPool {
         }
     }
 
+    // A casing touched something (the ground, mostly) for the first time since it was thrown, and where.
+    public event System.Action<Vector2> FirstContact;
+
     public bool IsActive(int index) => active[index];
 
     public Rigidbody2D BodyOf(int index) => bodies[index];
@@ -68,6 +73,7 @@ public sealed class CasingPool {
         ages[index] = 0f;
         lives[index] = life;
         active[index] = true;
+        touched[index] = false;
         renderers[index].color = Color.white;
     }
 
@@ -77,6 +83,10 @@ public sealed class CasingPool {
                 continue;
             }
             ages[index] += deltaTime;
+            if (!touched[index] && colliders[index].IsTouchingLayers(Physics2D.DefaultRaycastLayers)) {
+                touched[index] = true;
+                FirstContact?.Invoke(bodies[index].position);
+            }
             float alpha = EffectMath.CasingAlpha(ages[index], lives[index].lifetime, lives[index].fade);
             if (alpha <= 0f) {
                 Release(index);
@@ -159,6 +169,7 @@ public sealed class CasingPool {
         collider.excludeLayers = 1 << IgnoreRaycastLayer;
 
         bodies[index] = body;
+        colliders[index] = collider;
         renderers[index] = renderer;
         casing.SetActive(false);
     }

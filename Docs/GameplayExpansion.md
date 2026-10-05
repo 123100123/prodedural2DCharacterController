@@ -70,7 +70,7 @@ this branch. `main` is not touched until the user approves the whole batch.
 | 1 Weapon | done | |
 | 2 Camera | done | |
 | 3 VFX | done | |
-| 4 Audio | pending | |
+| 4 Audio | done | |
 | 5 Wall slide / jump | pending | |
 | 6 Running slide | pending | |
 | 7 Vertical input / ledges / one-way | pending | |

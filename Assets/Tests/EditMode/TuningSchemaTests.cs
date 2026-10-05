@@ -12,7 +12,7 @@ public class TuningSchemaTests {
     [Test]
     public void OffersTheTabsInOrder() {
         string[] titles = MovementTuningSchema.Build().Select(section => section.Title).ToArray();
-        Assert.That(titles, Is.EqualTo(new[] { "IDLE", "WALK", "RUN", "CROUCH", "JUMP", "FALL", "AIM", "CAMERA", "EFFECTS", "TRANSITIONS", "ADVANCED" }));
+        Assert.That(titles, Is.EqualTo(new[] { "IDLE", "WALK", "RUN", "CROUCH", "JUMP", "FALL", "AIM", "CAMERA", "EFFECTS", "AUDIO", "TRANSITIONS", "ADVANCED" }));
     }
 
     [Test]

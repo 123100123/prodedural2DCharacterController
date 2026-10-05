@@ -46,6 +46,9 @@ public class CharacterDriver : MonoBehaviour {
     [Header("Effects")]
     [SerializeField] private EffectsSettings effects = new EffectsSettings();
 
+    [Header("Audio")]
+    [SerializeField] private CharacterAudioSettings audioSettings = new CharacterAudioSettings();
+
     private PlayerInputReader input;
     private CharacterStateMachine machine;
     private CharacterStates states;
@@ -53,13 +56,14 @@ public class CharacterDriver : MonoBehaviour {
     private ShootingStance shootingStance;
     private WeaponController weaponController;
     private CharacterEffects characterEffects;
+    private CharacterAudio characterAudio;
     private PlayerCommands latestCommands;
     // Whether the character aimed this frame and where the pointer was, for the camera to frame.
     private (bool isAiming, Vector2 pointerWorld) cameraAim;
 
     public CharacterEvents Events { get; private set; }
     // What debug and tuning tools need; the character never reads anything back from them.
-    public CharacterParts Parts => new CharacterParts((stride, posture, torsoMotion, head, armSwing), (crouch, postureRoot), (jump, airborne, states?.Airborne, (airPose, fallSecondary), landing), (shooting, pistol, (weapon, weaponController)), (cameraFeel, followCamera), effects);
+    public CharacterParts Parts => new CharacterParts((stride, posture, torsoMotion, head, armSwing), (crouch, postureRoot), (jump, airborne, states?.Airborne, (airPose, fallSecondary), landing), (shooting, pistol, (weapon, weaponController)), (cameraFeel, followCamera), effects, audioSettings);
     public PlayerCommands LatestCommands => latestCommands;
     // Scenario hook: supplies the pointer's screen position in place of the mouse (null goes back to the mouse).
     public System.Func<Vector2> ScenarioPointerSource {
@@ -67,6 +71,8 @@ public class CharacterDriver : MonoBehaviour {
     }
     // The dust, smoke, sparks and casings; null until the character is composed.
     public CharacterEffects Effects => characterEffects;
+    // The synthesized sounds; null until the character is composed.
+    public CharacterAudio Audio => characterAudio;
 
     // Composes here rather than in Awake: a script recompile during play mode reloads the domain,
     // which clears these non-serialized collaborators and calls OnEnable again, but not Awake.
@@ -82,6 +88,7 @@ public class CharacterDriver : MonoBehaviour {
     private void OnDestroy() {
         input?.Dispose();
         weaponController?.Dispose();
+        characterAudio?.Dispose();
         characterEffects?.Dispose();
     }
 
@@ -104,6 +111,7 @@ public class CharacterDriver : MonoBehaviour {
         shootingStance = new ShootingStance(rig, (weaponController, shooting, weapon));
         ComposeSecondaryMotion();
         characterEffects = new CharacterEffects(rig, effects);
+        characterAudio = new CharacterAudio(rig, audioSettings, characterEffects.Casings);
         states.Walk.Begin();
     }
 
@@ -114,6 +122,7 @@ public class CharacterDriver : MonoBehaviour {
         cameraAim = (false, Vector2.zero);
         weaponController.Tick(Time.time, Time.deltaTime, commands.ReloadPressed);
         characterEffects.Tick(Time.deltaTime);
+        characterAudio.Tick(Time.deltaTime);
         crouch.Tick(Time.deltaTime, (commands.CrouchRequested, machine.Current.AllowsCrouch));
         machine.Tick(Time.deltaTime, commands);
         posture.Tick(Time.deltaTime);

@@ -25,6 +25,7 @@ public static class MovementTuningSchema {
             new Section("AIM", Aim()),
             new Section("CAMERA", Camera()),
             new Section("EFFECTS", Effects()),
+            new Section("AUDIO", Audio()),
             new Section("TRANSITIONS", Transitions()),
             new Section("ADVANCED", Advanced()),
         };
@@ -144,6 +145,22 @@ public static class MovementTuningSchema {
             new Parameter(("Trauma from", "Landing: trauma per speed above it", Share), (0f, 0.2f), (p => p.cameraFeel.landingTraumaPerSpeed, (p, v) => p.cameraFeel.landingTraumaPerSpeed = v)),
         });
         return parameters;
+    }
+
+    // The sound mix: a master volume (0 is silence, as the panel has number rows only), a volume per kind and the loudness curves.
+    private static List<Parameter> Audio() {
+        return new List<Parameter> {
+            new Parameter(("Mix", "Master volume (0 is mute)", Share), (0f, 1f), (p => p.audio.masterVolume, (p, v) => p.audio.masterVolume = v)),
+            new Parameter(("Mix", "Footsteps, jump and roll", Share), (0f, 1f), (p => p.audio.stepsVolume, (p, v) => p.audio.stepsVolume = v)),
+            new Parameter(("Mix", "Landing", Share), (0f, 1f), (p => p.audio.landingVolume, (p, v) => p.audio.landingVolume = v)),
+            new Parameter(("Mix", "Gun and reload", Share), (0f, 1f), (p => p.audio.weaponVolume, (p, v) => p.audio.weaponVolume = v)),
+            new Parameter(("Mix", "Bullet strikes", Share), (0f, 1f), (p => p.audio.impactsVolume, (p, v) => p.audio.impactsVolume = v)),
+            new Parameter(("Variation", "Pitch jitter", Share), (0f, 0.5f), (p => p.audio.pitchJitter, (p, v) => p.audio.pitchJitter = v)),
+            new Parameter(("Footsteps", "Least impact speed", UnitsPerSecond), (0f, 10f), (p => p.audio.footMinImpact, (p, v) => p.audio.footMinImpact = v)),
+            new Parameter(("Footsteps", "Loudest at", UnitsPerSecond), (1f, 20f), (p => p.audio.footFullImpact, (p, v) => p.audio.footFullImpact = v)),
+            new Parameter(("Landing", "Least impact speed", UnitsPerSecond), (0f, 20f), (p => p.audio.landingMinImpact, (p, v) => p.audio.landingMinImpact = v)),
+            new Parameter(("Landing", "Loudest and deepest at", UnitsPerSecond), (2f, 40f), (p => p.audio.landingFullImpact, (p, v) => p.audio.landingFullImpact = v)),
+        };
     }
 
     // The dust, sparks, smoke and shell casings. A scale of 0 turns that kind off; the effects switch is set on the character.
