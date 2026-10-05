@@ -9,6 +9,10 @@ using Section = TuningSection<MovementPreset>;
 // a range that makes sense for it, and the preset field it reads and writes. Declarative, so the panel needs no
 // knowledge of the settings and the sections can be tested. Each preset field is offered in exactly one section.
 public static class MovementTuningSchema {
+    private static Parameter Toggle((string group, string label) display, (Func<MovementPreset, bool> read, Action<MovementPreset, bool> write) access) {
+        return Parameter.Toggle(display, access);
+    }
+
     private delegate void GaitWriter(ref GaitProfile gait, float value);
 
     // Which of the preset's gait profiles a gait section edits.
@@ -24,7 +28,9 @@ public static class MovementTuningSchema {
             new Section("FALL", Fall()),
             new Section("WALL", Wall()),
             new Section("SLIDE", Slide()),
+            new Section("ROLL", Roll()),
             new Section("LEDGE", Ledge()),
+            new Section("CLIMB", Climb()),
             new Section("PUSH", Push()),
             new Section("AIM", Aim()),
             new Section("CAMERA", Camera()),
@@ -129,9 +135,10 @@ public static class MovementTuningSchema {
         };
     }
 
-    // Wall slide and wall jump. The on/off switch is set on the character (the panel has number rows only).
+    // Wall slide and wall jump.
     private static List<Parameter> Wall() {
         return new List<Parameter> {
+            Toggle(("Slide", "Wall slide and wall jump"), (p => p.wall.enabled, (p, v) => p.wall.enabled = v)),
             new Parameter(("Slide", "Top slide speed", UnitsPerSecond), (0.5f, 15f), (p => p.wall.maxSlideSpeed, (p, v) => p.wall.maxSlideSpeed = v)),
             new Parameter(("Slide", "Slide speed change", UnitsPerSecondSquared), (1f, 120f), (p => p.wall.slideAcceleration, (p, v) => p.wall.slideAcceleration = v)),
             new Parameter(("Slide", "Catches the wall below this rise speed", UnitsPerSecond), (0f, 6f), (p => p.wall.catchRiseSpeed, (p, v) => p.wall.catchRiseSpeed = v)),
@@ -155,9 +162,10 @@ public static class MovementTuningSchema {
         };
     }
 
-    // The running slide. The on/off switch is set on the character (the panel has number rows only).
+    // The running slide.
     private static List<Parameter> Slide() {
         return new List<Parameter> {
+            Toggle(("Start", "Running slide"), (p => p.slide.enabled, (p, v) => p.slide.enabled = v)),
             new Parameter(("Start", "Slides from this share of the run speed (run input not held)", Share), (0f, 1.5f), (p => p.slide.entrySpeedShare, (p, v) => p.slide.entrySpeedShare = v)),
             new Parameter(("Start", "Boost speed", UnitsPerSecond), (0f, 20f), (p => p.slide.boostSpeed, (p, v) => p.slide.boostSpeed = v)),
             new Parameter(("Start", "Cooldown", Seconds), (0f, 2f), (p => p.slide.cooldown, (p, v) => p.slide.cooldown = v)),
@@ -178,10 +186,10 @@ public static class MovementTuningSchema {
         };
     }
 
-    // Hanging from a ledge and one-way platforms. The hang's on/off switch is set on the character (the panel has number
-    // rows only); the climb itself is tuned on the character for now.
+    // Hanging from a ledge and one-way platforms; the climb itself is under CLIMB.
     private static List<Parameter> Ledge() {
         return new List<Parameter> {
+            Toggle(("Hang", "Hold the hang (off: always climbs on)"), (p => p.ledgeHang.holdable, (p, v) => p.ledgeHang.holdable = v)),
             new Parameter(("Hang", "Stick or key push that counts as a choice", Share), (0.1f, 1f), (p => p.ledgeHang.intentThreshold, (p, v) => p.ledgeHang.intentThreshold = v)),
             new Parameter(("Hang", "Same ledge not grabbed again for", Seconds), (0f, 1f), (p => p.ledgeHang.regrabLockout, (p, v) => p.ledgeHang.regrabLockout = v)),
             new Parameter(("Idle hang", "Sway out from the wall", Units), (0f, 0.3f), (p => p.ledgeHang.swayAmplitude, (p, v) => p.ledgeHang.swayAmplitude = v)),
@@ -193,9 +201,91 @@ public static class MovementTuningSchema {
         };
     }
 
-    // Pushing crates. The on/off switch is set on the character (the panel has number rows only).
+    // The dive roll. It is off in the scene until switched on here or on the character.
+    private static List<Parameter> Roll() {
+        return new List<Parameter> {
+            Toggle(("Start", "Roll"), (p => p.roll.enabled, (p, v) => p.roll.enabled = v)),
+            new Parameter(("Start", "Cooldown after a roll", Seconds), (0f, 2f), (p => p.roll.cooldown, (p, v) => p.roll.cooldown = v)),
+            new Parameter(("Start", "Speed ease per frame", Share), (0.01f, 1f), (p => p.roll.speedEase, (p, v) => p.roll.speedEase = v)),
+            new Parameter(("Start", "Limb ease per frame", Share), (0.01f, 1f), (p => p.roll.limbPoseEase, (p, v) => p.roll.limbPoseEase = v)),
+            new Parameter(("1. Dive", "Duration", Seconds), (0.05f, 0.8f), (p => p.roll.diveDuration, (p, v) => p.roll.diveDuration = v)),
+            new Parameter(("1. Dive", "Speed", UnitsPerSecond), (0f, 15f), (p => p.roll.diveSpeed, (p, v) => p.roll.diveSpeed = v)),
+            new Parameter(("1. Dive", "Lean forward", Degrees), (0f, 120f), (p => p.roll.diveLean, (p, v) => p.roll.diveLean = v)),
+            new Parameter(("1. Dive", "Body height", Units), (0.6f, 3.5f), (p => p.roll.diveBodyHeight, (p, v) => p.roll.diveBodyHeight = v)),
+            new Parameter(("1. Dive", "Arms below horizontal", Degrees), (-30f, 90f), (p => p.roll.diveArmAngle, (p, v) => p.roll.diveArmAngle = v)),
+            new Parameter(("1. Dive", "Arm extension", Share), (0.5f, 1f), (p => p.roll.diveArmExtension, (p, v) => p.roll.diveArmExtension = v)),
+            new Parameter(("1. Dive", "Lead foot pushes off for", Share), (0f, 1f), (p => p.roll.pushOffShare, (p, v) => p.roll.pushOffShare = v)),
+            new Parameter(("1. Dive", "Lead foot forward (extended)", Units), (-1.5f, 1.5f), (p => p.roll.leadFootExtended.x, (p, v) => p.roll.leadFootExtended.x = v)),
+            new Parameter(("1. Dive", "Lead foot height (extended)", Units), (-3.5f, 0f), (p => p.roll.leadFootExtended.y, (p, v) => p.roll.leadFootExtended.y = v)),
+            new Parameter(("1. Dive", "Trail foot forward (extended)", Units), (-1.5f, 1.5f), (p => p.roll.trailFootExtended.x, (p, v) => p.roll.trailFootExtended.x = v)),
+            new Parameter(("1. Dive", "Trail foot height (extended)", Units), (-3.5f, 0f), (p => p.roll.trailFootExtended.y, (p, v) => p.roll.trailFootExtended.y = v)),
+            new Parameter(("2. Hand contact", "Hands reach ahead", Units), (0f, 2f), (p => p.roll.handReachAhead, (p, v) => p.roll.handReachAhead = v)),
+            new Parameter(("2. Hand contact", "Lean forward", Degrees), (0f, 180f), (p => p.roll.contactLean, (p, v) => p.roll.contactLean = v)),
+            new Parameter(("2. Hand contact", "Body height", Units), (0.6f, 3.5f), (p => p.roll.contactBodyHeight, (p, v) => p.roll.contactBodyHeight = v)),
+            new Parameter(("2. Hand contact", "Speed", UnitsPerSecond), (0f, 15f), (p => p.roll.contactSpeed, (p, v) => p.roll.contactSpeed = v)),
+            new Parameter(("2. Hand contact", "Hand counts as touching within", Units), (0.01f, 0.6f), (p => p.roll.contactTolerance, (p, v) => p.roll.contactTolerance = v)),
+            new Parameter(("2. Hand contact", "Longest wait for contact", Seconds), (0.05f, 1f), (p => p.roll.maxContactTime, (p, v) => p.roll.maxContactTime = v)),
+            new Parameter(("2. Hand contact", "Back hand spacing", Units), (-0.5f, 0.6f), (p => p.roll.backHandSpacing, (p, v) => p.roll.backHandSpacing = v)),
+            new Parameter(("3. Roll", "Duration", Seconds), (0.1f, 1.5f), (p => p.roll.rollDuration, (p, v) => p.roll.rollDuration = v)),
+            new Parameter(("3. Roll", "Speed", UnitsPerSecond), (0f, 15f), (p => p.roll.rollSpeed, (p, v) => p.roll.rollSpeed = v)),
+            new Parameter(("3. Roll", "Chest curl", Degrees), (0f, 90f), (p => p.roll.chestCurlAngle, (p, v) => p.roll.chestCurlAngle = v)),
+            new Parameter(("3. Roll", "Chin tuck", Degrees), (0f, 90f), (p => p.roll.chinTuckAngle, (p, v) => p.roll.chinTuckAngle = v)),
+            new Parameter(("3. Roll", "Hips radius", Units), (0.1f, 1f), (p => p.roll.hipRadius, (p, v) => p.roll.hipRadius = v)),
+            new Parameter(("3. Roll", "Hands stay planted for", Share), (0f, 1f), (p => p.roll.handPinShare, (p, v) => p.roll.handPinShare = v)),
+            new Parameter(("3. Roll", "Lead foot forward (tucked)", Units), (-1.5f, 1.5f), (p => p.roll.leadFootTucked.x, (p, v) => p.roll.leadFootTucked.x = v)),
+            new Parameter(("3. Roll", "Lead foot height (tucked)", Units), (-3f, 0.5f), (p => p.roll.leadFootTucked.y, (p, v) => p.roll.leadFootTucked.y = v)),
+            new Parameter(("3. Roll", "Trail foot forward (tucked)", Units), (-1.5f, 1.5f), (p => p.roll.trailFootTucked.x, (p, v) => p.roll.trailFootTucked.x = v)),
+            new Parameter(("3. Roll", "Trail foot height (tucked)", Units), (-3f, 0.5f), (p => p.roll.trailFootTucked.y, (p, v) => p.roll.trailFootTucked.y = v)),
+            new Parameter(("3. Roll", "Hands forward (tucked)", Units), (-1f, 2f), (p => p.roll.handsTucked.x, (p, v) => p.roll.handsTucked.x = v)),
+            new Parameter(("3. Roll", "Hands height (tucked)", Units), (-2f, 1f), (p => p.roll.handsTucked.y, (p, v) => p.roll.handsTucked.y = v)),
+            new Parameter(("4. Recovery", "Duration", Seconds), (0.05f, 1.5f), (p => p.roll.recoverDuration, (p, v) => p.roll.recoverDuration = v)),
+            new Parameter(("4. Recovery", "Speed", UnitsPerSecond), (0f, 8f), (p => p.roll.recoverSpeed, (p, v) => p.roll.recoverSpeed = v)),
+            new Parameter(("4. Recovery", "Crouch left when walking resumes", Units), (0f, 1.2f), (p => p.roll.recoverCrouch, (p, v) => p.roll.recoverCrouch = v)),
+        };
+    }
+
+    // The ledge climb: where it grabs, the body keyframes, the limb poses and the timing. Offsets are from the ledge
+    // corner (x toward the ledge from the edge, y from the ledge top).
+    private static List<Parameter> Climb() {
+        return new List<Parameter> {
+            new Parameter(("Detection", "Highest ledge a jump-climb reaches", Units), (0.5f, 10f), (p => p.climb.maxGrabRise, (p, v) => p.climb.maxGrabRise = v)),
+            new Parameter(("Detection", "Ledge search ahead of the body", Units), (0.2f, 5f), (p => p.climb.searchDistance, (p, v) => p.climb.searchDistance = v)),
+            new Parameter(("Detection", "Air grab: below the shoulders", Units), (0f, 5f), (p => p.climb.airGrabBelowShoulder, (p, v) => p.climb.airGrabBelowShoulder = v)),
+            new Parameter(("Detection", "Air grab: above the shoulders (share of reach)", Share), (0f, 1f), (p => p.climb.airGrabAboveShoulderShare, (p, v) => p.climb.airGrabAboveShoulderShare = v)),
+            new Parameter(("Detection", "Room to stand: depth", Units), (0.2f, 3f), (p => p.climb.standingRoom.x, (p, v) => p.climb.standingRoom.x = v)),
+            new Parameter(("Detection", "Room to stand: height", Units), (1f, 8f), (p => p.climb.standingRoom.y, (p, v) => p.climb.standingRoom.y = v)),
+            new Parameter(("Detection", "Least top depth past the edge", Units), (0.1f, 3f), (p => p.climb.minTopDepth, (p, v) => p.climb.minTopDepth = v)),
+            new Parameter(("Body", "Hang inset from the edge", Units), (0f, 1.5f), (p => p.climb.hangInset, (p, v) => p.climb.hangInset = v)),
+            new Parameter(("Body", "Hang depth below the top", Units), (1f, 5f), (p => p.climb.hangDrop, (p, v) => p.climb.hangDrop = v)),
+            new Parameter(("Body", "Pulled up: toward the ledge", Units), (-1.5f, 1.5f), (p => p.climb.pulledUp.x, (p, v) => p.climb.pulledUp.x = v)),
+            new Parameter(("Body", "Pulled up: above the top", Units), (-1f, 2f), (p => p.climb.pulledUp.y, (p, v) => p.climb.pulledUp.y = v)),
+            new Parameter(("Body", "Mounted: toward the ledge", Units), (-1f, 2f), (p => p.climb.mounted.x, (p, v) => p.climb.mounted.x = v)),
+            new Parameter(("Body", "Mounted: above the top", Units), (0f, 3f), (p => p.climb.mounted.y, (p, v) => p.climb.mounted.y = v)),
+            new Parameter(("Body", "Standing inset past the edge", Units), (0f, 1.5f), (p => p.climb.standingInset, (p, v) => p.climb.standingInset = v)),
+            new Parameter(("Limbs", "Front hand grip: toward the ledge", Units), (-0.5f, 1f), (p => p.climb.frontGrip.x, (p, v) => p.climb.frontGrip.x = v)),
+            new Parameter(("Limbs", "Front hand grip: height", Units), (-0.5f, 0.5f), (p => p.climb.frontGrip.y, (p, v) => p.climb.frontGrip.y = v)),
+            new Parameter(("Limbs", "Back hand grip: toward the ledge", Units), (-0.5f, 1f), (p => p.climb.backGrip.x, (p, v) => p.climb.backGrip.x = v)),
+            new Parameter(("Limbs", "Back hand grip: height", Units), (-0.5f, 0.5f), (p => p.climb.backGrip.y, (p, v) => p.climb.backGrip.y = v)),
+            new Parameter(("Limbs", "Hanging lead foot: toward the ledge", Units), (-1f, 1f), (p => p.climb.hangingLeadFoot.x, (p, v) => p.climb.hangingLeadFoot.x = v)),
+            new Parameter(("Limbs", "Hanging lead foot: height", Units), (-4f, 0f), (p => p.climb.hangingLeadFoot.y, (p, v) => p.climb.hangingLeadFoot.y = v)),
+            new Parameter(("Limbs", "Hanging trail foot: toward the ledge", Units), (-1f, 1f), (p => p.climb.hangingTrailFoot.x, (p, v) => p.climb.hangingTrailFoot.x = v)),
+            new Parameter(("Limbs", "Hanging trail foot: height", Units), (-4f, 0f), (p => p.climb.hangingTrailFoot.y, (p, v) => p.climb.hangingTrailFoot.y = v)),
+            new Parameter(("Limbs", "Foot drop while scrambling", Units), (0.5f, 3.5f), (p => p.climb.scrambleFootDrop, (p, v) => p.climb.scrambleFootDrop = v)),
+            new Parameter(("Limbs", "Foot inset when mounting", Units), (0f, 1f), (p => p.climb.mountFootInset, (p, v) => p.climb.mountFootInset = v)),
+            new Parameter(("Limbs", "Limb ease per frame", Share), (0.01f, 1f), (p => p.climb.limbPoseEase, (p, v) => p.climb.limbPoseEase = v)),
+            new Parameter(("Timing", "Speed reaching the hang", UnitsPerSecond), (1f, 25f), (p => p.climb.reachSpeed, (p, v) => p.climb.reachSpeed = v)),
+            new Parameter(("Timing", "Shortest reach", Seconds), (0f, 1f), (p => p.climb.minReachDuration, (p, v) => p.climb.minReachDuration = v)),
+            new Parameter(("Timing", "Hang settle", Seconds), (0f, 1f), (p => p.climb.hangDuration, (p, v) => p.climb.hangDuration = v)),
+            new Parameter(("Timing", "Pull up", Seconds), (0.05f, 1.5f), (p => p.climb.pullDuration, (p, v) => p.climb.pullDuration = v)),
+            new Parameter(("Timing", "Mount", Seconds), (0.05f, 1.5f), (p => p.climb.mountDuration, (p, v) => p.climb.mountDuration = v)),
+            new Parameter(("Timing", "Stand", Seconds), (0.05f, 1.5f), (p => p.climb.standDuration, (p, v) => p.climb.standDuration = v)),
+        };
+    }
+
+    // Pushing crates.
     private static List<Parameter> Push() {
         return new List<Parameter> {
+            Toggle(("Force", "Pushing crates"), (p => p.push.enabled, (p, v) => p.push.enabled = v)),
             new Parameter(("Force", "Push speed", UnitsPerSecond), (0.3f, 6f), (p => p.push.pushSpeed, (p, v) => p.push.pushSpeed = v)),
             new Parameter(("Force", "Strongest push", Newtons), (0f, 2000f), (p => p.push.maxForce, (p, v) => p.push.maxForce = v)),
             new Parameter(("Force", "Speed slack between body and crate", UnitsPerSecond), (0f, 2f), (p => p.push.speedSlack, (p, v) => p.push.speedSlack = v)),
@@ -207,7 +297,7 @@ public static class MovementTuningSchema {
         };
     }
 
-    // How the camera leans into the aim and shakes. A shake amount of 0 turns the shake off.
+    // How the camera leans into the aim and shakes. The shake has a switch, and an amount of 0 also turns it off.
     private static List<Parameter> Camera() {
         List<Parameter> parameters = new List<Parameter> {
             new Parameter(("Aim framing", "Lean toward the pointer", Share), (0f, 1f), (p => p.cameraFeel.aimFraction, (p, v) => p.cameraFeel.aimFraction = v)),
@@ -216,6 +306,7 @@ public static class MovementTuningSchema {
         };
         parameters.AddRange(Spring(("Aim framing blend", (p => p.cameraFeel.aimBlendSpring, (p, s) => p.cameraFeel.aimBlendSpring = s))));
         parameters.AddRange(new[] {
+            Toggle(("Shake", "Screen shake"), (p => p.cameraFeel.shakeEnabled, (p, v) => p.cameraFeel.shakeEnabled = v)),
             new Parameter(("Shake", "Amount (0 is off)", Share), (0f, 1f), (p => p.cameraFeel.shakeAmount, (p, v) => p.cameraFeel.shakeAmount = v)),
             new Parameter(("Shake", "Furthest shove", Units), (0f, 2f), (p => p.cameraFeel.maxShakeOffset, (p, v) => p.cameraFeel.maxShakeOffset = v)),
             new Parameter(("Shake", "Furthest roll", Degrees), (0f, 10f), (p => p.cameraFeel.maxShakeRoll, (p, v) => p.cameraFeel.maxShakeRoll = v)),
@@ -245,9 +336,10 @@ public static class MovementTuningSchema {
         };
     }
 
-    // The dust, sparks, smoke and shell casings. A scale of 0 turns that kind off; the effects switch is set on the character.
+    // The dust, sparks, smoke and shell casings. A scale of 0 turns that kind off; the effects switch turns them all off.
     private static List<Parameter> Effects() {
         return new List<Parameter> {
+            Toggle(("Dust", "Effects (off: nothing is emitted)"), (p => p.effects.enabled, (p, v) => p.effects.enabled = v)),
             new Parameter(("Dust", "Amount (0 is off)", Multiple), (0f, 3f), (p => p.effects.dustScale, (p, v) => p.effects.dustScale = v)),
             new Parameter(("Dust", "Lifetime", Seconds), (0.1f, 2f), (p => p.effects.dustLifetime, (p, v) => p.effects.dustLifetime = v)),
             new Parameter(("Dust", "Foot plant: least impact speed", UnitsPerSecond), (0f, 10f), (p => p.effects.footDustMinImpact, (p, v) => p.effects.footDustMinImpact = v)),

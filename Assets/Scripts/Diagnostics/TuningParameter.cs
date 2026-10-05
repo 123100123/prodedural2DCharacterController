@@ -16,6 +16,20 @@ public sealed class TuningParameter<TPreset> {
         write = access.write;
     }
 
+    // An on/off switch, kept as the number 0 (off) or 1 (on) so that everything that reads and writes a value (resets,
+    // presets, the tests) treats it like any other parameter; the panel shows it as a checkbox. Any value from 0.5 up is on.
+    public static TuningParameter<TPreset> Toggle((string group, string label) display, (Func<TPreset, bool> read, Action<TPreset, bool> write) access) {
+        return new TuningParameter<TPreset>((display.group, display.label, ToggleUnit), (0f, 1f), (
+            preset => access.read(preset) ? 1f : 0f,
+            (preset, value) => access.write(preset, value >= ToggleThreshold))) { IsToggle = true };
+    }
+
+    public const string ToggleUnit = "on / off";
+    public const float ToggleThreshold = 0.5f;
+
+    // Whether the parameter is a switch (shown as a checkbox) rather than a number (a slider and a field).
+    public bool IsToggle { get; private set; }
+
     // Heading the parameter is listed under within its section.
     public string Group { get; }
     public string Label { get; }

@@ -14,7 +14,9 @@ public sealed class DebugPanelLayout {
     // Every page the panel offers before it is laid out in TabOrder: its title, content, section and the toolbar of its domain.
     private readonly List<(string title, VisualElement content, object section, VisualElement toolbar)> pages = new List<(string, VisualElement, object, VisualElement)>();
     // The tabs in the order they are shown: tuning sections of every domain among the readout and the debug lines.
-    private static readonly string[] TabOrder = { "LIVE", "IDLE", "WALK", "RUN", "CROUCH", "JUMP", "FALL", "WALL", "SLIDE", "PUSH", "AIM", "CAMERA", "EFFECTS", "AUDIO", "LIGHTING", "TRANSITIONS", "ADVANCED", "DEBUG" };
+    private static readonly string[] TabOrder = { "LIVE", "IDLE", "WALK", "RUN", "CROUCH", "JUMP", "FALL", "WALL", "SLIDE", "ROLL", "LEDGE", "CLIMB", "PUSH", "AIM", "CAMERA", "EFFECTS", "AUDIO", "LIGHTING", "TRANSITIONS", "ADVANCED", "DEBUG" };
+    // The tab titles the layout places in order; a section whose title is missing here still appears, after them.
+    public static IReadOnlyList<string> TabTitles => TabOrder;
     private readonly VisualElement body = new VisualElement();
     private readonly Label previewBadge = new Label();
     private readonly TabView tabs = new TabView();

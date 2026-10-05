@@ -212,6 +212,88 @@ public class MovementPresetTests {
         Assert.That(loaded.push.blendTime, Is.EqualTo(defaults.blendTime));
     }
 
+    [Test]
+    public void TheRollAndClimbSettingsSurviveAJsonRoundTrip() {
+        MovementPreset original = MovementPreset.CodeDefaults();
+        original.roll.enabled = true;
+        original.roll.cooldown = 0.625f;
+        original.roll.diveSpeed = 7.75f;
+        original.roll.leadFootTucked = new UnityEngine.Vector2(0.5f, -0.875f);
+        original.roll.recoverCrouch = 0.5f;
+        original.climb.maxGrabRise = 5.25f;
+        original.climb.pullDuration = 0.5f;
+        original.climb.mounted = new UnityEngine.Vector2(0.375f, 1.75f);
+        original.climb.hangDrop = 2.75f;
+
+        MovementPreset loaded = MovementPreset.FromJson(original.ToJson());
+        Assert.That(loaded.roll.enabled, Is.True);
+        Assert.That(loaded.roll.cooldown, Is.EqualTo(0.625f));
+        Assert.That(loaded.roll.diveSpeed, Is.EqualTo(7.75f));
+        Assert.That(loaded.roll.leadFootTucked, Is.EqualTo(new UnityEngine.Vector2(0.5f, -0.875f)));
+        Assert.That(loaded.roll.recoverCrouch, Is.EqualTo(0.5f));
+        Assert.That(loaded.climb.maxGrabRise, Is.EqualTo(5.25f));
+        Assert.That(loaded.climb.pullDuration, Is.EqualTo(0.5f));
+        Assert.That(loaded.climb.mounted, Is.EqualTo(new UnityEngine.Vector2(0.375f, 1.75f)));
+        Assert.That(loaded.climb.hangDrop, Is.EqualTo(2.75f));
+        Assert.That(loaded.ToJson(), Is.EqualTo(original.ToJson()));
+    }
+
+    // A preset saved at version 10, before the roll and climb settings existed, loads them at their code defaults:
+    // the roll stays off, whatever the character in the scene had.
+    [Test]
+    public void AVersionTenPresetLoadsTheRollAndClimbDefaults() {
+        MovementPreset saved = MovementPreset.CodeDefaults();
+        saved.run.lean = 16.5f;
+        saved.push.pushSpeed = 2.25f;
+        saved.version = 10;
+        string versionTen = WithoutObject(WithoutObject(saved.ToJson(), "roll"), "climb");
+        Assert.That(versionTen, Does.Not.Contain("\"roll\""));
+        Assert.That(versionTen, Does.Not.Contain("\"climb\""));
+        Assert.That(versionTen, Does.Contain("\"push\""), "only the new settings are taken out");
+
+        MovementPreset loaded = MovementPreset.FromJson(versionTen);
+        RollSettings rollDefaults = new RollSettings();
+        ClimbSettings climbDefaults = new ClimbSettings();
+        Assert.That(MovementPreset.CurrentVersion, Is.GreaterThan(10));
+        Assert.That(loaded.version, Is.EqualTo(10), "what the file says");
+        Assert.That(loaded.run.lean, Is.EqualTo(16.5f));
+        Assert.That(loaded.push.pushSpeed, Is.EqualTo(2.25f));
+        Assert.That(loaded.roll, Is.Not.Null);
+        Assert.That(loaded.roll.enabled, Is.False, "the code default");
+        Assert.That(loaded.roll.cooldown, Is.EqualTo(rollDefaults.cooldown));
+        Assert.That(loaded.roll.diveSpeed, Is.EqualTo(rollDefaults.diveSpeed));
+        Assert.That(loaded.roll.handsTucked, Is.EqualTo(rollDefaults.handsTucked));
+        Assert.That(loaded.climb, Is.Not.Null);
+        Assert.That(loaded.climb.maxGrabRise, Is.EqualTo(climbDefaults.maxGrabRise));
+        Assert.That(loaded.climb.pullDuration, Is.EqualTo(climbDefaults.pullDuration));
+        Assert.That(loaded.climb.standingRoom, Is.EqualTo(climbDefaults.standingRoom));
+    }
+
+    // CopyFrom writes every field of the settings the states hold by reference; a field added later and forgotten
+    // there would silently stop following the panel.
+    [Test]
+    public void CopyFromCoversEveryRollAndClimbField() {
+        AssertCopyFromCoversEveryField(new RollSettings(), (target, source) => target.CopyFrom(source), new string[0]);
+        AssertCopyFromCoversEveryField(new ClimbSettings(), (target, source) => target.CopyFrom(source), new[] { "ledgeMask" });
+    }
+
+    private static void AssertCopyFromCoversEveryField<T>(T template, System.Action<T, T> copyFrom, string[] untouched) where T : new() {
+        T source = new T();
+        foreach (System.Reflection.FieldInfo field in typeof(T).GetFields()) {
+            object different = field.FieldType == typeof(bool) ? !(bool)field.GetValue(template)
+                : field.FieldType == typeof(float) ? (object)((float)field.GetValue(template) + 1.5f)
+                : field.FieldType == typeof(UnityEngine.Vector2) ? (object)((UnityEngine.Vector2)field.GetValue(template) + new UnityEngine.Vector2(1.5f, 2.5f))
+                : field.GetValue(template);
+            field.SetValue(source, different);
+        }
+        T target = new T();
+        copyFrom(target, source);
+        foreach (System.Reflection.FieldInfo field in typeof(T).GetFields()) {
+            bool expectsCopy = System.Array.IndexOf(untouched, field.Name) < 0;
+            Assert.That(field.GetValue(target), expectsCopy ? Is.EqualTo(field.GetValue(source)) : Is.EqualTo(field.GetValue(template)), $"{typeof(T).Name}.{field.Name}");
+        }
+    }
+
     // The JSON with one object-valued field (and the comma before it) removed.
     private static string WithoutObject(string json, string field) {
         int key = json.IndexOf("\"" + field + "\"", System.StringComparison.Ordinal);
@@ -240,10 +322,14 @@ public class MovementPresetTests {
         copy.ledgeHang.regrabLockout = 99f;
         copy.oneWay.dropThroughTime = 99f;
         copy.push.pushSpeed = 99f;
+        copy.roll.diveSpeed = 99f;
+        copy.climb.pullDuration = 99f;
         Assert.That(original.walk.speed, Is.EqualTo(GaitProfile.Walk.speed));
         Assert.That(original.ledgeHang.regrabLockout, Is.EqualTo(new LedgeHangSettings().regrabLockout));
         Assert.That(original.oneWay.dropThroughTime, Is.EqualTo(new OneWaySettings().dropThroughTime));
         Assert.That(original.push.pushSpeed, Is.EqualTo(new PushSettings().pushSpeed));
+        Assert.That(original.roll.diveSpeed, Is.EqualTo(new RollSettings().diveSpeed));
+        Assert.That(original.climb.pullDuration, Is.EqualTo(new ClimbSettings().pullDuration));
         Assert.That(original.posture.maxTotalLean, Is.EqualTo(PostureSettings.Default.maxTotalLean));
         Assert.That(original.wall.maxSlideSpeed, Is.EqualTo(new WallSettings().maxSlideSpeed));
         Assert.That(original.slide.boostSpeed, Is.EqualTo(new SlideSettings().boostSpeed));

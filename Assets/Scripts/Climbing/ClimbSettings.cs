@@ -45,4 +45,36 @@ public class ClimbSettings {
     public float pullDuration = 0.35f;
     public float mountDuration = 0.25f;
     public float standDuration = 0.25f;
+
+    public ClimbSettings Clone() => (ClimbSettings)MemberwiseClone();
+
+    // A copy made field by field into this instance, which the state holds by reference.
+    public void CopyFrom(ClimbSettings source) {
+        maxGrabRise = source.maxGrabRise;
+        searchDistance = source.searchDistance;
+        searchStep = source.searchStep;
+        airGrabBelowShoulder = source.airGrabBelowShoulder;
+        airGrabAboveShoulderShare = source.airGrabAboveShoulderShare;
+        standingRoom = source.standingRoom;
+        minTopDepth = source.minTopDepth;
+        // The ledge mask is scene wiring, not a tuned value: a loaded preset leaves it alone.
+        hangInset = source.hangInset;
+        hangDrop = source.hangDrop;
+        pulledUp = source.pulledUp;
+        mounted = source.mounted;
+        standingInset = source.standingInset;
+        frontGrip = source.frontGrip;
+        backGrip = source.backGrip;
+        hangingLeadFoot = source.hangingLeadFoot;
+        hangingTrailFoot = source.hangingTrailFoot;
+        scrambleFootDrop = source.scrambleFootDrop;
+        mountFootInset = source.mountFootInset;
+        limbPoseEase = source.limbPoseEase;
+        reachSpeed = source.reachSpeed;
+        minReachDuration = source.minReachDuration;
+        hangDuration = source.hangDuration;
+        pullDuration = source.pullDuration;
+        mountDuration = source.mountDuration;
+        standDuration = source.standDuration;
+    }
 }

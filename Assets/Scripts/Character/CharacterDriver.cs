@@ -78,7 +78,7 @@ public class CharacterDriver : MonoBehaviour {
 
     public CharacterEvents Events { get; private set; }
     // What debug and tuning tools need; the character never reads anything back from them.
-    public CharacterParts Parts => new CharacterParts((stride, posture, torsoMotion, head, armSwing), (crouch, postureRoot), (jump, airborne, states?.Airborne, (airPose, fallSecondary), landing), (shooting, pistol, (weapon, weaponController)), (cameraFeel, followCamera), effects, audioSettings, (wall, states?.WallSlide), (slide, states?.Slide), (ledgeHang, oneWay, states?.Climb), (push, cratePusher, pushPose));
+    public CharacterParts Parts => new CharacterParts((stride, posture, torsoMotion, head, armSwing), (crouch, postureRoot), (jump, airborne, states?.Airborne, (airPose, fallSecondary), landing), (shooting, pistol, (weapon, weaponController)), (cameraFeel, followCamera), effects, audioSettings, (wall, states?.WallSlide), (slide, states?.Slide), (ledgeHang, oneWay, states?.Climb), (push, cratePusher, pushPose), (roll, climb));
     public PlayerCommands LatestCommands => latestCommands;
     // The full-body state the character is in; null until the character is composed.
     public ICharacterState CurrentState => machine?.Current;

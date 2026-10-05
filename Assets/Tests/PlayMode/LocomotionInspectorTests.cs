@@ -89,6 +89,56 @@ public class LocomotionInspectorTests {
         inspector.Tuning.Apply(inspector.Defaults);
     }
 
+    // The roll is off in the scene; its switch on the ROLL tab turns it on and back off, and the character follows.
+    [UnityTest]
+    public IEnumerator TheRollSwitchOnThePanelEnablesTheRoll() {
+        yield return Tap(Key.F1);
+        VisualElement panel = FindPanel();
+        Toggle rollSwitch = SwitchOf(panel, "Roll");
+        Assert.That(rollSwitch, Is.Not.Null, "the ROLL tab has a switch");
+        RollSettings roll = stage.Character.Parts.Roll;
+        Assert.That(roll.enabled, Is.EqualTo(rollSwitch.value), "the switch shows the character's setting");
+        bool before = roll.enabled;
+
+        rollSwitch.value = !before;
+        Assert.That(roll.enabled, Is.EqualTo(!before), "the character follows the switch");
+        Assert.That(stage.Inspector.Tuning.Capture().roll.enabled, Is.EqualTo(!before));
+        rollSwitch.value = before;
+        Assert.That(roll.enabled, Is.EqualTo(before));
+
+        yield return Tap(Key.F1);
+    }
+
+    // Every tab of the panel is reachable: the tab bar wraps onto more lines instead of running off the panel.
+    [UnityTest]
+    public IEnumerator TheTabBarWrapsInsideThePanel() {
+        yield return Tap(Key.F1);
+        yield return Frames(3);
+        VisualElement panel = FindPanel();
+        VisualElement header = panel.Q(className: "unity-tab-view__header-container");
+        Assert.That(header, Is.Not.Null);
+        Rect bar = header.worldBound;
+        Rect frame = panel.worldBound;
+        Assert.That(frame.width, Is.GreaterThan(0f));
+        foreach (VisualElement tab in header.Children()) {
+            Assert.That(tab.worldBound.xMax, Is.LessThanOrEqualTo(frame.xMax + 1f), "a tab sticks out past the panel's right edge");
+            Assert.That(tab.worldBound.xMin, Is.GreaterThanOrEqualTo(frame.xMin - 1f), "a tab sticks out past the panel's left edge");
+        }
+        Assert.That(header.childCount, Is.GreaterThanOrEqualTo(DebugPanelLayout.TabTitles.Count - 1), "every tab is there");
+        Assert.That(bar.height, Is.GreaterThan(0f));
+        yield return Tap(Key.F1);
+    }
+
+    private static Toggle SwitchOf(VisualElement panel, string label) {
+        foreach (VisualElement row in panel.Query<VisualElement>(className: "loco-row").ToList()) {
+            Toggle toggle = row.Q<Toggle>();
+            if (toggle != null && row.Q<Label>(className: "loco-row__label")?.text == label) {
+                return toggle;
+            }
+        }
+        return null;
+    }
+
     // The locomotion works the same without the panel: nothing in the gait depends on it, open, closed or gone.
     [UnityTest]
     public IEnumerator TheGaitIsTheSameWithThePanelHiddenOpenOrGone() {

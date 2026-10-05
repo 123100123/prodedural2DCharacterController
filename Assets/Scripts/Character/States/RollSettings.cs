@@ -67,4 +67,47 @@ public class RollSettings {
     public float recoverSpeed = 1.5f;
     [Tooltip("Crouch left when the roll hands over to walking; the gait rises out of it.")]
     public float recoverCrouch = 0.35f;
+
+    public RollSettings Clone() => (RollSettings)MemberwiseClone();
+
+    // A copy made field by field into this instance, which the state holds by reference.
+    public void CopyFrom(RollSettings source) {
+        enabled = source.enabled;
+        cooldown = source.cooldown;
+        speedEase = source.speedEase;
+        groundFollowEase = source.groundFollowEase;
+        rollContactEase = source.rollContactEase;
+        limbPoseEase = source.limbPoseEase;
+        maxGroundDrop = source.maxGroundDrop;
+        groundClearance = source.groundClearance;
+        diveDuration = source.diveDuration;
+        diveSpeed = source.diveSpeed;
+        diveLean = source.diveLean;
+        diveBodyHeight = source.diveBodyHeight;
+        diveArmAngle = source.diveArmAngle;
+        diveArmExtension = source.diveArmExtension;
+        pushOffShare = source.pushOffShare;
+        handReachAhead = source.handReachAhead;
+        contactLean = source.contactLean;
+        contactBodyHeight = source.contactBodyHeight;
+        contactSpeed = source.contactSpeed;
+        contactTolerance = source.contactTolerance;
+        maxContactTime = source.maxContactTime;
+        backHandSpacing = source.backHandSpacing;
+        leadFootExtended = source.leadFootExtended;
+        trailFootExtended = source.trailFootExtended;
+        rollDuration = source.rollDuration;
+        rollSpeed = source.rollSpeed;
+        chestCurlAngle = source.chestCurlAngle;
+        invertedPitchWindow = source.invertedPitchWindow;
+        hipRadius = source.hipRadius;
+        chinTuckAngle = source.chinTuckAngle;
+        handPinShare = source.handPinShare;
+        leadFootTucked = source.leadFootTucked;
+        trailFootTucked = source.trailFootTucked;
+        handsTucked = source.handsTucked;
+        recoverDuration = source.recoverDuration;
+        recoverSpeed = source.recoverSpeed;
+        recoverCrouch = source.recoverCrouch;
+    }
 }
