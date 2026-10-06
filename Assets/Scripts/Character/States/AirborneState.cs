@@ -265,8 +265,9 @@ public sealed class AirborneState : ICharacterState {
         Vector2 poseTarget = hip + Vector2.ClampMagnitude(requested - hip, foot.leg.LegLength * MaxLegExtension);
         Vector2 rayOrigin = new Vector2(poseTarget.x, body.y);
 
-        // A one-way platform the body is rising or passing through holds no foot (AirSupport).
-        bool hitsGround = FootholdProbe.TryFindGroundBelow((rayOrigin, body.y - poseTarget.y), (context.Rig.Stride.GroundMask, context.Rig.Stride.AirSupport), out Vector2 ground);
+        // A one-way platform the body is rising through holds no foot (AirSupport).
+        float fallThisFrame = -context.Rig.Motor.Velocity.y * Time.deltaTime;
+        bool hitsGround = FootholdProbe.TryFindGroundBelow((rayOrigin, body.y - poseTarget.y), (context.Rig.Stride.GroundMask, context.Rig.Stride.AirSupport(fallThisFrame)), out Vector2 ground);
         return hitsGround ? ground : poseTarget;
     }
 

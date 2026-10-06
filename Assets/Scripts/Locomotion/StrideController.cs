@@ -92,9 +92,13 @@ public class StrideController : MonoBehaviour {
     public OneWayPassage OneWay { get => oneWay; set => oneWay = value ?? oneWay; }
     // The one-way platforms that hold feet standing at the given height: those whose top is at or below it.
     public OneWaySupport SupportAt(float feetY) => new OneWaySupport(feetY + OneWayFilter.StandingTolerance, (oneWay, Time.time));
-    // In the air: the one-way platforms the falling body would stand on, those at or below its standing feet (with the
-    // landing catch). A platform the body is rising or passing through from below holds nothing.
-    public OneWaySupport AirSupport => new OneWaySupport(transform.position.y - bodyHeight + oneWay.Settings.landingCatch, (oneWay, Time.time));
+    // In the air: the one-way platforms a body whose feet move down by fallDistance this frame (negative: up) would stand
+    // on. Every top the feet cross from above holds them, however far they fall, and so does one they only just cleared
+    // (the landing catch); a body that is rising passes up through all of them (OneWaySupport.Sweeping).
+    public OneWaySupport AirSupport(float fallDistance) {
+        float feetBefore = transform.position.y - bodyHeight;
+        return OneWaySupport.Sweeping((feetBefore, feetBefore - fallDistance), oneWay.Settings.landingCatch, (oneWay, Time.time));
+    }
     // The ground and support for a ray standing for feet at the given height.
     public (LayerMask mask, OneWaySupport support) GroundAt(float feetY) => (footholdLimits.groundMask, SupportAt(feetY));
     public Vector2 BodyVelocity => Carriage.Velocity;
@@ -276,7 +280,7 @@ public class StrideController : MonoBehaviour {
     // Ground below the body within standing height plus extraDepth (e.g. this frame's fall distance).
     public bool TryFindGroundBelowBody(float extraDepth, out Vector2 ground) {
         Vector2 origin = transform.position;
-        return FootholdProbe.TryFindGroundBelow((origin, bodyHeight + extraDepth), (footholdLimits.groundMask, AirSupport), out ground);
+        return FootholdProbe.TryFindGroundBelow((origin, bodyHeight + extraDepth), (footholdLimits.groundMask, AirSupport(extraDepth)), out ground);
     }
 
     // The collider under a foot it stands on, if any.

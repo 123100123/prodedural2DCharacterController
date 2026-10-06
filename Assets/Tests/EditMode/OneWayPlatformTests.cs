@@ -35,6 +35,41 @@ public class OneWayPlatformTests {
         Assert.That(DownOntoTop(Top + 1f, (true, true)), Is.False);
     }
 
+    // Whether the sweep of the feet from before to after is held by the platform's top, as a ray cast down from the feet
+    // would find it: a top the ray reaches (at or above where the feet end up) and the support lets through.
+    private static bool SweepLandsOnTop((float before, float after) feet, float catchDepth = 0.2f) {
+        OneWaySupport support = OneWaySupport.Sweeping(feet, catchDepth, (null, 0f));
+        bool isReached = Top >= feet.after;
+        return isReached && OneWayFilter.Blocks((true, false), (Mathf.Max(0.001f, feet.before - Top), 1f, Top), (-1f, support.Level));
+    }
+
+    [Test]
+    public void FeetCrossingATopFromAboveLandOnItAtAnyFallSpeed([Values(0.01f, 0.3f, 2f, 20f, 60f, 5000f)] float fall, [Values(0f, 0.4f, 3f)] float aboveTop) {
+        float before = Top + aboveTop;
+        Assert.That(SweepLandsOnTop((before, before - fall)), Is.EqualTo(fall >= aboveTop), $"fell {fall} from {aboveTop} above the top");
+    }
+
+    [Test]
+    public void FeetThatOnlyJustSankBelowATopOnTheWayDownStillLandOnItWithinTheCatch() {
+        Assert.That(SweepLandsOnTop((Top - 0.15f, Top - 0.5f)), Is.True, "just cleared it");
+        Assert.That(SweepLandsOnTop((Top - 0.25f, Top - 0.5f)), Is.False, "well below it");
+        Assert.That(SweepLandsOnTop((Top - 0.25f, Top - 0.5f), 0.3f), Is.True, "a wider catch");
+    }
+
+    [Test]
+    public void ABodyRisingThroughAPlatformNeverCatchesIt() {
+        Assert.That(SweepLandsOnTop((Top - 0.05f, Top + 0.5f)), Is.False, "feet just under the top, rising");
+        Assert.That(SweepLandsOnTop((Top - 0.01f, Top + 3f), 5f), Is.False, "rising fast, however wide the catch");
+        OneWaySupport rising = OneWaySupport.Sweeping((Top + 0.5f, Top + 0.7f), 0.2f, (null, 0f));
+        Assert.That(OneWayFilter.Blocks((true, false), (0.5f, 1f, Top), (-1f, rising.Level)), Is.True, "still stands on a top just under the feet");
+    }
+
+    [Test]
+    public void ABodyFallingThroughADroppedThroughPlatformIsNotCaught() {
+        OneWaySupport support = OneWaySupport.Sweeping((Top + 1f, Top - 5f), 0.2f, (null, 0f));
+        Assert.That(OneWayFilter.Blocks((true, true), (1f, 1f, Top), (-1f, support.Level)), Is.False);
+    }
+
     [Test]
     public void DownAndJumpDropsOnlyWhenEveryFootIsOnAOneWayPlatform() {
         Assert.That(OneWayPassage.CanDropThrough((true, true), (true, true)), Is.True);

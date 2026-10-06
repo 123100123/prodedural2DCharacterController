@@ -20,6 +20,7 @@ public static class PlaygroundSetup {
     // The blocks of the level are the sprite stretched over a box collider, so every playground block is a scaled tile.
     private static readonly Color BlockTint = Color.white;
     private static readonly Color PlatformTint = new Color(0.62f, 0.78f, 1f, 1f);
+    private static readonly Color PlatformEdgeTint = new Color(0.9f, 0.97f, 1f, 1f);
     private static readonly Color LightCrateTint = new Color(1f, 0.8f, 0.5f, 1f);
     private static readonly Color HeavyCrateTint = new Color(0.62f, 0.45f, 0.3f, 1f);
     private static readonly Color TargetTint = new Color(1f, 0.45f, 0.35f, 1f);
@@ -41,12 +42,21 @@ public static class PlaygroundSetup {
     private const float LedgeWidth = 8f;
     private const float LedgeHeight = 4.2f;
     private const float PlatformThickness = 0.4f;
-    private const float PlatformWidth = 5f;
-    private const float PitLeft = 94f;
+    // The one-way platforms are a staircase a jump can climb: each top is a rise higher than the last (the held jump's
+    // feet clear about 1.7 from a standing start and 2.4 from a run) and a short hop away from the next.
+    private const float PlatformWidth = 6f;
+    private const float PlatformRise = 1.6f;
+    private const float PlatformGap = 1.5f;
+    // Past the hang ledge (ending at 68), with a run-up before it.
+    private const float PlatformStart = 72f;
+    private const float PlatformEdgeHeight = 0.1f;
+    // The clear stretch between the staircase (ending at 93) and the pit, kept for the hill section.
+    private const float HillRoom = 30f;
+    private const float PitLeft = 94f + HillRoom;
     private const float PitWallWidth = 6f;
     private const float PitGap = 2.8f;
     private const float PitDepth = 10.5f;
-    private const float PitRight = 110f;
+    private const float PitRight = PitLeft + 16f;
     // The far wall towers over the floor the pit is entered from, out of any ledge grab and too high to bridge with a stride: walking off the edge falls in.
     private const float PitRightRise = 6f;
 
@@ -226,13 +236,27 @@ public static class PlaygroundSetup {
 
         // A staircase of thin one-way platforms over the solid floor: jump up through them, drop down with down + jump.
         public void OneWayPlatforms() {
-            OneWay("One Way Low", 71f, 2f);
-            OneWay("One Way Mid", 77f, 3.8f);
-            OneWay("One Way High", 83f, 5.6f);
+            string[] names = { "One Way Low", "One Way Mid", "One Way High" };
+            for (int step = 0; step < names.Length; step++) {
+                OneWay(names[step], PlatformStart + step * (PlatformWidth + PlatformGap), (step + 1) * PlatformRise);
+            }
         }
 
         private void OneWay(string name, float x, float top) {
-            Block(name, (x, x + PlatformWidth), (top - PlatformThickness, top), PlatformTint).AddComponent<OneWayPlatform>();
+            GameObject platform = Block(name, (x, x + PlatformWidth), (top - PlatformThickness, top), PlatformTint);
+            platform.AddComponent<OneWayPlatform>();
+            EdgeStrip(platform, top);
+        }
+
+        // A thin lighter strip along the top of a one-way platform (no collider), so its walkable face reads at a glance.
+        private void EdgeStrip(GameObject platform, float top) {
+            GameObject strip = new GameObject(platform.name + " Edge");
+            Undo.RegisterCreatedObjectUndo(strip, UndoName);
+            strip.transform.SetParent(platform.transform, false);
+            // The platform is a stretched tile: the strip keeps its width and takes its height as a share of the thickness.
+            strip.transform.localScale = new Vector3(1f, PlatformEdgeHeight / PlatformThickness, 1f);
+            strip.transform.position = new Vector3(platform.transform.position.x, Start.y + top - PlatformEdgeHeight / 2f, platform.transform.position.z);
+            Dress(strip, PlatformEdgeTint, 1);
         }
 
         // A pit with sheer walls just wider than the character, entered by walking off the left edge: wall-jump up between them
