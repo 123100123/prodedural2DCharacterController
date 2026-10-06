@@ -44,6 +44,20 @@ public class ShootingTarget : MonoBehaviour, IShotReceiver {
         Health = maxHealth;
     }
 
+    // The character walks and jumps through a target (CharacterPassThrough), so one hung low never blocks a jump; shots
+    // and physics bodies still meet it.
+    private void OnEnable() {
+        foreach (Collider2D collider in colliders) {
+            CharacterPassThrough.Register(collider);
+        }
+    }
+
+    private void OnDisable() {
+        foreach (Collider2D collider in colliders) {
+            CharacterPassThrough.Unregister(collider);
+        }
+    }
+
     public void OnShot(ShotHit hit) {
         if (IsDestroyed) {
             return;
