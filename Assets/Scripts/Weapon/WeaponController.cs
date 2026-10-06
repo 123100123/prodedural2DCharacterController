@@ -23,6 +23,7 @@ public sealed class WeaponController {
     private readonly TracerPool tracers = new TracerPool();
     private readonly RaycastHit2D[] rayHits = new RaycastHit2D[MaxRayHits];
     private readonly List<IShotReceiver> receivers = new List<IShotReceiver>();
+    private readonly List<IScoreSource> scorers = new List<IScoreSource>();
 
     public WeaponController(Pistol pistol, WeaponSettings settings, (CharacterEvents events, Transform owner) character) {
         this.pistol = pistol;
@@ -98,7 +99,8 @@ public sealed class WeaponController {
         tracers.Spawn((origin, origin + direction * settings.range), settings);
     }
 
-    // The bullet's effect: a push on a dynamic body, then every receiver on the collider's object and its body's object.
+    // The bullet's effect: a push on a dynamic body, then every receiver on the collider's object and its body's object,
+    // then the points any of them paid out.
     private void Strike(ShotHit hit) {
         Rigidbody2D body = hit.Collider.attachedRigidbody;
         if (body != null && body.bodyType == RigidbodyType2D.Dynamic) {
@@ -109,7 +111,20 @@ public sealed class WeaponController {
         if (body != null && body.gameObject != hit.Collider.gameObject) {
             Notify(body.gameObject, hit);
         }
+        Score(hit.Collider.gameObject);
+        if (body != null && body.gameObject != hit.Collider.gameObject) {
+            Score(body.gameObject);
+        }
         events.RaiseShotHit(hit);
+    }
+
+    private void Score(GameObject target) {
+        target.GetComponents(scorers);
+        for (int index = 0; index < scorers.Count; index++) {
+            if (scorers[index].TryTakeScore(out ScoreAward award)) {
+                events.RaiseTargetScored((award.Points, award.Position, award.Broke));
+            }
+        }
     }
 
     private void Notify(GameObject target, ShotHit hit) {

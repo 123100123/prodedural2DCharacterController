@@ -40,7 +40,15 @@ public class EffectsSettings {
     [Tooltip("How fast a casing is thrown out of the pistol, in u/s.")]
     public float casingEjectSpeed = 3.5f;
 
-    public EffectsSettings Clone() => (EffectsSettings)MemberwiseClone();
+    [Header("Targets")]
+    [Tooltip("Points popups and wood splinters of the targets that pay out.")]
+    public TargetEffectsSettings targets = new TargetEffectsSettings();
+
+    public EffectsSettings Clone() {
+        EffectsSettings copy = (EffectsSettings)MemberwiseClone();
+        copy.targets = targets.Clone();
+        return copy;
+    }
 
     // A copy made field by field into this instance, which the effects hold by reference.
     public void CopyFrom(EffectsSettings source) {
@@ -58,5 +66,40 @@ public class EffectsSettings {
         casingLifetime = source.casingLifetime;
         casingFadeTime = source.casingFadeTime;
         casingEjectSpeed = source.casingEjectSpeed;
+        targets.CopyFrom(source.targets);
+    }
+}
+
+// The points popups a target's score raises and the wood splinters of a target breaking. A class of its own with
+// initializers, so a scene saved before it existed keeps these defaults.
+[Serializable]
+public class TargetEffectsSettings {
+    [Tooltip("Seconds a popup takes to rise and fade out.")]
+    public float popupLifetime = 1.2f;
+    [Tooltip("How far a popup rises, in world units.")]
+    public float popupRise = 1.5f;
+    [Tooltip("Letter size of the popup for a hit, and for the hit that breaks the target.")]
+    public float hitTextSize = 0.12f;
+    public float breakTextSize = 0.2f;
+    [Tooltip("How far above the target's middle a popup starts, in world units.")]
+    public float popupLift = 1.6f;
+    public Color hitTextColor = new Color(1f, 0.97f, 0.82f, 1f);
+    public Color breakTextColor = new Color(1f, 0.78f, 0.12f, 1f);
+    [Tooltip("Splinters knocked off by a hit, and sprayed by the hit that breaks the target; 0 is none.")]
+    public float hitSplinters = 2f;
+    public float breakSplinters = 16f;
+
+    public TargetEffectsSettings Clone() => (TargetEffectsSettings)MemberwiseClone();
+
+    public void CopyFrom(TargetEffectsSettings source) {
+        popupLifetime = source.popupLifetime;
+        popupRise = source.popupRise;
+        hitTextSize = source.hitTextSize;
+        breakTextSize = source.breakTextSize;
+        popupLift = source.popupLift;
+        hitTextColor = source.hitTextColor;
+        breakTextColor = source.breakTextColor;
+        hitSplinters = source.hitSplinters;
+        breakSplinters = source.breakSplinters;
     }
 }

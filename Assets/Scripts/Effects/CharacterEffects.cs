@@ -11,6 +11,7 @@ public sealed class CharacterEffects {
     private const int DustOrder = 20;
     private const int SmokeOrder = 21;
     private const int SparkOrder = 22;
+    private const int SplinterOrder = 23;
     private const int MaxFootPuffs = 3;
     private const int MaxLandingPuffs = 14;
     private const int MuzzleSmokePuffs = 2;
@@ -33,6 +34,10 @@ public sealed class CharacterEffects {
     private static readonly Color DustColor = new Color(0.8f, 0.74f, 0.64f, 0.55f);
     private static readonly Color SmokeColor = new Color(0.75f, 0.75f, 0.78f, 0.4f);
     private static readonly Color SparkColor = new Color(1f, 0.82f, 0.45f, 1f);
+    // The browns of splintered wood: a light and a dark, a splinter takes a mix of the two.
+    private static readonly Color SplinterLight = new Color(0.86f, 0.62f, 0.36f, 1f);
+    private static readonly Color SplinterDark = new Color(0.5f, 0.3f, 0.15f, 1f);
+    private const float SplinterSpin = 900f;
 
     private readonly EffectsSettings settings;
     private readonly CharacterRig rig;
@@ -40,6 +45,9 @@ public sealed class CharacterEffects {
     private readonly GameObject root;
     private readonly Texture2D puffTexture;
     private readonly Texture2D sparkTexture;
+    private readonly Texture2D splinterTexture;
+    private readonly Material splinterMaterial;
+    private readonly ParticleEmitter splinters;
     private readonly Material litMaterial;
     private readonly Material smokeMaterial;
     private readonly Material sparkMaterial;
@@ -66,6 +74,8 @@ public sealed class CharacterEffects {
         root = new GameObject("Effects");
         puffTexture = EffectTextures.SoftPuff();
         sparkTexture = EffectTextures.Spark();
+        splinterTexture = EffectTextures.Splinter();
+        splinterMaterial = CreateMaterial("SplinterMaterial", splinterTexture, UnlitShader);
         litMaterial = CreateMaterial("DustMaterial", puffTexture, LitShader);
         smokeMaterial = CreateMaterial("SmokeMaterial", puffTexture, LitShader);
         sparkMaterial = CreateMaterial("SparkMaterial", sparkTexture, UnlitShader);
@@ -74,19 +84,25 @@ public sealed class CharacterEffects {
         dust = new ParticleEmitter("Dust", root.transform, new ParticleEmitter.Style(litMaterial, DustOrder, 160).WithMotion((-0.05f, 2.5f, 2.2f)).WithFadeIn(0.1f));
         smoke = new ParticleEmitter("Smoke", root.transform, new ParticleEmitter.Style(smokeMaterial, SmokeOrder, 48).WithMotion((-0.15f, 1.5f, 3f)).WithFadeIn(0.1f));
         sparks = new ParticleEmitter("Sparks", root.transform, new ParticleEmitter.Style(sparkMaterial, SparkOrder, 96).WithMotion((0.9f, 1.2f, 0.4f)).WithStretch(0.06f));
+        splinters = new ParticleEmitter("Splinters", root.transform, new ParticleEmitter.Style(splinterMaterial, SplinterOrder, 96).WithMotion((1.4f, 0.35f, 0.7f)));
         Casings = new CasingPool(root.transform, casingMaterial);
+        Popups = new PointsPopups(root.transform, settings.targets);
         Subscribe();
     }
 
     public CasingPool Casings { get; }
+    // The points that float up from a target that scored.
+    public PointsPopups Popups { get; }
     public GameObject Root => root;
     // Live particles of each kind, for tests and tools.
     public int DustCount => dust.Count;
     public int SmokeCount => smoke.Count;
     public int SparkCount => sparks.Count;
+    public int SplinterCount => splinters.Count;
 
     public void Tick(float deltaTime) {
         Casings.Tick(deltaTime);
+        Popups.Tick(deltaTime);
         EmitSlideDust(deltaTime);
         EmitGroundSlideDust(deltaTime);
         EmitPushDust(deltaTime);
@@ -95,13 +111,16 @@ public sealed class CharacterEffects {
     public void Dispose() {
         Unsubscribe();
         Casings.Dispose();
+        Popups.Dispose();
         Discard(root);
         Discard(litMaterial);
         Discard(smokeMaterial);
         Discard(sparkMaterial);
+        Discard(splinterMaterial);
         Discard(casingMaterial);
         Discard(puffTexture);
         Discard(sparkTexture);
+        Discard(splinterTexture);
     }
 
     private void Subscribe() {
@@ -120,6 +139,7 @@ public sealed class CharacterEffects {
         events.PushStopped += OnPushStopped;
         events.Fired += OnFired;
         events.ShotHit += OnShotHit;
+        events.TargetScored += OnTargetScored;
     }
 
     private void Unsubscribe() {
@@ -138,6 +158,7 @@ public sealed class CharacterEffects {
         events.PushStopped -= OnPushStopped;
         events.Fired -= OnFired;
         events.ShotHit -= OnShotHit;
+        events.TargetScored -= OnTargetScored;
     }
 
     // ---- Dust -----------------------------------------------------------------------------------------------
@@ -361,6 +382,22 @@ public sealed class CharacterEffects {
         int puffs = EffectMath.ScaledCount(1f, settings.dustScale);
         for (int puff = 0; puff < puffs; puff++) {
             dust.Emit(hit.Point, hit.Normal * Random.Range(0.3f, 0.9f), (Random.Range(0.2f, 0.32f) * Mathf.Sqrt(settings.dustScale), DustLife() * 0.7f), DustColor);
+        }
+    }
+
+    // A target paid out: its points float up from where it says, and a few splinters fly off the board (a spray of them
+    // when the hit broke it), brown and tumbling, thrown up and out.
+    private void OnTargetScored((int points, Vector2 position, bool broke) score) {
+        if (!settings.enabled) {
+            return;
+        }
+        Popups.Show(score.points, score.position, score.broke);
+        int count = EffectMath.ScaledCount(score.broke ? settings.targets.breakSplinters : settings.targets.hitSplinters, 1f);
+        for (int splinter = 0; splinter < count; splinter++) {
+            float angle = Random.Range(0f, 360f);
+            Vector2 velocity = Rotate(Vector2.up, Random.Range(-70f, 70f)) * Random.Range(2.5f, score.broke ? 8f : 5f);
+            Color color = Color.Lerp(SplinterDark, SplinterLight, Random.value);
+            splinters.EmitSpinning(score.position + new Vector2(Random.Range(-0.4f, 0.4f), Random.Range(-0.4f, 0.4f)), velocity, (Random.Range(0.35f, 0.6f), Random.Range(0.7f, 1.2f)), (color, angle, Random.Range(-SplinterSpin, SplinterSpin)));
         }
     }
 

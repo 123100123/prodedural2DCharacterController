@@ -70,6 +70,15 @@ public sealed class ParticleEmitter {
         system.Emit(emit, 1);
     }
 
+    // The same, turning: it starts at an angle (degrees) and spins (degrees per second), for a shard that tumbles.
+    public void EmitSpinning(Vector2 position, Vector2 velocity, (float size, float lifetime) shape, (Color color, float angle, float spin) turn) {
+        emit.rotation = turn.angle;
+        emit.angularVelocity = turn.spin;
+        Emit(position, velocity, shape, turn.color);
+        emit.rotation = 0f;
+        emit.angularVelocity = 0f;
+    }
+
     private void Configure(Style style) {
         ParticleSystem.MainModule main = system.main;
         main.loop = true;

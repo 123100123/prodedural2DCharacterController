@@ -13,6 +13,8 @@ public sealed class CharacterAudio {
     private const float RicochetLevel = 0.45f;
     private const float RicochetPitch = 1.6f;
     private const float TargetHitLevel = 0.9f;
+    private const float WoodKnockLevel = 0.9f;
+    private const float WoodBreakLevel = 1f;
     private const float JumpLevel = 0.5f;
     private const float RollLevel = 0.7f;
     private const float WallKickLevel = 0.9f;
@@ -43,6 +45,7 @@ public sealed class CharacterAudio {
     private readonly int[] plays = new int[Enum.GetValues(typeof(SoundId)).Length];
     private readonly int[] lastVariant = new int[Enum.GetValues(typeof(SoundId)).Length];
     private readonly List<IShotReceiver> receivers = new List<IShotReceiver>();
+    private readonly List<IScoreSource> scorers = new List<IScoreSource>();
     private AudioListener addedListener;
     private Camera viewCamera;
     // The voices play in real time, so their busy times run on the unscaled clock; the reload's magazine click is a
@@ -123,6 +126,7 @@ public sealed class CharacterAudio {
         events.Fired += OnFired;
         events.DryFired += OnDryFired;
         events.ShotHit += OnShotHit;
+        events.TargetScored += OnTargetScored;
         events.ReloadStarted += OnReloadStarted;
         events.ReloadFinished += OnReloadFinished;
         casings.FirstContact += OnCasingContact;
@@ -143,6 +147,7 @@ public sealed class CharacterAudio {
         events.Fired -= OnFired;
         events.DryFired -= OnDryFired;
         events.ShotHit -= OnShotHit;
+        events.TargetScored -= OnTargetScored;
         events.ReloadStarted -= OnReloadStarted;
         events.ReloadFinished -= OnReloadFinished;
         casings.FirstContact -= OnCasingContact;
@@ -229,8 +234,12 @@ public sealed class CharacterAudio {
         }
     }
 
-    // A thud when the bullet struck something that reacts to it, a high ricochet tick when it struck plain level.
+    // A thud when the bullet struck something that reacts to it, a high ricochet tick when it struck plain level. A target
+    // that pays out is heard through TargetScored instead.
     private void OnShotHit(ShotHit hit) {
+        if (PaysOut(hit.Collider)) {
+            return;
+        }
         if (HasReceiver(hit.Collider)) {
             PlayAt(SoundId.TargetHit, (TargetHitLevel, 1f), hit.Point.x);
         }
@@ -239,7 +248,29 @@ public sealed class CharacterAudio {
         }
     }
 
+    // A wooden knock for a hit, the crack and clatter for the hit that breaks the target.
+    private void OnTargetScored((int points, Vector2 position, bool broke) score) {
+        PlayAt(score.broke ? SoundId.WoodBreak : SoundId.WoodKnock, (score.broke ? WoodBreakLevel : WoodKnockLevel, 1f), score.position.x);
+    }
+
     private void OnCasingContact(Vector2 position) => PlayAt(SoundId.Casing, (CasingTinkleLevel, UnityEngine.Random.Range(0.9f, 1.15f)), position.x);
+
+    // Whether the struck collider (or its body) belongs to a target that pays out and so makes its own hit sound.
+    private bool PaysOut(Collider2D collider) {
+        if (collider == null) {
+            return false;
+        }
+        collider.GetComponents(scorers);
+        if (scorers.Count > 0) {
+            return true;
+        }
+        Rigidbody2D body = collider.attachedRigidbody;
+        if (body == null || body.gameObject == collider.gameObject) {
+            return false;
+        }
+        body.GetComponents(scorers);
+        return scorers.Count > 0;
+    }
 
     private bool HasReceiver(Collider2D collider) {
         if (collider == null) {

@@ -44,11 +44,12 @@ If the server really is unreachable, fall back to a `dotnet build` of generated 
 
 - `Assets/Scripts` — assembly `ProceduralCharacter.Runtime` (gameplay). `Character/` states and driver, `Locomotion/`
   gait, `UpperBody/` arms/torso/head/aim, `Climbing/` (grab and holdable hang), `Input/`, `Weapon/` (pistol, magazine,
-  `ShootingTarget`), `Effects/` (pooled procedural particles), `Audio/` (clips synthesized in code, pooled voices),
+  `ShootingTarget`, the flying `HoverTarget` and its `IScoreSource` points), `Effects/` (pooled procedural particles), `Audio/` (clips synthesized in code, pooled voices),
   `Platforms/` (`OneWayPlatform`), `Props/` (`PushableCrate`).
 - `Assets/Editor` — assembly `ProceduralCharacter.Editor`: `EnvironmentSetup` and `Tools/Procedural Character/Build
   Playground` (`PlaygroundSetup`: idempotent, refuses a dirty scene; a "Playground" root right of the furthest level
-  block with a wall-jump pit, slide gap, ledge, one-way platforms, two crates, three targets and a lamp). `python
+  block with a wall-jump pit, slide gap, ledge, one-way platform staircase, a 45° hill, two crates, three static targets,
+  four flying `HoverTarget`s and a lamp). `python
   Tools/unity_mcp.py test PlayMode SavesPicturesOfThePlayground` writes `Temp/LocomotionScenarios/playground*.png`.
 - `Assets/Scripts/Diagnostics` — assembly `ProceduralCharacter.Diagnostics`: the F1 panel, tuning domains, presets.
   Gameplay never references it.

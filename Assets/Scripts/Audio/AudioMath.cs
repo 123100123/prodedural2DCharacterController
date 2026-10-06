@@ -46,6 +46,8 @@ public static class AudioMath {
                 return SoundCategory.Landing;
             case SoundId.TargetHit:
             case SoundId.Ricochet:
+            case SoundId.WoodKnock:
+            case SoundId.WoodBreak:
                 return SoundCategory.Impacts;
             default:
                 return SoundCategory.Weapon;

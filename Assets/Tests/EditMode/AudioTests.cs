@@ -10,7 +10,7 @@ public class AudioTests {
     private static readonly CharacterAudioSettings Settings = new CharacterAudioSettings();
 
     private static SoundId[] Synthesized() {
-        return new[] { SoundId.Footstep, SoundId.Landing, SoundId.Jump, SoundId.Roll, SoundId.Gunshot, SoundId.DryClick, SoundId.MagazineOut, SoundId.MagazineIn, SoundId.Casing, SoundId.TargetHit };
+        return new[] { SoundId.Footstep, SoundId.Landing, SoundId.Jump, SoundId.Roll, SoundId.Gunshot, SoundId.DryClick, SoundId.MagazineOut, SoundId.MagazineIn, SoundId.Casing, SoundId.TargetHit, SoundId.WoodKnock, SoundId.WoodBreak };
     }
 
     // ---- Synthesis ------------------------------------------------------------------------------------------
@@ -20,6 +20,7 @@ public class AudioTests {
         (SoundId id, float seconds)[] lengths = {
             (SoundId.Footstep, 0.1f), (SoundId.Landing, 0.4f), (SoundId.Jump, 0.26f), (SoundId.Roll, 0.5f), (SoundId.Gunshot, 0.75f),
             (SoundId.DryClick, 0.07f), (SoundId.MagazineOut, 0.12f), (SoundId.MagazineIn, 0.2f), (SoundId.Casing, 0.3f), (SoundId.TargetHit, 0.22f),
+            (SoundId.WoodKnock, 0.2f), (SoundId.WoodBreak, 0.7f),
         };
         foreach ((SoundId id, float seconds) entry in lengths) {
             for (int variant = 0; variant < ClipSynth.VariantCount(entry.id); variant++) {
@@ -165,6 +166,8 @@ public class AudioTests {
         Assert.That(AudioMath.CategoryOf(SoundId.Casing), Is.EqualTo(SoundCategory.Weapon));
         Assert.That(AudioMath.CategoryOf(SoundId.TargetHit), Is.EqualTo(SoundCategory.Impacts));
         Assert.That(AudioMath.CategoryOf(SoundId.Ricochet), Is.EqualTo(SoundCategory.Impacts));
+        Assert.That(AudioMath.CategoryOf(SoundId.WoodKnock), Is.EqualTo(SoundCategory.Impacts));
+        Assert.That(AudioMath.CategoryOf(SoundId.WoodBreak), Is.EqualTo(SoundCategory.Impacts));
     }
 
     [Test]

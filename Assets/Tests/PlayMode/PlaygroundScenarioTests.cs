@@ -5,7 +5,7 @@ using UnityEngine.InputSystem;
 using UnityEngine.TestTools;
 
 // The playground the Build Playground menu authored into the saved scene (the stage normally swaps the level for a flat
-// track, so these keep the scene's own level): it is there with its crates, targets, one-way platforms and hill, the
+// track, so these keep the scene's own level): it is there with its crates, targets, flying targets, one-way platforms and hill, the
 // runway of it can be walked, the staircase climbed with jumps and the hill walked and run over.
 public class PlaygroundScenarioTests : ScenarioFixture {
     private const string RootName = "Playground";
@@ -30,6 +30,7 @@ public class PlaygroundScenarioTests : ScenarioFixture {
         Assert.That(root.GetComponentsInChildren<ShootingTarget>(true).Length, Is.GreaterThanOrEqualTo(3), "targets");
         Assert.That(root.GetComponentsInChildren<OneWayPlatform>(true).Length, Is.GreaterThanOrEqualTo(2), "one-way platforms");
         Assert.That(root.Find("Playground Lamp"), Is.Not.Null, "a lamp");
+        Assert.That(root.GetComponentsInChildren<HoverTarget>(true).Length, Is.EqualTo(4), "four flying targets");
     }
 
     [Test]
@@ -54,6 +55,21 @@ public class PlaygroundScenarioTests : ScenarioFixture {
         foreach (ShootingTarget target in root.GetComponentsInChildren<ShootingTarget>(true)) {
             Assert.That(target.GetComponent<BoxCollider2D>().bounds.min.y, Is.GreaterThan(floorTop + StandingHeight), target.name + " hangs above head height");
         }
+    }
+
+    [Test]
+    public void TheHoverTargetsFlyDifferentRoutesAndStayAboveHeadHeightAlongAllOfThem() {
+        Transform root = Playground();
+        float floorTop = root.Find("Floor").GetComponent<BoxCollider2D>().bounds.max.y;
+        const float StandingHeight = 4.4f;
+        System.Collections.Generic.HashSet<HoverPathKind> kinds = new System.Collections.Generic.HashSet<HoverPathKind>();
+        foreach (HoverTarget target in root.GetComponentsInChildren<HoverTarget>(true)) {
+            kinds.Add(target.Settings.path);
+            Assert.That(target.LowestPoint, Is.GreaterThan(floorTop + StandingHeight), target.name + " never comes down to head height");
+            Assert.That(target.GetComponent<BoxCollider2D>().size.x, Is.EqualTo(target.Settings.boardSize).Within(0.01f), target.name + " has a board-sized collider");
+            Assert.That(target.GetComponent<Rigidbody2D>().bodyType, Is.EqualTo(RigidbodyType2D.Kinematic), target.name);
+        }
+        Assert.That(kinds.Count, Is.GreaterThanOrEqualTo(3), "a patrol, a loop and a figure eight");
     }
 
     [UnityTest]

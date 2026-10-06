@@ -36,6 +36,20 @@ public static class EffectMath {
         return Mathf.Clamp01((lifetime - age) / fade);
     }
 
+    // How far a points popup has risen at an age: it shoots up and slows to a stop (ease-out), 0 at its birth and the full
+    // height at the end of its lifetime.
+    public static float PopupRise(float age, float lifetime, float height) {
+        float share = Mathf.Clamp01(age / Mathf.Max(0.01f, lifetime));
+        return height * (1f - (1f - share) * (1f - share));
+    }
+
+    // A points popup's opacity: 1 at its birth, easing down to 0 at the end of its lifetime (it stays readable for the
+    // first part of its rise).
+    public static float PopupAlpha(float age, float lifetime) {
+        float share = Mathf.Clamp01(age / Mathf.Max(0.01f, lifetime));
+        return 1f - share * share;
+    }
+
     // The side of a direction that points up (or the right-hand side for a vertical one): where a casing is thrown.
     public static Vector2 UpwardPerpendicular(Vector2 direction) {
         Vector2 perpendicular = new Vector2(-direction.y, direction.x);

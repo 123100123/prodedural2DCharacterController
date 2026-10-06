@@ -9,6 +9,9 @@ public sealed class CharacterEvents {
     public event Action<(Vector2 muzzle, Vector2 direction)> Fired;
     // A bullet struck a collider.
     public event Action<ShotHit> ShotHit;
+    // A bullet struck a target that pays out (an IScoreSource): the points, where the popup starts, and whether this hit
+    // broke the target. The target makes its own hit sound; the generic ShotHit thud stays silent for it.
+    public event Action<(int points, Vector2 position, bool broke)> TargetScored;
     // The trigger was pulled on an empty magazine (a reload starts with it).
     public event Action<(Vector2 muzzle, Vector2 direction)> DryFired;
     // A reload began, with its duration in seconds.
@@ -47,6 +50,8 @@ public sealed class CharacterEvents {
     public void RaiseFired((Vector2 muzzle, Vector2 direction) shot) => Fired?.Invoke(shot);
 
     public void RaiseShotHit(ShotHit hit) => ShotHit?.Invoke(hit);
+
+    public void RaiseTargetScored((int points, Vector2 position, bool broke) score) => TargetScored?.Invoke(score);
 
     public void RaiseDryFired((Vector2 muzzle, Vector2 direction) shot) => DryFired?.Invoke(shot);
 

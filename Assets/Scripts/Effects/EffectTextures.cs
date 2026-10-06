@@ -28,6 +28,26 @@ public static class EffectTextures {
         return texture;
     }
 
+    // A thin splinter of wood, white with its shape in the alpha: a long sliver pointed at both ends.
+    public static Texture2D Splinter() {
+        const int Width = 24;
+        const int Height = 6;
+        Texture2D texture = new Texture2D(Width, Height, TextureFormat.RGBA32, false) { name = "Splinter", wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
+        Color32[] pixels = new Color32[Width * Height];
+        float middle = (Height - 1) / 2f;
+        for (int y = 0; y < Height; y++) {
+            for (int x = 0; x < Width; x++) {
+                float along = Mathf.Abs((x - (Width - 1) / 2f) / ((Width - 1) / 2f));
+                float half = Mathf.Lerp(Height / 2f, 0.4f, along);
+                float alpha = Mathf.Clamp01(half + 0.5f - Mathf.Abs(y - middle));
+                pixels[y * Width + x] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(alpha * 255f));
+            }
+        }
+        texture.SetPixels32(pixels);
+        texture.Apply(false, false);
+        return texture;
+    }
+
     // A tiny brass-coloured rectangle for a shell casing, with a lighter top edge.
     public static Sprite CasingSprite() {
         const int Width = 6;

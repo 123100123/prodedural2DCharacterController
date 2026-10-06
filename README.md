@@ -10,7 +10,7 @@ _Results_
 
 Open `Assets/Scenes/SampleScene.unity` and press Play.
 
-Controls are listed below. To try the moves, climb onto the raised block at the right end of the level and walk right into the playground (Tools > Procedural Character > Build Playground rebuilds it).
+Controls are listed below. To try the moves, climb onto the raised block at the right end of the level and walk right into the playground: crates to push, platforms, a 45° hill, static targets and four helicopter-rotor wooden targets that fly routes over the range, knock and float "+10" when hit and "+50" when they break (Tools > Procedural Character > Build Playground rebuilds it).
 
 ## Controls
 
@@ -42,7 +42,7 @@ Assets/
     Character/         CharacterDriver (composition root), facing, kinematic motor, rig, crouch, jump momentum, air pose, landing
     Character/States/  Walk, JumpWindup, Airborne, Roll, Climb and their settings
     Climbing/          ledge detection and grab rules, the holdable hang
-    Weapon/            pistol: hitscan shot, magazine, reload motion, tracers, shooting targets
+    Weapon/            pistol: hitscan shot, magazine, reload motion, tracers, shooting targets and the flying wooden hover targets
     Effects/           pooled procedural particles (dust, sparks, smoke, casings)
     Audio/             clips synthesized in code and the pooled voices
     Platforms/         one-way platforms

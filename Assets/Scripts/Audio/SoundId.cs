@@ -11,6 +11,9 @@ public enum SoundId {
     Casing,
     TargetHit,
     Ricochet,
+    // A bullet knocking on a wooden target, and the crack and clatter of the target breaking.
+    WoodKnock,
+    WoodBreak,
 }
 
 // How the mix settings group the sounds.

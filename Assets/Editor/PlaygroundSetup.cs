@@ -6,7 +6,7 @@ using UnityEngine.SceneManagement;
 
 // Builds a showcase area at the right end of the level in the open scene, to try the moves on: a pit to wall-jump out of,
 // a low ceiling to slide under, a ledge to hang from, one-way platforms to drop through, a 45° hill to walk, run, slide
-// and roll over, two crates to push, three targets to shoot and a lamp. Everything is idempotent (one "Playground" root whose children are replaced on a rebuild,
+// and roll over, two crates to push, three targets to shoot, four flying ones to shoot and a lamp. Everything is idempotent (one "Playground" root whose children are replaced on a rebuild,
 // undo-registered) and Build() refuses a scene with unsaved changes, like EnvironmentSetup, so a scripted save never
 // carries edits that were not made here. Run it from Tools > Procedural Character > Build Playground, or through the MCP.
 //
@@ -105,6 +105,7 @@ public static class PlaygroundSetup {
         builder.Floor();
         builder.Crates();
         builder.Targets();
+        builder.HoverTargets();
         builder.SlideCeiling();
         builder.HangLedge();
         builder.OneWayPlatforms();
@@ -231,6 +232,32 @@ public static class PlaygroundSetup {
             Dress(target, TargetTint, 1);
             target.AddComponent<BoxCollider2D>().size = sprite.bounds.size;
             target.AddComponent<ShootingTarget>();
+        }
+
+        // Four boards with rotors flying their routes over the range, all with their lowest point above head height: one
+        // patrolling to and fro, one looping, a wide figure eight and one bobbing up and down. The picture is built when
+        // they start; the scene holds only the component, a collider and a kinematic body.
+        public void HoverTargets() {
+            AddHover(("Hover Patrol", 31f, 10.8f), (HoverPathKind.Patrol, new Vector2(5.5f, 0f), 8f), 0f);
+            AddHover(("Hover Loop", 37.5f, 8f), (HoverPathKind.Loop, new Vector2(1.7f, 1.1f), 5f), 0.3f);
+            AddHover(("Hover Eight", 28.5f, 8.2f), (HoverPathKind.FigureEight, new Vector2(3.4f, 1.4f), 9f), 0.15f);
+            AddHover(("Hover Rise And Fall", 21.5f, 8.5f), (HoverPathKind.Patrol, new Vector2(0f, 2.2f), 5f), 0.5f);
+        }
+
+        private void AddHover(
+            (string name, float x, float height) place,
+            (HoverPathKind path, Vector2 extent, float period) route,
+            float startShare) {
+            GameObject made = Create(place.name, new Vector3(Start.x + place.x, Start.y + place.height, 0f));
+            HoverTarget target = made.AddComponent<HoverTarget>();
+            HoverTargetSettings settings = new HoverTargetSettings { path = route.path, extent = route.extent, period = route.period, startShare = startShare };
+            target.Configure(settings);
+            made.GetComponent<BoxCollider2D>().size = Vector2.one * settings.boardSize;
+            Rigidbody2D body = made.GetComponent<Rigidbody2D>();
+            body.bodyType = RigidbodyType2D.Kinematic;
+            body.gravityScale = 0f;
+            body.interpolation = RigidbodyInterpolation2D.Interpolate;
+            EditorUtility.SetDirty(target);
         }
 
         // A block hanging over the floor: a standing character cannot pass, a slide (or crouch walk) can.

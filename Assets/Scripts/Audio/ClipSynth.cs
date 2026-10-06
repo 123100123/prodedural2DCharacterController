@@ -8,6 +8,7 @@ public static class ClipSynth {
     public const float Peak = 0.9f;
     private const int FootstepVariants = 4;
     private const int CasingVariants = 2;
+    private const int WoodKnockVariants = 2;
     private const float EndFade = 0.004f;
 
     // Buffers made for a sound: several slightly different ones for what is heard often, one for the rest. A ricochet has
@@ -18,6 +19,8 @@ public static class ClipSynth {
                 return FootstepVariants;
             case SoundId.Casing:
                 return CasingVariants;
+            case SoundId.WoodKnock:
+                return WoodKnockVariants;
             case SoundId.Ricochet:
                 return 0;
             default:
@@ -48,6 +51,10 @@ public static class ClipSynth {
                 return MagazineIn(sampleRate);
             case SoundId.Casing:
                 return Casing(variant, sampleRate);
+            case SoundId.WoodKnock:
+                return WoodKnock(variant, sampleRate);
+            case SoundId.WoodBreak:
+                return WoodBreak(sampleRate);
             default:
                 return TargetHit(sampleRate);
         }
@@ -205,6 +212,54 @@ public static class ClipSynth {
             float thud = body.Sine(time) * Dsp.Decay(time, 0.05f) + dull.Process(thudNoise.Next()) * 1.4f * Dsp.Decay(time, 0.03f) * 0.5f;
             float snap = tick.Process(tickNoise.Next()) * 0.6f * Dsp.Decay(time, 0.003f);
             samples[index] = (thud + snap) * Dsp.Attack(time, 0.0005f);
+        }
+        return Finish(samples, sampleRate);
+    }
+
+    // A hollow knock on a wooden board: two quickly dying resonances, the lower one sliding down a little, and a dry click
+    // at the start. Each variant is tuned a little apart.
+    public static float[] WoodKnock(int variant, int sampleRate) {
+        float[] samples = new float[Dsp.SampleCount(0.2f, sampleRate)];
+        float tune = 1f + 0.14f * variant;
+        Dsp.Noise noise = new Dsp.Noise(1000 + variant);
+        Dsp.BandPass click = new Dsp.BandPass((1500f, 5200f), sampleRate);
+        Dsp.Sweep body = new Dsp.Sweep((520f * tune, 340f * tune), 0.05f, sampleRate);
+        for (int index = 0; index < samples.Length; index++) {
+            float time = index / (float)sampleRate;
+            float low = body.Sine(time) * Dsp.Decay(time, 0.032f);
+            float high = Mathf.Sin(2f * Mathf.PI * 1240f * tune * time) * 0.45f * Dsp.Decay(time, 0.014f);
+            float tick = click.Process(noise.Next()) * 1.3f * Dsp.Decay(time, 0.0025f);
+            samples[index] = (low + high + tick) * Dsp.Attack(time, 0.0005f);
+        }
+        return Finish(samples, sampleRate);
+    }
+
+    // A board breaking: a loud crack of noise over a low thump, then splinters and pieces clattering down, each a small
+    // wooden knock higher or lower than the last and softer.
+    public static float[] WoodBreak(int sampleRate) {
+        float[] samples = new float[Dsp.SampleCount(0.7f, sampleRate)];
+        Dsp.Noise crackNoise = new Dsp.Noise(1100);
+        Dsp.Noise pieceNoise = new Dsp.Noise(1101);
+        Dsp.HighPass crack = new Dsp.HighPass(1100f, sampleRate);
+        Dsp.BandPass piece = new Dsp.BandPass((900f, 4800f), sampleRate);
+        Dsp.Sweep thump = new Dsp.Sweep((210f, 80f), 0.12f, sampleRate);
+        float[] starts = { 0.07f, 0.13f, 0.18f, 0.26f, 0.31f, 0.38f, 0.43f, 0.52f };
+        float[] pitches = { 760f, 540f, 980f, 620f, 860f, 480f, 700f, 560f };
+        for (int index = 0; index < samples.Length; index++) {
+            float time = index / (float)sampleRate;
+            float snap = crack.Process(crackNoise.Next()) * 1.2f * Dsp.Decay(time, 0.016f);
+            float body = thump.Sine(time) * 0.9f * Dsp.Decay(time, 0.07f);
+            float clatter = 0f;
+            float grit = piece.Process(pieceNoise.Next());
+            for (int knock = 0; knock < starts.Length; knock++) {
+                float age = time - starts[knock];
+                if (age < 0f) {
+                    continue;
+                }
+                float level = 0.7f * Mathf.Pow(0.8f, knock);
+                clatter += level * (Mathf.Sin(2f * Mathf.PI * pitches[knock] * age) * Dsp.Decay(age, 0.018f) + grit * 0.9f * Dsp.Decay(age, 0.004f));
+            }
+            samples[index] = (snap + body + clatter) * Dsp.Attack(time, 0.0005f);
         }
         return Finish(samples, sampleRate);
     }

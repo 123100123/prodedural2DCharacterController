@@ -80,5 +80,6 @@ this branch. `main` is not touched until the user approves the whole batch.
 | 11 Roll on Left Alt, roll on by default, slide crouch-latch fix | done | |
 | 12 Reachable one-way platform staircase | done | |
 | 13 45° slopes and a hill | done | |
+| 14 Helicopter hover targets with points popups | done | |
 
 Also on the branch: `e54982c` (test seam: scenario tests aim at world points, independent of the Game view) and `f463c6d` (fixes from the verifier pass: disposal of recomposed collaborators, casing, audio and aim edge cases).
