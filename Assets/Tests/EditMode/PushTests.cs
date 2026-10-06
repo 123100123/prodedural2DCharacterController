@@ -126,4 +126,30 @@ public class PushTests {
         Assert.That(PushRules.PressedSide(0.5f), Is.EqualTo(1));
         Assert.That(PushRules.PressedSide(-1f), Is.EqualTo(-1));
     }
+
+    [Test]
+    public void ASlopeAddsTheCratesWeightAlongItAndFlatGroundAddsNothing() {
+        Assert.That(PushRules.SlopeLoad((2f, 10f), 0f), Is.Zero, "flat");
+        Assert.That(PushRules.SlopeLoad((2f, 10f), 30f), Is.EqualTo(10f).Within(0.01f), "weight 20 times sin 30");
+        Assert.That(PushRules.SlopeLoad((2f, 10f), 45f), Is.EqualTo(14.142f).Within(0.01f));
+        Assert.That(PushRules.SlopeLoad((0f, 10f), 45f), Is.Zero, "no mass, no load");
+    }
+
+    [Test]
+    public void AtItsTargetSpeedUpASlopeTheCrateGetsExactlyItsLoadAndNothingMore() {
+        float force = PushRules.SlopeForce((2f, 1.5f, 1.5f), (14f, 200f, FixedStep));
+        Assert.That(force, Is.EqualTo(14f).Within(1e-4f));
+    }
+
+    [Test]
+    public void ASlopeCrateRunningAheadOfTheHandsIsHeldBackBelowItsLoadAndNeverPulled() {
+        Assert.That(PushRules.SlopeForce((2f, 3f, 1.5f), (14f, 200f, FixedStep)), Is.LessThan(14f), "faster than the target: less than the load");
+        Assert.That(PushRules.SlopeForce((2f, 30f, 1.5f), (14f, 200f, FixedStep)), Is.Zero, "far faster: no push at all");
+    }
+
+    [Test]
+    public void ASlopeForceStaysWithinThePushsStrength() {
+        Assert.That(PushRules.SlopeForce((1000f, 0f, 2f), (5000f, 200f, FixedStep)), Is.EqualTo(200f));
+        Assert.That(PushRules.SlopeForce((1f, 0f, 2f), (5f, 200f, 0f)), Is.Zero, "no time step, no force");
+    }
 }

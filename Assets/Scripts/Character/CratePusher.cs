@@ -14,9 +14,11 @@ using UnityEngine;
 public sealed class CratePusher {
     // A crate slower than this (u/s) is standing still: physics settling, not motion.
     private const float StillSpeed = 0.02f;
+    private const int ContactCapacity = 8;
 
     private readonly CharacterRig rig;
     private readonly PushSettings settings;
+    private readonly ContactPoint2D[] contacts = new ContactPoint2D[ContactCapacity];
     // The crate held, its collider and the side it is on (+1 right of the body).
     private Rigidbody2D body;
     private Collider2D crateCollider;
@@ -95,14 +97,48 @@ public sealed class CratePusher {
             return;
         }
         float target = PushRules.CrateTargetSpeed(characterSpeed, settings);
-        float force = PushRules.CrateForce((body.mass, AlongPush(body.linearVelocity.x), target), (settings.maxForce, fixedDeltaTime));
+        // At the face, level with the crate's centre of mass, so the push slides it rather than tipping it over. Along the
+        // ground: flat, or up the ramp the crate has reached the foot of (its speed targets are then along the ramp).
+        Vector2 along = Vector2.right * direction;
+        float force;
+        if (TryFindSlopeAhead(out Vector2 normal)) {
+            along = new Vector2(normal.y, -normal.x) * direction;
+            float gravity = Physics2D.gravity.magnitude * body.gravityScale;
+            float load = PushRules.SlopeLoad((body.mass, gravity), SlopeMath.AngleOf(normal));
+            float speedAlong = Vector2.Dot(body.linearVelocity, along);
+            force = PushRules.SlopeForce((body.mass, speedAlong, target / normal.y), (load, settings.maxForce, fixedDeltaTime));
+        }
+        else {
+            force = PushRules.CrateForce((body.mass, AlongPush(body.linearVelocity.x), target), (settings.maxForce, fixedDeltaTime));
+        }
         if (force <= 0f) {
             return;
         }
-        // At the face, level with the crate's centre of mass, so the push slides it rather than tipping it over.
         Vector2 point = new Vector2(body.position.x + faceOffsetX, body.worldCenterOfMass.y);
-        body.AddForceAtPosition(Vector2.right * (direction * force), point, ForceMode2D.Force);
+        body.AddForceAtPosition(along * force, point, ForceMode2D.Force);
         LastForce = force;
+    }
+
+    // Whether the body is walking up a slope in the push direction.
+    private bool IsClimbingToward(StrideController stride) {
+        float gradient = stride.SlopeGradient * direction;
+        return gradient > 0f && SlopeMath.AngleOfGradient(gradient) > SlopeMath.MinSlopeAngle;
+    }
+
+    // Whether the crate rests on a walkable slope that rises in the push direction (a ramp it is being pushed up), and the
+    // slope's normal.
+    private bool TryFindSlopeAhead(out Vector2 normal) {
+        normal = Vector2.up;
+        float maxAngle = rig.Stride.Slope.maxSlopeAngle;
+        int count = body.GetContacts(contacts);
+        for (int index = 0; index < count; index++) {
+            Vector2 candidate = contacts[index].normal;
+            if (candidate.x * direction < 0f && SlopeMath.IsSloped(candidate, maxAngle)) {
+                normal = candidate;
+                return true;
+            }
+        }
+        return false;
     }
 
     // Lets go (the walk ends: a jump, a fall, a roll, a slide).
@@ -132,9 +168,15 @@ public sealed class CratePusher {
         rig.Events.RaisePushStopped();
     }
 
-    // Only a crate standing about where the feet stand is pushed (not one up on a ledge at head height).
-    private static bool StandsOnOurGround(PushProbe.Hit hit, StrideController stride) {
-        return hit.Collider != null && hit.Bottom <= stride.StanceHeight + stride.MaxStepUp;
+    // Only a crate standing about where the feet stand is pushed (not one up on a ledge at head height). A crate already
+    // held that is riding up a ramp (or has just been pushed onto the top) is lifted off the feet's level by the ramp itself,
+    // while the body climbs the same ramp behind it.
+    private bool StandsOnOurGround(PushProbe.Hit hit, StrideController stride) {
+        if (hit.Collider == null) {
+            return false;
+        }
+        bool isRidingUp = IsPushing && hit.Body == body && (TryFindSlopeAhead(out _) || IsClimbingToward(stride));
+        return isRidingUp || hit.Bottom <= stride.StanceHeight + stride.MaxStepUp;
     }
 
     // The face's x extrapolated from the crate's last physics step to now, less where the hull's face will be when the

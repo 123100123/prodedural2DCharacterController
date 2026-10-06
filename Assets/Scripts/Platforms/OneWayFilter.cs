@@ -3,7 +3,7 @@ using UnityEngine;
 // The one rule every character query applies to one-way platforms, and the physics queries that apply it. A hit on a
 // one-way platform blocks only a query moving down onto its top from feet at or above that top (OneWaySupport); it never
 // blocks a query moving up or sideways, or one that starts inside it. Hits on every other collider block as before, so
-// with no one-way platform in the scene each query is the plain physics query it replaced.
+// with no one-way platform and no pass-through collider (CharacterPassThrough) in the scene each query is the plain physics query it replaced.
 public static class OneWayFilter {
     // A surface counts as a platform's top when its normal points at least this much up.
     public const float MinTopNormalY = 0.5f;
@@ -28,6 +28,9 @@ public static class OneWayFilter {
     }
 
     public static bool Blocks(RaycastHit2D hit, Vector2 direction, OneWaySupport support) {
+        if (CharacterPassThrough.Contains(hit.collider)) {
+            return false;
+        }
         bool isOneWay = OneWayPlatform.IsOneWay(hit.collider);
         return Blocks((isOneWay, isOneWay && support.Ignores(hit.collider)), (hit.distance, hit.normal.y, hit.point.y), (direction.y, support.Level));
     }
@@ -35,7 +38,7 @@ public static class OneWayFilter {
     // The nearest hit along the ray that blocks it; no collider when nothing does. A solid collider the ray starts inside
     // blocks at distance 0, as a plain raycast reports it.
     public static RaycastHit2D Raycast((Vector2 origin, Vector2 direction, float distance) ray, LayerMask mask, OneWaySupport support) {
-        if (!OneWayPlatform.AnyActive) {
+        if (!AnyFiltering) {
             return Physics2D.Raycast(ray.origin, ray.direction, ray.distance, mask);
         }
         int count = Physics2D.Raycast(ray.origin, ray.direction, QueryFilter(mask), hits, ray.distance);
@@ -44,38 +47,44 @@ public static class OneWayFilter {
 
     // Whether anything that blocks lies on the segment (one-way platforms never block a sideways or upward segment).
     public static bool Linecast((Vector2 start, Vector2 end) segment, LayerMask mask, OneWaySupport support) {
-        if (!OneWayPlatform.AnyActive) {
+        if (!AnyFiltering) {
             return Physics2D.Linecast(segment.start, segment.end, mask).collider != null;
         }
         int count = Physics2D.Linecast(segment.start, segment.end, QueryFilter(mask), hits);
         return NearestBlocking((count, segment.end - segment.start), support).collider != null;
     }
 
-    // Whether a collider other than a one-way platform covers the point.
+    // Whether a collider other than a one-way platform or a pass-through collider covers the point.
     public static bool OverlapsSolidPoint(Vector2 point, LayerMask mask) {
-        if (!OneWayPlatform.AnyActive) {
+        if (!AnyFiltering) {
             return Physics2D.OverlapPoint(point, mask) != null;
         }
         return AnySolid(Physics2D.OverlapPoint(point, QueryFilter(mask), overlaps));
     }
 
-    // Whether a collider other than a one-way platform overlaps the box.
+    // Whether a collider other than a one-way platform or a pass-through collider overlaps the box.
     public static bool OverlapsSolidBox((Vector2 center, Vector2 size) box, LayerMask mask) {
-        if (!OneWayPlatform.AnyActive) {
+        if (!AnyFiltering) {
             return Physics2D.OverlapBox(box.center, box.size, 0f, mask) != null;
         }
         return AnySolid(Physics2D.OverlapBox(box.center, box.size, 0f, QueryFilter(mask), overlaps));
     }
 
-    // Whether any of the first count colliders is not a one-way platform.
+    // Whether any of the first count colliders is neither a one-way platform nor a pass-through collider.
     public static bool AnySolid(Collider2D[] found, int count) {
         for (int index = 0; index < count; index++) {
-            if (!OneWayPlatform.IsOneWay(found[index])) {
+            if (!IsSkipped(found[index])) {
                 return true;
             }
         }
         return false;
     }
+
+    // Whether the collider never stops a hull or a push: a one-way platform (the feet decide about its top) or a collider the
+    // character passes through.
+    public static bool IsSkipped(Collider2D collider) => OneWayPlatform.IsOneWay(collider) || CharacterPassThrough.Contains(collider);
+
+    private static bool AnyFiltering => OneWayPlatform.AnyActive || CharacterPassThrough.AnyActive;
 
     private static bool AnySolid(int count) => AnySolid(overlaps, count);
 

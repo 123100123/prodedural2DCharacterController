@@ -234,14 +234,15 @@ public static class PlaygroundSetup {
             target.AddComponent<ShootingTarget>();
         }
 
-        // Four boards with rotors flying their routes over the range, all with their lowest point above head height: one
-        // patrolling to and fro, one looping, a wide figure eight and one bobbing up and down. The picture is built when
+        // Four boards with rotors flying their routes over the range, all with their lowest point above the standing hull and
+        // the top of a full jump (the character passes through them anyway, but a board in the way of a jump would look wrong):
+        // one patrolling to and fro, one looping, a wide figure eight and one bobbing up and down. The picture is built when
         // they start; the scene holds only the component, a collider and a kinematic body.
         public void HoverTargets() {
-            AddHover(("Hover Patrol", 31f, 10.8f), (HoverPathKind.Patrol, new Vector2(5.5f, 0f), 8f), 0f);
-            AddHover(("Hover Loop", 37.5f, 8f), (HoverPathKind.Loop, new Vector2(1.7f, 1.1f), 5f), 0.3f);
-            AddHover(("Hover Eight", 28.5f, 8.2f), (HoverPathKind.FigureEight, new Vector2(3.4f, 1.4f), 9f), 0.15f);
-            AddHover(("Hover Rise And Fall", 21.5f, 8.5f), (HoverPathKind.Patrol, new Vector2(0f, 2.2f), 5f), 0.5f);
+            AddHover(("Hover Patrol", 31f, 12f), (HoverPathKind.Patrol, new Vector2(5.5f, 0f), 8f), 0f);
+            AddHover(("Hover Loop", 37.5f, 9.3f), (HoverPathKind.Loop, new Vector2(1.7f, 0.9f), 5f), 0.3f);
+            AddHover(("Hover Eight", 28.5f, 9.4f), (HoverPathKind.FigureEight, new Vector2(3.4f, 1f), 9f), 0.15f);
+            AddHover(("Hover Rise And Fall", 21.5f, 10f), (HoverPathKind.Patrol, new Vector2(0f, 1.6f), 5f), 0.5f);
         }
 
         private void AddHover(

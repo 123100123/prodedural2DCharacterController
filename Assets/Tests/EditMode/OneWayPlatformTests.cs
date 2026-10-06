@@ -104,4 +104,33 @@ public class OneWayPlatformTests {
             Object.DestroyImmediate(other);
         }
     }
+
+    [Test]
+    public void APassThroughColliderNeverBlocksAndIsSkippedByTheSolidChecks() {
+        GameObject board = new GameObject("passThrough", typeof(BoxCollider2D));
+        GameObject wall = new GameObject("solid", typeof(BoxCollider2D));
+        try {
+            Collider2D boardCollider = board.GetComponent<Collider2D>();
+            Collider2D wallCollider = wall.GetComponent<Collider2D>();
+            Assert.That(CharacterPassThrough.AnyActive, Is.False, "nothing registered: the plain queries");
+            Assert.That(OneWayFilter.IsSkipped(boardCollider), Is.False);
+
+            CharacterPassThrough.Register(boardCollider);
+            Assert.That(CharacterPassThrough.AnyActive, Is.True);
+            Assert.That(OneWayFilter.IsSkipped(boardCollider), Is.True);
+            Assert.That(OneWayFilter.IsSkipped(wallCollider), Is.False, "other colliders still block");
+            Assert.That(OneWayFilter.AnySolid(new[] { boardCollider }, 1), Is.False, "headroom ignores it");
+            Assert.That(OneWayFilter.AnySolid(new[] { boardCollider, wallCollider }, 2), Is.True, "but not the wall beside it");
+            Assert.That(OneWayFilter.AnySolid(new[] { boardCollider, wallCollider }, 1), Is.False, "only the first count are looked at");
+
+            CharacterPassThrough.Unregister(boardCollider);
+            Assert.That(CharacterPassThrough.AnyActive, Is.False);
+            Assert.That(OneWayFilter.IsSkipped(boardCollider), Is.False);
+        }
+        finally {
+            CharacterPassThrough.Unregister(board.GetComponent<Collider2D>());
+            Object.DestroyImmediate(board);
+            Object.DestroyImmediate(wall);
+        }
+    }
 }

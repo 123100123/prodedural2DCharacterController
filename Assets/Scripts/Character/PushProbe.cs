@@ -85,7 +85,7 @@ public static class PushProbe {
         return hit.collider != null
             && hit.distance > 0f
             && hit.normal.x * direction <= -MinFaceNormalX
-            && !OneWayPlatform.IsOneWay(hit.collider)
+            && !OneWayFilter.IsSkipped(hit.collider)
             && IsPushable(hit.collider.attachedRigidbody);
     }
 }

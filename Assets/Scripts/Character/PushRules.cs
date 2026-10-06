@@ -55,6 +55,26 @@ public static class PushRules {
         return Mathf.Clamp(matching, 0f, Mathf.Max(0f, step.maxForce));
     }
 
+    // The pull of gravity along a slope the crate is being pushed up: its weight times the sine of the slope's angle (degrees
+    // from flat; 0 on flat ground).
+    public static float SlopeLoad((float mass, float gravity) crate, float slopeAngle) {
+        if (slopeAngle <= 0f || crate.mass <= 0f || crate.gravity <= 0f) {
+            return 0f;
+        }
+        return crate.mass * crate.gravity * Mathf.Sin(Mathf.Min(slopeAngle, 90f) * Mathf.Deg2Rad);
+    }
+
+    // The force along a slope that holds the crate at its target speed up it: the crate's weight along the slope (what a
+    // flat push does not have to carry) plus the force that matches the speeds, which here may also be negative, so a crate
+    // the load runs ahead of the hands is held back. Speeds are along the slope; within the push's strength, never a pull.
+    public static float SlopeForce((float mass, float speed, float targetSpeed) crate, (float load, float maxForce, float fixedDeltaTime) step) {
+        if (step.fixedDeltaTime <= 0f || crate.mass <= 0f) {
+            return 0f;
+        }
+        float matching = crate.mass * (crate.targetSpeed - crate.speed) / step.fixedDeltaTime;
+        return Mathf.Clamp(step.load + matching, 0f, Mathf.Max(0f, step.maxForce));
+    }
+
     // A critically damped spring that blends the pose in or out in about the blend time.
     public static SpringSettings BlendSpring(float blendTime) {
         return new SpringSettings(BlendFrequencyPerInverseSecond / Mathf.Max(0.02f, blendTime), 1f, 0f);

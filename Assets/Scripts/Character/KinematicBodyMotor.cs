@@ -2,7 +2,8 @@ using System;
 using UnityEngine;
 
 // Moves the body by velocity while a capsule hull (hips to head) slides along solid geometry. One-way platforms never
-// stop the hull (it passes through them from below and the sides); the feet stand on them, as on any ground.
+// stop the hull (it passes through them from below and the sides); the feet stand on them, as on any ground. Colliders
+// registered as CharacterPassThrough (flying targets) never stop it or the feet.
 [Serializable]
 public class KinematicBodyMotor {
     // The gap the hull keeps from geometry it moves against.
@@ -118,7 +119,7 @@ public class KinematicBodyMotor {
         for (int index = 0; index < hitCount; index++) {
             RaycastHit2D hit = hullHits[index];
             bool isCloser = hit.distance > 0f && (nearest.collider == null || hit.distance < nearest.distance);
-            if (isCloser && !OneWayPlatform.IsOneWay(hit.collider) && !(maxSlopeAngle > 0f && IsSlopeFace(hit, maxSlopeAngle))) {
+            if (isCloser && !OneWayFilter.IsSkipped(hit.collider) && !(maxSlopeAngle > 0f && IsSlopeFace(hit, maxSlopeAngle))) {
                 nearest = hit;
             }
         }

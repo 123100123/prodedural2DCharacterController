@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.TestTools;
 
 // The flying wooden targets on the real character: a target flies its route, a shot scores ten and knocks (not the
@@ -13,6 +14,8 @@ public class HoverTargetScenarioTests : ScenarioFixture {
     private const int FramesBetweenShots = 14;
     private const int FramesBeforeFirstClick = 30;
     private const float BigBoard = 6f;
+    // The top of the standing hull above the body pivot (hull offset 0.93 plus half its 2.45 height).
+    private const float StandingHullTop = 2.155f;
 
     private Vector2 aimRequest;
     private Vector2 aimedPoint;
@@ -248,6 +251,70 @@ public class HoverTargetScenarioTests : ScenarioFixture {
         Assert.That(visual.gameObject.activeSelf, Is.True);
         Assert.That(target.HitsTaken, Is.Zero, "at full health");
         Assert.That(Vector2.Distance(target.Position, aimedPoint), Is.LessThan(0.2f), "back on its route");
+    }
+
+    // Holds Space for a full jump from where the character stands and returns how high the body got above the take-off.
+    private IEnumerator JumpAndMeasureApex(System.Action<float> apexOut) {
+        float takeoff = Stage.Stride.transform.position.y;
+        float apex = 0f;
+        bool left = false;
+        Stage.Press(Key.Space);
+        for (int frame = 0; frame < 240; frame++) {
+            if (frame == 40) {
+                Stage.Release(Key.Space);
+            }
+            yield return null;
+            bool isAirborne = Stage.Inspector.ReadTelemetry().Air.IsAirborne;
+            left |= isAirborne;
+            apex = Mathf.Max(apex, Stage.Stride.transform.position.y - takeoff);
+            if (left && !isAirborne && Stage.Stride.IsDrivingGait) {
+                break;
+            }
+        }
+        Stage.Release(Key.Space);
+        yield return Hold(0.5f);
+        apexOut(apex);
+    }
+
+    [UnityTest]
+    public IEnumerator ABoardAtHeadHeightRightAboveAJumpDoesNotStopTheJump() {
+        yield return Hold(1f);
+        float plain = 0f;
+        yield return JumpAndMeasureApex(apex => plain = apex);
+        Assert.That(plain, Is.GreaterThan(1.5f), "the plain jump rises");
+
+        // The board's underside a hand above the standing hull, so the whole rise passes through it.
+        Vector2 body = Stage.Stride.transform.position;
+        HoverTarget target = Spawn(new Vector2(body.x, body.y + 2.6f + 0.75f), new HoverTargetSettings { boardSize = 1.5f, extent = Vector2.zero, bobHeight = 0f, path = HoverPathKind.Loop });
+        yield return Hold(0.3f);
+        Assert.That(CharacterPassThrough.Contains(target.GetComponent<Collider2D>()), Is.True, "the board is registered while it exists");
+        float under = 0f;
+        yield return JumpAndMeasureApex(apex => under = apex);
+
+        Report($"apex without the board {plain:F3}, under it {under:F3}, board underside {target.Position.y - 0.75f - body.y:F2} above the take-off");
+        Assert.That(plain, Is.GreaterThan(target.Position.y - 0.75f - body.y - StandingHullTop + 0.5f), "the plain jump rises well past where the hull would meet the board");
+        Assert.That(under, Is.EqualTo(plain).Within(0.05f), "the board did not stop the jump");
+    }
+
+    [UnityTest]
+    public IEnumerator ABoardTheCharacterCanWalkThroughStillTakesAShotAndScores() {
+        List<(int points, Vector2 position, bool broke)> scores = new List<(int, Vector2, bool)>();
+        Stage.Character.Events.TargetScored += scores.Add;
+        yield return Hold(1f);
+        yield return AimAheadOfTheCharacter();
+        HoverTarget target = Spawn(aimedPoint, new HoverTargetSettings { boardSize = 1.5f, extent = Vector2.zero, bobHeight = 0f, path = HoverPathKind.Loop });
+        yield return Hold(0.2f);
+
+        yield return AimAndClick(FramesBeforeFirstClick + 6);
+        Assert.That(scores.Count, Is.EqualTo(1), "the shot hit the board and scored");
+        Assert.That(scores[0].points, Is.EqualTo(10));
+        Assert.That(target.HitCount, Is.EqualTo(1));
+
+        float startX = Stage.Stride.transform.position.x;
+        Stage.Press(Key.D);
+        yield return Hold(3f);
+        Report($"walked from {startX:F2} to {Stage.Stride.transform.position.x:F2} through a board at {target.Position.x:F2}");
+        Assert.That(Stage.Stride.transform.position.x, Is.GreaterThan(target.Position.x + 1.5f), "walked through the board and on");
     }
 
     [UnityTest]

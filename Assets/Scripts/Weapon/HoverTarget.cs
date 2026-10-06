@@ -18,7 +18,8 @@ public enum HoverPhase {
 // for the points (IScoreSource) and the character's audio and effects show them, so it knows nothing of the character.
 //
 // A kinematic body moved at the physics rate, so the hitscan sees where it is drawn, and a box collider the size of the
-// board (the rotor is only a picture). Hang it above head height so it never blocks the walking path.
+// board (the rotor is only a picture). The character passes through it (CharacterPassThrough), but hang it above jump
+// height anyway so it never looks as if it should block the walking path.
 [DisallowMultipleComponent]
 [RequireComponent(typeof(BoxCollider2D), typeof(Rigidbody2D))]
 public class HoverTarget : MonoBehaviour, IShotReceiver, IScoreSource {
@@ -96,6 +97,11 @@ public class HoverTarget : MonoBehaviour, IShotReceiver, IScoreSource {
         Teleport(position);
         ApplyVisual();
     }
+
+    // The character walks, jumps and climbs through the board (CharacterPassThrough); shots and physics bodies still meet it.
+    private void OnEnable() => CharacterPassThrough.Register(boardCollider != null ? boardCollider : GetComponent<BoxCollider2D>());
+
+    private void OnDisable() => CharacterPassThrough.Unregister(boardCollider != null ? boardCollider : GetComponent<BoxCollider2D>());
 
     private void OnDestroy() {
         if (visual != null) {

@@ -58,14 +58,15 @@ public class PlaygroundScenarioTests : ScenarioFixture {
     }
 
     [Test]
-    public void TheHoverTargetsFlyDifferentRoutesAndStayAboveHeadHeightAlongAllOfThem() {
+    public void TheHoverTargetsFlyDifferentRoutesAndStayAboveAStandingHullAndAFullJumpAlongAllOfThem() {
         Transform root = Playground();
         float floorTop = root.Find("Floor").GetComponent<BoxCollider2D>().bounds.max.y;
-        const float StandingHeight = 4.4f;
+        const float StandingHull = 4.53f;
+        const float JumpHeight = 2.4f;
         System.Collections.Generic.HashSet<HoverPathKind> kinds = new System.Collections.Generic.HashSet<HoverPathKind>();
         foreach (HoverTarget target in root.GetComponentsInChildren<HoverTarget>(true)) {
             kinds.Add(target.Settings.path);
-            Assert.That(target.LowestPoint, Is.GreaterThan(floorTop + StandingHeight), target.name + " never comes down to head height");
+            Assert.That(target.LowestPoint, Is.GreaterThan(floorTop + StandingHull + JumpHeight), target.name + " never comes down to the top of a jump");
             Assert.That(target.GetComponent<BoxCollider2D>().size.x, Is.EqualTo(target.Settings.boardSize).Within(0.01f), target.name + " has a board-sized collider");
             Assert.That(target.GetComponent<Rigidbody2D>().bodyType, Is.EqualTo(RigidbodyType2D.Kinematic), target.name);
         }
