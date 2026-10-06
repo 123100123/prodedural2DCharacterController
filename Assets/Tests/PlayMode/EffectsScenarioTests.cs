@@ -123,7 +123,7 @@ public class EffectsScenarioTests : ScenarioFixture {
         yield return Hold(1f);
         Stage.Press(Key.D, Key.LeftShift);
         yield return Hold(0.5f);
-        Stage.Press(Key.D, Key.LeftShift, Key.C);
+        Stage.Press(Key.D, Key.LeftShift, Key.LeftAlt);
         yield return null;
         Stage.Press(Key.D, Key.LeftShift);
         int mostDust = 0;

@@ -20,6 +20,12 @@ public sealed class HoldOrTapToggle {
         return button.isHeld || isLatched;
     }
 
+    // Drops the latch and forgets the press in progress, so that press's release does not toggle it back on.
+    public void CancelLatch() {
+        isLatched = false;
+        pressStartTime = null;
+    }
+
     private void ToggleLatchIfTap(float pressDuration) {
         if (pressDuration <= maxTapDuration) {
             isLatched = !isLatched;

@@ -201,7 +201,7 @@ public static class MovementTuningSchema {
         };
     }
 
-    // The dive roll. It is off in the scene until switched on here or on the character.
+    // The dive roll. Left Alt starts it; it can be switched off here or on the character.
     private static List<Parameter> Roll() {
         return new List<Parameter> {
             Toggle(("Start", "Roll"), (p => p.roll.enabled, (p, v) => p.roll.enabled = v)),

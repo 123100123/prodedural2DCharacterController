@@ -60,6 +60,9 @@ public sealed class PlayerInputReader : IDisposable {
         };
     }
 
+    // Drops a latched crouch, and the press in progress with it (a held key stays a hold; its release will not latch).
+    public void ConsumeCrouchPress() => crouchMode.CancelLatch();
+
     private bool ReadAimMode(bool isPointerOverUi) {
         (bool wentDown, bool wentUp, bool isHeld) button = isPointerOverUi
             ? (false, false, false)
@@ -86,7 +89,7 @@ public sealed class PlayerInputReader : IDisposable {
     private void BindActions() {
         jump.AddBinding("<Keyboard>/space");
         jump.AddBinding("<Gamepad>/buttonSouth");
-        roll.AddBinding("<Keyboard>/c");
+        roll.AddBinding("<Keyboard>/leftAlt");
         roll.AddBinding("<Gamepad>/buttonEast");
         run.AddBinding("<Keyboard>/leftShift");
         run.AddBinding("<Gamepad>/leftStickPress");

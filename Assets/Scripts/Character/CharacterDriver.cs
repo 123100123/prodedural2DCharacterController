@@ -141,6 +141,8 @@ public class CharacterDriver : MonoBehaviour {
         input.PointerSource = scenarioPointerSource;
         machine = new CharacterStateMachine();
         Events = new CharacterEvents();
+        // The Ctrl press that started a slide was a slide, not a crouch toggle: once the slide is over, no latch remains.
+        Events.SlideStopped += input.ConsumeCrouchPress;
         rig = BuildRig();
         crouch.Initialize(rig);
         cratePusher = new CratePusher(rig, push);

@@ -76,8 +76,10 @@ public class TuningSchemaTests {
 
         TuningParameter<MovementPreset> rollSwitch = AllParameters().Single(entry => entry.section == "ROLL" && entry.parameter.IsToggle).parameter;
         MovementPreset preset = Defaults();
-        Assert.That(preset.roll.enabled, Is.False, "off in the code defaults");
-        Assert.That(rollSwitch.ReadFrom(preset), Is.EqualTo(0f));
+        Assert.That(preset.roll.enabled, Is.True, "on in the code defaults");
+        Assert.That(rollSwitch.ReadFrom(preset), Is.EqualTo(1f));
+        rollSwitch.WriteTo(preset, 0f);
+        Assert.That(preset.roll.enabled, Is.False);
         rollSwitch.WriteTo(preset, 1f);
         Assert.That(preset.roll.enabled, Is.True);
         Assert.That(rollSwitch.ReadFrom(preset), Is.EqualTo(1f));

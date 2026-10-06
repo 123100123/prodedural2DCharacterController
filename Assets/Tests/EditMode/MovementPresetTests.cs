@@ -259,7 +259,7 @@ public class MovementPresetTests {
         Assert.That(loaded.run.lean, Is.EqualTo(16.5f));
         Assert.That(loaded.push.pushSpeed, Is.EqualTo(2.25f));
         Assert.That(loaded.roll, Is.Not.Null);
-        Assert.That(loaded.roll.enabled, Is.False, "the code default");
+        Assert.That(loaded.roll.enabled, Is.True, "the code default");
         Assert.That(loaded.roll.cooldown, Is.EqualTo(rollDefaults.cooldown));
         Assert.That(loaded.roll.diveSpeed, Is.EqualTo(rollDefaults.diveSpeed));
         Assert.That(loaded.roll.handsTucked, Is.EqualTo(rollDefaults.handsTucked));

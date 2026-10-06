@@ -5,8 +5,8 @@ using UnityEngine;
 // pitch is the forward rotation of the body in degrees (360 is a full roll).
 [Serializable]
 public class RollSettings {
-    [Tooltip("Whether the roll input starts a roll. Off for now; the roll code stays in place.")]
-    public bool enabled;
+    [Tooltip("Whether the roll input (Left Alt, or the gamepad's East button) starts a roll.")]
+    public bool enabled = true;
     public float cooldown = 0.3f;
     [Tooltip("Fraction of the remaining speed, height and pitch change covered per 60 Hz frame.")]
     public float speedEase = 0.15f;

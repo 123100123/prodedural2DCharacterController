@@ -160,6 +160,91 @@ public class SlideScenarioTests : ScenarioFixture {
         Assert.That(Body.x - takeoffX, Is.GreaterThan(4f), "carried forward through the air");
     }
 
+    // Taps Ctrl at a run (released within the tap time), slides, jumps out of it and lands with Ctrl long released.
+    private IEnumerator SlideOnATapJumpOutAndLand(bool keepsRunHeld) {
+        yield return RunFlatOut();
+        Stage.Press(Key.LeftCtrl);
+        yield return WaitUntil(() => IsSliding, 0.2f);
+        Assert.That(IsSliding, Is.True, "the tap slides");
+        yield return Hold(0.05f);
+        Stage.Release(Key.LeftCtrl);
+        yield return Hold(0.1f);
+        Assert.That(IsSliding, Is.True, "the slide goes on after the tap's release");
+
+        Stage.Press(Key.Space);
+        yield return WaitUntil(() => State is AirborneState, 0.2f);
+        Assert.That(State, Is.InstanceOf<AirborneState>(), "jumped out of the slide");
+        yield return Hold(0.15f);
+        Stage.Release(Key.Space);
+        if (!keepsRunHeld) {
+            Stage.Release(Key.LeftShift);
+        }
+        yield return WaitUntil(() => State is WalkState, 3f);
+        Assert.That(State, Is.InstanceOf<WalkState>(), "landed");
+        yield return Hold(2f);
+    }
+
+    [UnityTest]
+    public IEnumerator JumpingOutOfATapSlideLandsStandingAndRunsWhileShiftIsHeld() {
+        yield return SlideOnATapJumpOutAndLand(true);
+
+        Assert.That(Telemetry.CrouchShare, Is.LessThan(0.05f), "not crouching: the slide's tap latched nothing");
+        Assert.That(Stage.Stride.GroundSpeed, Is.EqualTo(Stage.Stride.Run.speed).Within(0.4f), "runs");
+    }
+
+    [UnityTest]
+    public IEnumerator JumpingOutOfATapSlideWithShiftLetGoLandsStandingAndWalks() {
+        yield return SlideOnATapJumpOutAndLand(false);
+
+        Assert.That(Telemetry.CrouchShare, Is.LessThan(0.05f), "not crouching");
+        Assert.That(Stage.Stride.GroundSpeed, Is.EqualTo(Stage.Stride.Walk.speed).Within(0.4f), "walks");
+    }
+
+    [UnityTest]
+    public IEnumerator JumpingOutOfASlideWithCrouchStillHeldLandsCrouched() {
+        yield return RunFlatOut();
+        yield return PressCrouchAndSlide();
+        yield return Hold(0.3f);
+        Stage.Press(Key.Space);
+        yield return WaitUntil(() => State is AirborneState, 0.2f);
+        yield return Hold(0.15f);
+        Stage.Release(Key.Space);
+        yield return WaitUntil(() => State is WalkState, 3f);
+        yield return Hold(1.5f);
+
+        Assert.That(State, Is.InstanceOf<WalkState>());
+        Assert.That(Telemetry.CrouchShare, Is.GreaterThan(0.95f), "Ctrl is still held: crouched, as before");
+    }
+
+    [UnityTest]
+    public IEnumerator ATapWhileWalkingSlowlyStillLatchesCrouch() {
+        Stage.Press(Key.D);
+        yield return Hold(2f);
+        Stage.Press(Key.LeftCtrl);
+        yield return Hold(0.05f);
+        Stage.Release(Key.LeftCtrl);
+        yield return Hold(1.5f);
+
+        Assert.That(IsSliding, Is.False);
+        Assert.That(Telemetry.CrouchShare, Is.GreaterThan(0.95f), "the tap latched crouch on");
+        Assert.That(Stage.Stride.GroundSpeed, Is.EqualTo(Stage.Stride.CrouchGait.speed).Within(0.25f), "crouch walking");
+    }
+
+    [UnityTest]
+    public IEnumerator PressingLeftAltWhileWalkingRollsWithTheDefaultSettings() {
+        int rolls = 0;
+        Stage.Character.Events.Rolled += _ => rolls++;
+        Stage.Press(Key.D);
+        yield return Hold(1.5f);
+        Stage.Press(Key.LeftAlt);
+        yield return WaitUntil(() => State is RollState, 0.3f);
+        Assert.That(State, Is.InstanceOf<RollState>(), "Left Alt rolls: the roll is on by default");
+        Stage.Release(Key.LeftAlt);
+        yield return Hold(1.5f);
+        Assert.That(rolls, Is.EqualTo(1));
+        Assert.That(State, Is.InstanceOf<WalkState>(), "back on its feet");
+    }
+
     [UnityTest]
     public IEnumerator PressingCrouchWhileWalkingSlowlyOnlyCrouches() {
         int starts = 0;

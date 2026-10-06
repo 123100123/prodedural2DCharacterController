@@ -6582,7 +6582,7 @@ MonoBehaviour:
     speedLossHard: 0.2
     movingLandingShare: 0.6
   roll:
-    enabled: 0
+    enabled: 1
     cooldown: 0.3
     speedEase: 0.15
     groundFollowEase: 0.35

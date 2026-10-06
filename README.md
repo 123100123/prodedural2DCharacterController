@@ -21,7 +21,7 @@ Controls are listed below. To try the moves, climb onto the raised block at the 
 | Jump (hold for height, release early for a hop; climbs instead when a too-high ledge is ahead) | Space | South button |
 | Run (while walking; not while aiming) | Hold Left Shift | Press left stick |
 | Crouch (hold, or tap to latch on and off); pressed while running it slides | Left Ctrl | Press right stick |
-| Roll toward the facing direction (disabled by default; toggle it in F1) | C | East button |
+| Roll toward the facing direction (on by default; toggle it in F1) | Left Alt | East button |
 | Aim: face and aim at the pointer (hold, or tap to latch on and off) | Right mouse button | Left trigger |
 | Fire (while aiming) | Left mouse button | Right trigger |
 | Reload (also automatic on an empty pull) | R | West button |
