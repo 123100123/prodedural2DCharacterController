@@ -12,7 +12,7 @@ public class TuningSchemaTests {
     [Test]
     public void OffersTheTabsInOrder() {
         string[] titles = MovementTuningSchema.Build().Select(section => section.Title).ToArray();
-        Assert.That(titles, Is.EqualTo(new[] { "IDLE", "WALK", "RUN", "CROUCH", "JUMP", "FALL", "WALL", "SLIDE", "ROLL", "LEDGE", "CLIMB", "PUSH", "AIM", "CAMERA", "EFFECTS", "AUDIO", "TRANSITIONS", "ADVANCED" }));
+        Assert.That(titles, Is.EqualTo(new[] { "IDLE", "WALK", "RUN", "CROUCH", "JUMP", "FALL", "WALL", "SLIDE", "ROLL", "LEDGE", "CLIMB", "SLOPE", "PUSH", "AIM", "CAMERA", "EFFECTS", "AUDIO", "TRANSITIONS", "ADVANCED" }));
     }
 
     [Test]
@@ -65,6 +65,17 @@ public class TuningSchemaTests {
         Assert.That(roll.Parameters.Single(parameter => parameter.IsToggle).Label, Is.EqualTo("Roll"));
         Assert.That(climb.Parameters.Select(parameter => parameter.Group).Distinct(), Is.EquivalentTo(new[] { "Detection", "Body", "Limbs", "Timing" }));
         Assert.That(climb.Parameters.Any(parameter => parameter.IsToggle), Is.False);
+    }
+
+    [Test]
+    public void ThePanelTunesSlopes() {
+        TuningSection<MovementPreset> slope = MovementTuningSchema.Build().Single(section => section.Title == "SLOPE");
+        Assert.That(slope.Parameters.Select(parameter => parameter.Group).Distinct(), Is.EquivalentTo(new[] { "Ground", "Gait", "Feet", "Slide" }));
+        Assert.That(slope.Parameters.Count, Is.EqualTo(9), "a row per slope setting");
+        TuningParameter<MovementPreset> limit = slope.Parameters.Single(parameter => parameter.Label == "Steepest walkable slope");
+        MovementPreset preset = Defaults();
+        limit.WriteTo(preset, 40f);
+        Assert.That(preset.slope.maxSlopeAngle, Is.EqualTo(40f));
     }
 
     // The switches the panel offers, by tab: each reads and writes the preset's flag, with 0.5 and up meaning on.

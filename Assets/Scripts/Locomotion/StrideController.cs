@@ -18,6 +18,17 @@ public class StrideController : MonoBehaviour {
     private const float SwingCeilingSlack = 1.15f;
     // A landing foot with no ground at its spot looks for it this many even steps in toward the body pivot.
     private const int LandingEdgeSearchSteps = 4;
+    // The ground under the body is sampled this far either side of the pelvis, so the slope it reads changes smoothly as
+    // the body passes from flat ground onto a ramp.
+    private const float TerrainSampleSpread = 0.35f;
+    // Seconds the gait takes to blend from flat-ground behaviour to slope behaviour and back.
+    private const float SlopeBlendTime = 0.2f;
+    // Seconds over which the slope the gait reads follows the measured one.
+    private const float SlopeGradientSmoothing = 0.1f;
+    // On a slope, a stance foot's ground is also looked for this much further above and below than on flat ground.
+    private const float SlopeStanceSearch = 1.5f;
+    // A foot's ground is read from this far above it.
+    private const float AnkleProbeHeight = 0.15f;
 
     [SerializeField] private LegStepper frontLeg;
     [SerializeField] private LegStepper backLeg;
@@ -77,6 +88,14 @@ public class StrideController : MonoBehaviour {
     private CharacterFacing facing;
     // The one-way platforms the character is dropping through; the composition hands it the character's settings.
     private OneWayPassage oneWay = new OneWayPassage(new OneWaySettings());
+    // How walkable slopes shape the gait; the composition hands it the character's settings.
+    private SlopeSettings slope = new SlopeSettings();
+    // The ground under the pelvis this gait step (its height and slope), and how far the gait has blended into slope
+    // behaviour (0 on flat ground) with the slope it reads.
+    private TerrainSample terrain;
+    private (float share, float gradient) slopeBlend;
+    // Where each foot's ground was last read, so it is read once per foothold.
+    private (Vector2 front, Vector2 back) ankleGroundSpots = (new Vector2(float.NaN, float.NaN), new Vector2(float.NaN, float.NaN));
 
     public LegStepper FrontLeg => frontLeg;
     public LegStepper BackLeg => backLeg;
@@ -90,6 +109,14 @@ public class StrideController : MonoBehaviour {
     public float StanceHeight => (frontLeg.FootTarget.y + backLeg.FootTarget.y) / 2f;
     public LayerMask GroundMask => footholdLimits.groundMask;
     public OneWayPassage OneWay { get => oneWay; set => oneWay = value ?? oneWay; }
+    public SlopeSettings Slope { get => slope; set => slope = value ?? slope; }
+    // How far the gait walks as on a slope (0 flat ground, 1 a slope) and the gradient it walks on (rise per unit of x,
+    // positive rising to the right; 0 on flat ground).
+    public float SlopeShare => slopeBlend.share;
+    public float SlopeGradient => slopeBlend.gradient * slopeBlend.share;
+    // The ground height the body rides above: the mean height of the feet on flat ground, the surface under the pelvis on
+    // a slope (which rises smoothly as the body moves, where the heights of the feet change a step at a time).
+    public float GroundUnderBody => slopeBlend.share > 0f && terrain.Found ? Mathf.Lerp(StanceHeight, terrain.Height, slopeBlend.share) : StanceHeight;
     // The one-way platforms that hold feet standing at the given height: those whose top is at or below it.
     public OneWaySupport SupportAt(float feetY) => new OneWaySupport(feetY + OneWayFilter.StandingTolerance, (oneWay, Time.time));
     // In the air: the one-way platforms a body whose feet move down by fallDistance this frame (negative: up) would stand
@@ -104,7 +131,9 @@ public class StrideController : MonoBehaviour {
     public Vector2 BodyVelocity => Carriage.Velocity;
 
     // The walk, run and crouch profiles with how crouched the character is: asks "the gait at a speed".
-    public GaitSet Gaits => new GaitSet((walk, run, crouchGait), transitions, crouchShare);
+    // On a slope the gait set carries it: slower uphill, a little faster downhill, shorter steps (GaitSet.Slope).
+    public GaitSet Gaits => new GaitSet((walk, run, crouchGait), transitions, crouchShare).OnSlope(GaitSlope);
+    private SlopeGait GaitSlope => IsDrivingGait && SlopeGradient != 0f ? new SlopeGait(SlopeGradient, slope) : SlopeGait.Flat;
     // How crouched the character is (0 standing, 1 crouched), what a crouch does to the body, and how far it lowers the pelvis.
     public float CrouchShare => crouchShare;
     public CrouchSettings CrouchSettings => crouchSettings;
@@ -186,8 +215,9 @@ public class StrideController : MonoBehaviour {
     public void BeginGroundedMotion(Vector2 velocity) {
         Carriage.Restart(velocity);
         groundSpeed = Mathf.Clamp(velocity.x, -run.speed, run.speed);
-        BlendGaitWithSpeed(float.PositiveInfinity);
         anchorX = transform.position.x;
+        TrackTerrain(float.PositiveInfinity);
+        BlendGaitWithSpeed(float.PositiveInfinity);
     }
 
     // The feet were just placed in a stance (spawning, landing, after a roll or a climb): the gait starts afresh from it.
@@ -216,6 +246,7 @@ public class StrideController : MonoBehaviour {
     }
 
     private void TickGaitStep(float deltaTime, (float direction, bool running, (float min, float max) feetSpan, (float min, float max) bodySpan) intent) {
+        TrackTerrain(deltaTime);
         AccelerateGround((intent.direction, intent.running, deltaTime));
         landingCompression.Update((0f, deltaTime), landingCompressionSpring);
         AdvanceAnchor((deltaTime, AnchorSpan(intent)));
@@ -226,6 +257,7 @@ public class StrideController : MonoBehaviour {
         ReplanSwingsOnIntentChange(intent.feetSpan);
         SettleFeetWhenIdle();
         TickLegs(deltaTime);
+        AlignAnklesToGround();
         TrackSupport();
         CarryBodyOverFeet((deltaTime, intent.bodySpan));
         strideTarget.position = new Vector2(anchorX, StanceHeight);
@@ -303,10 +335,17 @@ public class StrideController : MonoBehaviour {
         return false;
     }
 
+    // Within a step of groundY; failing that, on a slope (feet either side of the body stand higher and lower than a step
+    // allows on steep ground), further above and below.
     private bool TryFindStanceGround((float x, float groundY) column, out Vector2 ground) {
         Vector2 origin = new Vector2(column.x, column.groundY + footholdLimits.maxStepUp);
         float depth = footholdLimits.maxStepUp + footholdLimits.maxStepDown;
-        return FootholdProbe.TryFindGroundBelow((origin, depth), GroundAt(column.groundY), out ground);
+        if (FootholdProbe.TryFindGroundBelow((origin, depth), GroundAt(column.groundY), out ground)) {
+            return true;
+        }
+        Vector2 widerOrigin = origin + Vector2.up * SlopeStanceSearch;
+        bool found = FootholdProbe.TryFindGroundBelow((widerOrigin, depth + 2f * SlopeStanceSearch), GroundAt(column.groundY), out ground, out Vector2 normal);
+        return found && SlopeMath.IsSloped(normal, slope.maxSlopeAngle);
     }
 
     private bool IsFootOnGround(LegStepper leg) {
@@ -588,8 +627,24 @@ public class StrideController : MonoBehaviour {
             ForwardSign = Mathf.Sign(step.desiredX - transform.position.x),
         };
 
-        FootholdProbe.CollectCandidates((request.DesiredX, request.PlantedFoot.y, step.stepping.FootTarget), (footholdLimits, SupportAt(request.PlantedFoot.y)), footholdCandidates);
-        return FootholdPlanner.TryChooseFoothold(request, (footholdCandidates, footholdLimits), out foothold);
+        FootholdLimits limits = StepLimitsOnSlope((Mathf.Abs(request.DesiredX - request.PlantedFoot.x), SlopeAhead(request.DesiredX, request.PlantedFoot)));
+        FootholdProbe.CollectCandidates((request.DesiredX, request.PlantedFoot.y, step.stepping.FootTarget), (limits, SupportAt(request.PlantedFoot.y)), footholdCandidates);
+        return FootholdPlanner.TryChooseFoothold(request, (footholdCandidates, limits), out foothold);
+    }
+
+    // On a slope a step rises or drops by its length times the gradient: the step window grows to take footholds as far up
+    // or down as the slope carries a step of this length (and the search beyond it). The steeper of the slope underfoot
+    // and the slope at the landing spot counts, so a step off a crest onto a ramp finds it. Flat ground keeps the limits.
+    private FootholdLimits StepLimitsOnSlope((float length, float gradientAhead) step) {
+        FootholdLimits limits = footholdLimits;
+        float gradient = Mathf.Max(Mathf.Abs(SlopeGradient), Mathf.Abs(step.gradientAhead));
+        if (gradient <= 0f) {
+            return limits;
+        }
+        float rise = gradient * (step.length + limits.searchRadius) + limits.searchStep;
+        limits.maxStepUp = Mathf.Max(limits.maxStepUp, rise);
+        limits.maxStepDown = Mathf.Max(limits.maxStepDown, rise);
+        return limits;
     }
 
     // Measured in the direction of motion only: a running body is often behind feet that are landing ahead of it,
@@ -690,7 +745,93 @@ public class StrideController : MonoBehaviour {
         return BaselineHeight + bob;
     }
 
-    private float BaselineHeight => StanceHeight + bodyHeight - CurrentGait.pelvisDrop * Pace.Moving - CrouchDrop - WindupCrouch - landingCompression.Value;
+    private float BaselineHeight => GroundUnderBody + SlopeLead + bodyHeight - CurrentGait.pelvisDrop * Pace.Moving - CrouchDrop - WindupCrouch - landingCompression.Value - SlopeDrop;
+
+    // On a slope the pelvis rides lower: the feet ahead and behind it stand higher and lower than the ground under it.
+    private float SlopeDrop => slope.bodyDrop * SlopeMath.Steepness(SlopeGradient) * slopeBlend.share;
+
+    // On a slope the ground under the body rises or falls steadily as it moves; the target is aimed ahead by the vertical
+    // spring's tracking lag, so the body rides the surface instead of trailing it.
+    private float SlopeLead => SlopeGradient * body.verticalSpring.TrackingLag(groundSpeed);
+
+    // ---- Slopes ----------------------------------------------------------------------------------------------
+
+    // Reads the ground under where the pelvis rides (not the pelvis itself, whose support shifts and surge would make the
+    // read height bob on a slope) and blends the gait toward slope behaviour where the ground is sloped, under the body or
+    // under either foot (a foot stepping onto a ramp ahead must not lift the body off the flat ground it still stands
+    // over, as the mean height of the feet would). A long deltaTime (a restart) takes the reading at once.
+    private void TrackTerrain(float deltaTime) {
+        terrain = SampleTerrain(PelvisRidingAnchor((anchorX, groundSpeed)));
+        bool footOnSlope = SlopeMath.IsSloped(frontLeg.GroundNormal, slope.maxSlopeAngle) || SlopeMath.IsSloped(backLeg.GroundNormal, slope.maxSlopeAngle);
+        float targetShare = terrain.Found && (terrain.IsSloped || footOnSlope) ? 1f : 0f;
+        float targetGradient = terrain.Found ? terrain.Gradient : 0f;
+        if (float.IsPositiveInfinity(deltaTime)) {
+            slopeBlend = (targetShare, targetGradient);
+            return;
+        }
+        float share = Mathf.MoveTowards(slopeBlend.share, targetShare, deltaTime / SlopeBlendTime);
+        float gradient = Mathf.Lerp(slopeBlend.gradient, targetGradient, 1f - Mathf.Exp(-deltaTime / SlopeGradientSmoothing));
+        slopeBlend = (share, share > 0f ? gradient : 0f);
+    }
+
+    // The gradient of walkable sloped ground at x, looked for as far above and below the planted foot as the steepest
+    // walkable slope could carry the ground over the distance; 0 where the ground there is flat (or none is found).
+    private float SlopeAhead(float x, Vector2 plantedFoot) {
+        float slopeRise = Mathf.Abs(x - plantedFoot.x) * Mathf.Tan(Mathf.Clamp(slope.maxSlopeAngle, 0f, 80f) * Mathf.Deg2Rad) + footholdLimits.searchStep;
+        Vector2 origin = new Vector2(x, plantedFoot.y + footholdLimits.maxStepUp + slopeRise);
+        float reach = footholdLimits.maxStepUp + footholdLimits.maxStepDown + 2f * slopeRise;
+        if (!FootholdProbe.TryFindGroundBelow((origin, reach), GroundAt(plantedFoot.y), out _, out Vector2 normal)) {
+            return 0f;
+        }
+        return SlopeMath.IsSloped(normal, slope.maxSlopeAngle) ? SlopeMath.Gradient(normal) : 0f;
+    }
+
+    // Three rays down, under the given x and a little either side: the mean height of the ground, its mean gradient (flat
+    // and too steep hits count as level) and whether any of it is a walkable slope. Found only when all three hit.
+    private TerrainSample SampleTerrain(float x) {
+        (float height, float gradient, bool sloped, int hits) sum = (0f, 0f, false, 0);
+        for (int sample = -1; sample <= 1; sample++) {
+            Vector2 origin = new Vector2(x + sample * TerrainSampleSpread, transform.position.y);
+            float depth = bodyHeight + footholdLimits.maxStepDown + SlopeStanceSearch;
+            if (!FootholdProbe.TryFindGroundBelow((origin, depth), GroundAt(StanceHeight), out Vector2 point, out Vector2 normal)) {
+                continue;
+            }
+            bool isSloped = SlopeMath.IsSloped(normal, slope.maxSlopeAngle);
+            sum = (sum.height + point.y, sum.gradient + (isSloped ? SlopeMath.Gradient(normal) : 0f), sum.sloped || isSloped, sum.hits + 1);
+        }
+        return sum.hits == 3 ? new TerrainSample(sum.height / 3f, sum.gradient / 3f, sum.sloped) : default;
+    }
+
+    // Each foot turns to lie along the ground it stands on or is stepping onto (read once per foothold; LegStepper turns it).
+    private void AlignAnklesToGround() {
+        ankleGroundSpots.front = AlignAnkle(frontLeg, ankleGroundSpots.front);
+        ankleGroundSpots.back = AlignAnkle(backLeg, ankleGroundSpots.back);
+    }
+
+    private Vector2 AlignAnkle(LegStepper leg, Vector2 readAt) {
+        leg.AnkleBlend = (slope.ankleAlignWeight, slope.ankleBlendTime);
+        if (leg.FootTarget == readAt) {
+            return readAt;
+        }
+        Vector2 origin = leg.FootTarget + Vector2.up * AnkleProbeHeight;
+        bool found = FootholdProbe.TryFindGroundBelow((origin, 2f * AnkleProbeHeight), GroundAt(leg.FootTarget.y), out _, out Vector2 normal);
+        leg.GroundNormal = found && SlopeMath.IsWalkable(normal, slope.maxSlopeAngle) ? normal : Vector2.up;
+        return leg.FootTarget;
+    }
+
+    private readonly struct TerrainSample {
+        public TerrainSample(float height, float gradient, bool isSloped) {
+            Height = height;
+            Gradient = gradient;
+            IsSloped = isSloped;
+            Found = true;
+        }
+
+        public float Height { get; }
+        public float Gradient { get; }
+        public bool IsSloped { get; }
+        public bool Found { get; }
+    }
 
     private float LowestPhase => GaitWaves.LowestPhase((CurrentGait.dutyFactor, CurrentGait.lowAfterContact));
 

@@ -31,6 +31,7 @@ public static class MovementTuningSchema {
             new Section("ROLL", Roll()),
             new Section("LEDGE", Ledge()),
             new Section("CLIMB", Climb()),
+            new Section("SLOPE", Slope()),
             new Section("PUSH", Push()),
             new Section("AIM", Aim()),
             new Section("CAMERA", Camera()),
@@ -279,6 +280,22 @@ public static class MovementTuningSchema {
             new Parameter(("Timing", "Pull up", Seconds), (0.05f, 1.5f), (p => p.climb.pullDuration, (p, v) => p.climb.pullDuration = v)),
             new Parameter(("Timing", "Mount", Seconds), (0.05f, 1.5f), (p => p.climb.mountDuration, (p, v) => p.climb.mountDuration = v)),
             new Parameter(("Timing", "Stand", Seconds), (0.05f, 1.5f), (p => p.climb.standDuration, (p, v) => p.climb.standDuration = v)),
+        };
+    }
+
+    // Walking, running, sliding and rolling on slopes, and the feet on them. The gait values are for a 45° slope and scale
+    // with steepness.
+    private static List<Parameter> Slope() {
+        return new List<Parameter> {
+            new Parameter(("Ground", "Steepest walkable slope", Degrees), (10f, 80f), (p => p.slope.maxSlopeAngle, (p, v) => p.slope.maxSlopeAngle = v)),
+            new Parameter(("Gait", "Uphill speed at 45°", Share), (0.2f, 1.5f), (p => p.slope.uphillSpeedFactor, (p, v) => p.slope.uphillSpeedFactor = v)),
+            new Parameter(("Gait", "Downhill speed at 45°", Share), (0.2f, 1.5f), (p => p.slope.downhillSpeedFactor, (p, v) => p.slope.downhillSpeedFactor = v)),
+            new Parameter(("Gait", "Step length taken off at 45°", Share), (0f, 0.8f), (p => p.slope.strideShortening, (p, v) => p.slope.strideShortening = v)),
+            new Parameter(("Gait", "Pelvis lower at 45°", Units), (0f, 1f), (p => p.slope.bodyDrop, (p, v) => p.slope.bodyDrop = v)),
+            new Parameter(("Feet", "Planted foot follows the ground", Share), (0f, 1f), (p => p.slope.ankleAlignWeight, (p, v) => p.slope.ankleAlignWeight = v)),
+            new Parameter(("Feet", "Foot turn time", Seconds), (0.01f, 0.5f), (p => p.slope.ankleBlendTime, (p, v) => p.slope.ankleBlendTime = v)),
+            new Parameter(("Slide", "Slope pull", UnitsPerSecondSquared), (0f, 40f), (p => p.slope.slideSlopeAcceleration, (p, v) => p.slope.slideSlopeAcceleration = v)),
+            new Parameter(("Slide", "Top speed downhill", UnitsPerSecond), (2f, 30f), (p => p.slope.slideMaxSpeed, (p, v) => p.slope.slideMaxSpeed = v)),
         };
     }
 

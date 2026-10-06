@@ -2,11 +2,17 @@ using UnityEngine;
 
 // Physics queries for ledges: scans columns ahead for the first top surface inside a height window,
 // refines its near edge and checks that the character fits on top. One-way platforms are not ledges and block nothing
-// here: the character passes up through them instead.
+// here: the character passes up through them instead. A ledge is a drop: the sloped face of a ramp is no top, and the
+// edge where a ramp meets a flat top (the crest of a hill) is walked over, not grabbed.
 public sealed class LedgeDetector {
     private const int EdgeRefineIterations = 5;
     private const float TopTolerance = 0.1f;
     private const float RayHeadroom = 0.05f;
+    // A top tilted more than this (degrees) is a slope, not the top of a ledge.
+    private const float MaxTopTilt = 10f;
+    // Just outside the edge the ground must lie at least this far below the top: less is a crest or a step, not a ledge.
+    private const float MinEdgeDrop = 0.5f;
+    private const float EdgeDropInset = 0.1f;
 
     private readonly ClimbSettings settings;
 
@@ -46,7 +52,7 @@ public sealed class LedgeDetector {
         RaycastHit2D hit = OneWayFilter.Raycast((origin, Vector2.down, depth), settings.ledgeMask, OneWaySupport.None);
 
         topY = hit.point.y;
-        return hit.collider != null && hit.distance > 0f && LedgeGrabPolicy.IsInWindow(topY, column.window);
+        return hit.collider != null && hit.distance > 0f && SlopeMath.AngleOf(hit.normal) <= MaxTopTilt && LedgeGrabPolicy.IsInWindow(topY, column.window);
     }
 
     // Binary search between an open column and a column with a top, converging on the edge.
@@ -65,7 +71,13 @@ public sealed class LedgeDetector {
         return solidX;
     }
 
-    private bool HasRoomToClimb(Ledge ledge) => HasStandingRoom(ledge) && HasDeepEnoughTop(ledge);
+    private bool HasRoomToClimb(Ledge ledge) => HasDropBeforeEdge(ledge) && HasStandingRoom(ledge) && HasDeepEnoughTop(ledge);
+
+    private bool HasDropBeforeEdge(Ledge ledge) {
+        Vector2 origin = ledge.Corner + new Vector2(-ledge.ClimbDirection * EdgeDropInset, RayHeadroom);
+        RaycastHit2D hit = OneWayFilter.Raycast((origin, Vector2.down, RayHeadroom + MinEdgeDrop), settings.ledgeMask, OneWaySupport.None);
+        return hit.collider == null || hit.distance <= 0f;
+    }
 
     private bool HasStandingRoom(Ledge ledge) {
         Vector2 size = settings.standingRoom;

@@ -269,6 +269,55 @@ public class MovementPresetTests {
         Assert.That(loaded.climb.standingRoom, Is.EqualTo(climbDefaults.standingRoom));
     }
 
+    [Test]
+    public void TheSlopeSettingsSurviveAJsonRoundTrip() {
+        MovementPreset original = MovementPreset.CodeDefaults();
+        original.slope.maxSlopeAngle = 42.5f;
+        original.slope.uphillSpeedFactor = 0.625f;
+        original.slope.strideShortening = 0.375f;
+        original.slope.ankleBlendTime = 0.125f;
+        original.slope.slideMaxSpeed = 13.5f;
+
+        MovementPreset loaded = MovementPreset.FromJson(original.ToJson());
+        Assert.That(loaded.slope.maxSlopeAngle, Is.EqualTo(42.5f));
+        Assert.That(loaded.slope.uphillSpeedFactor, Is.EqualTo(0.625f));
+        Assert.That(loaded.slope.strideShortening, Is.EqualTo(0.375f));
+        Assert.That(loaded.slope.ankleBlendTime, Is.EqualTo(0.125f));
+        Assert.That(loaded.slope.slideMaxSpeed, Is.EqualTo(13.5f));
+        Assert.That(loaded.ToJson(), Is.EqualTo(original.ToJson()));
+    }
+
+    // A preset saved at version 11, before slopes existed, loads the slope settings at their code defaults.
+    [Test]
+    public void AVersionElevenPresetLoadsTheSlopeDefaults() {
+        MovementPreset saved = MovementPreset.CodeDefaults();
+        saved.run.lean = 15.5f;
+        saved.roll.diveSpeed = 7.25f;
+        saved.version = 11;
+        string versionEleven = WithoutObject(saved.ToJson(), "slope");
+        Assert.That(versionEleven, Does.Not.Contain("\"slope\""));
+        Assert.That(versionEleven, Does.Contain("\"roll\""), "only the new settings are taken out");
+
+        MovementPreset loaded = MovementPreset.FromJson(versionEleven);
+        SlopeSettings defaults = new SlopeSettings();
+        Assert.That(MovementPreset.CurrentVersion, Is.GreaterThan(11));
+        Assert.That(loaded.version, Is.EqualTo(11), "what the file says");
+        Assert.That(loaded.run.lean, Is.EqualTo(15.5f));
+        Assert.That(loaded.roll.diveSpeed, Is.EqualTo(7.25f));
+        Assert.That(loaded.slope, Is.Not.Null);
+        Assert.That(loaded.slope.maxSlopeAngle, Is.EqualTo(defaults.maxSlopeAngle));
+        Assert.That(loaded.slope.uphillSpeedFactor, Is.EqualTo(defaults.uphillSpeedFactor));
+        Assert.That(loaded.slope.downhillSpeedFactor, Is.EqualTo(defaults.downhillSpeedFactor));
+        Assert.That(loaded.slope.strideShortening, Is.EqualTo(defaults.strideShortening));
+        Assert.That(loaded.slope.ankleAlignWeight, Is.EqualTo(defaults.ankleAlignWeight));
+        Assert.That(loaded.slope.slideSlopeAcceleration, Is.EqualTo(defaults.slideSlopeAcceleration));
+    }
+
+    [Test]
+    public void CopyFromCoversEverySlopeField() {
+        AssertCopyFromCoversEveryField(new SlopeSettings(), (target, source) => target.CopyFrom(source), new string[0]);
+    }
+
     // CopyFrom writes every field of the settings the states hold by reference; a field added later and forgotten
     // there would silently stop following the panel.
     [Test]
@@ -324,12 +373,14 @@ public class MovementPresetTests {
         copy.push.pushSpeed = 99f;
         copy.roll.diveSpeed = 99f;
         copy.climb.pullDuration = 99f;
+        copy.slope.maxSlopeAngle = 99f;
         Assert.That(original.walk.speed, Is.EqualTo(GaitProfile.Walk.speed));
         Assert.That(original.ledgeHang.regrabLockout, Is.EqualTo(new LedgeHangSettings().regrabLockout));
         Assert.That(original.oneWay.dropThroughTime, Is.EqualTo(new OneWaySettings().dropThroughTime));
         Assert.That(original.push.pushSpeed, Is.EqualTo(new PushSettings().pushSpeed));
         Assert.That(original.roll.diveSpeed, Is.EqualTo(new RollSettings().diveSpeed));
         Assert.That(original.climb.pullDuration, Is.EqualTo(new ClimbSettings().pullDuration));
+        Assert.That(original.slope.maxSlopeAngle, Is.EqualTo(new SlopeSettings().maxSlopeAngle));
         Assert.That(original.posture.maxTotalLean, Is.EqualTo(PostureSettings.Default.maxTotalLean));
         Assert.That(original.wall.maxSlideSpeed, Is.EqualTo(new WallSettings().maxSlideSpeed));
         Assert.That(original.slide.boostSpeed, Is.EqualTo(new SlideSettings().boostSpeed));

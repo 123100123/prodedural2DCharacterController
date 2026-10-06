@@ -5,12 +5,15 @@ using UnityEngine.InputSystem;
 using UnityEngine.TestTools;
 
 // The playground the Build Playground menu authored into the saved scene (the stage normally swaps the level for a flat
-// track, so these keep the scene's own level): it is there with its crates, targets and one-way platforms, and the
-// runway of it can be walked.
+// track, so these keep the scene's own level): it is there with its crates, targets, one-way platforms and hill, the
+// runway of it can be walked, the staircase climbed with jumps and the hill walked and run over.
 public class PlaygroundScenarioTests : ScenarioFixture {
     private const string RootName = "Playground";
 
     private Vector2 Body => Stage.Stride.transform.position;
+    // The rise from one platform of the staircase to the next (PlaygroundSetup.PlatformRise).
+    private const float PlatformRise = 1.4f;
+    private const float HillHeight = 4.5f;
 
     protected override bool KeepsTheLevel => true;
 
@@ -80,7 +83,7 @@ public class PlaygroundScenarioTests : ScenarioFixture {
             Assert.That(platform, Is.Not.Null, name);
             Bounds bounds = platform.GetComponent<BoxCollider2D>().bounds;
             Assert.That(bounds.size.x, Is.GreaterThanOrEqualTo(5.9f), name + " is wide");
-            Assert.That(bounds.max.y - previousTop, Is.EqualTo(1.6f).Within(0.05f), name + " is one rise above the one before");
+            Assert.That(bounds.max.y - previousTop, Is.EqualTo(PlatformRise).Within(0.05f), name + " is one rise above the one before");
             previousTop = bounds.max.y;
 
             Transform edge = platform.Find(name + " Edge");
@@ -90,6 +93,62 @@ public class PlaygroundScenarioTests : ScenarioFixture {
             Assert.That(strip.bounds.max.y, Is.EqualTo(bounds.max.y).Within(0.01f), "along the top");
             Assert.That(strip.bounds.size.y, Is.LessThan(0.25f), "thin");
             Assert.That(strip.color.grayscale, Is.GreaterThan(platform.GetComponent<SpriteRenderer>().color.grayscale), "lighter than the slab");
+        }
+    }
+
+    [Test]
+    public void TheHillIsOnePolygonOfFortyFiveDegreeRampsWithALitFaceAndAShadow() {
+        Transform hill = Playground().Find("Hill");
+        Assert.That(hill, Is.Not.Null, "the playground has a hill");
+        PolygonCollider2D polygon = hill.GetComponent<PolygonCollider2D>();
+        Assert.That(polygon, Is.Not.Null);
+        float floorTop = Playground().Find("Floor").GetComponent<BoxCollider2D>().bounds.max.y;
+        Assert.That(polygon.bounds.max.y - floorTop, Is.EqualTo(HillHeight).Within(0.01f), "its top");
+
+        int ramps = 0;
+        Vector2[] path = polygon.GetPath(0);
+        for (int index = 0; index < path.Length; index++) {
+            Vector2 edge = path[(index + 1) % path.Length] - path[index];
+            if (Mathf.Abs(edge.x) > 0.01f && Mathf.Abs(edge.y) > 0.01f) {
+                ramps++;
+                Assert.That(Mathf.Abs(Mathf.Atan2(edge.y, edge.x) * Mathf.Rad2Deg) % 90f, Is.EqualTo(45f).Within(0.01f), "a 45° ramp");
+            }
+        }
+        Assert.That(ramps, Is.EqualTo(2), "a ramp up and a ramp down");
+
+        MeshRenderer face = hill.GetComponent<MeshRenderer>();
+        Assert.That(face.sortingLayerName, Is.EqualTo(EnvironmentLayers.Level));
+        Assert.That(face.sharedMaterial.shader.name, Does.Contain("Sprite-Lit"), "lit like the blocks");
+        Assert.That(hill.GetComponent<MeshFilter>().sharedMesh, Is.Not.Null, "the face is built from the polygon");
+        Assert.That(hill.GetComponent("ShadowCaster2D"), Is.Not.Null, "it casts a shadow");
+    }
+
+    [UnityTest]
+    public IEnumerator WalkingAndRunningOverTheHillGetsToTheFarSideOnFoot() {
+        Transform root = Playground();
+        float floorTop = root.Find("Floor").GetComponent<BoxCollider2D>().bounds.max.y;
+        Bounds hill = root.Find("Hill").GetComponent<PolygonCollider2D>().bounds;
+        foreach (bool running in new[] { false, true }) {
+            StandOnTheFloorAt(hill.min.x - 4f, floorTop);
+            yield return Hold(0.6f);
+            Stage.Press(running ? new[] { Key.D, Key.LeftShift } : new[] { Key.D });
+            bool fell = false;
+            string fall = "";
+            float highest = float.NegativeInfinity;
+            for (float elapsed = 0f; elapsed < 14f && Body.x < hill.max.x + 1f; elapsed += ScenarioStage.FrameTime) {
+                yield return null;
+                if (!fell && Stage.Character.CurrentState is AirborneState) {
+                    fell = true;
+                    fall = $" at {Body.x - hill.min.x:F2} along the hill, {Body.y - floorTop:F2} above the floor, slope {Stage.Stride.SlopeGradient:F2}, speed {Stage.Stride.GroundSpeed:F2}";
+                }
+                highest = Mathf.Max(highest, Stage.Stride.StanceHeight);
+            }
+            Stage.ReleaseAll();
+            Report($"{(running ? "ran" : "walked")} over the hill to {Body.x - hill.max.x:F2} past it, highest stance {highest - floorTop:F2} above the floor, fell {fell}{fall}");
+            Assert.That(Body.x, Is.GreaterThan(hill.max.x + 1f), "over the hill to the far side");
+            Assert.That(highest - floorTop, Is.EqualTo(HillHeight).Within(0.1f), "up on its top on the way");
+            Assert.That(fell, Is.False, "on foot all the way");
+            yield return Hold(0.5f);
         }
     }
 

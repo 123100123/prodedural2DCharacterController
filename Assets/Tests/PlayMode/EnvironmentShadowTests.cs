@@ -117,10 +117,10 @@ public class EnvironmentShadowTests {
         string folder = System.IO.Path.Combine(Application.dataPath, "..", "Temp", "LocomotionScenarios");
         System.IO.Directory.CreateDirectory(folder);
         Bounds bounds = floor.GetComponent<BoxCollider2D>().bounds;
-        (string name, float along)[] views = { ("playground", 24f), ("playground-platforms", 66f), ("playground-pit", 104f) };
-        foreach ((string name, float along) view in views) {
+        (string name, float along, float size)[] views = { ("playground", 24f, 13.1f), ("playground-platforms", 66f, 13.1f), ("playground-pit", 104f, 13.1f), ("playground-hill", 107.5f, 6f) };
+        foreach ((string name, float along, float size) view in views) {
             Vector2 center = new Vector2(bounds.min.x + view.along, bounds.max.y + 3f);
-            System.IO.File.WriteAllBytes(System.IO.Path.Combine(folder, view.name + ".png"), Capture(center, 13.1f).EncodeToPNG());
+            System.IO.File.WriteAllBytes(System.IO.Path.Combine(folder, view.name + ".png"), Capture(center, view.size).EncodeToPNG());
         }
         yield return null;
     }

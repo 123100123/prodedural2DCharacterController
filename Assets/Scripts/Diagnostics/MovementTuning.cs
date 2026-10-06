@@ -25,6 +25,7 @@ public sealed class MovementTuning {
     private readonly PushSettings push;
     private readonly RollSettings roll;
     private readonly ClimbSettings climb;
+    private readonly SlopeSettings slope;
 
     public MovementTuning(CharacterParts parts) {
         stride = parts.Stride;
@@ -51,6 +52,7 @@ public sealed class MovementTuning {
         push = parts.Push;
         roll = parts.Roll;
         climb = parts.ClimbSettings;
+        slope = parts.Slope;
     }
 
     public MovementPreset Capture() {
@@ -78,6 +80,7 @@ public sealed class MovementTuning {
             push = push.Clone(),
             roll = roll.Clone(),
             climb = climb.Clone(),
+            slope = slope.Clone(),
             transitions = stride.Transitions,
             balance = stride.Balance,
             idle = stride.IdleStance,
@@ -115,6 +118,7 @@ public sealed class MovementTuning {
         push.CopyFrom(preset.push);
         roll.CopyFrom(preset.roll);
         climb.CopyFrom(preset.climb);
+        slope.CopyFrom(preset.slope);
         stride.Transitions = preset.transitions;
         stride.Balance = preset.balance;
         stride.IdleStance = preset.idle;

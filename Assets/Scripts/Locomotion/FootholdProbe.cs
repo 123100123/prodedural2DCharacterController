@@ -92,6 +92,14 @@ public static class FootholdProbe {
         return isGroundHit;
     }
 
+    // The ground point and the surface's normal there (how steep the ground is).
+    public static bool TryFindGroundBelow((Vector2 origin, float maxDistance) ray, (LayerMask mask, OneWaySupport support) ground, out Vector2 groundPoint, out Vector2 normal) {
+        bool isGroundHit = TryFindGroundHitBelow(ray, ground, out RaycastHit2D hit);
+        groundPoint = isGroundHit ? hit.point : default;
+        normal = isGroundHit ? hit.normal : Vector2.up;
+        return isGroundHit;
+    }
+
     // The ground hit itself, for what the ground is (e.g. a one-way platform to drop through).
     public static bool TryFindGroundHitBelow((Vector2 origin, float maxDistance) ray, (LayerMask mask, OneWaySupport support) ground, out RaycastHit2D hit) {
         hit = OneWayFilter.Raycast((ray.origin, Vector2.down, ray.maxDistance), ground.mask, ground.support);

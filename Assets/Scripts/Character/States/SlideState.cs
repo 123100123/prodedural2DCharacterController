@@ -4,7 +4,9 @@ using UnityEngine;
 // ahead along the ground, the trail leg folded under, the torso leaning back with the back hand trailing near the ground
 // and the front hand held forward. Friction slows it; it ends into the crouch walk (or the stand, crouch released where
 // there is room), stops against a wall, leaves a ledge into a fall, and a jump launches out of it with its momentum.
-// The body moves through the motor with the crouch hull (the crouch is held for the whole slide), like the roll.
+// The body moves through the motor with the crouch hull (the crouch is held for the whole slide), like the roll. On a
+// slope it travels along the surface, gaining speed downhill and losing it uphill (SlopeMath.SlideSpeed), and the feet
+// and the trailing hand keep to the slope.
 public sealed class SlideState : ICharacterState {
     // The ground ray starts this far above the body pivot.
     private const float GroundProbeHeadroom = 0.5f;
@@ -20,6 +22,8 @@ public sealed class SlideState : ICharacterState {
     private int direction;
     private float speed;
     private float groundY;
+    // The slope of the ground under the body (rise per unit of x; 0 on flat ground).
+    private float gradient;
     private float readyAt = float.NegativeInfinity;
     private bool isAiming;
     private (LegStepper lead, LegStepper trail) legs;
@@ -66,9 +70,10 @@ public sealed class SlideState : ICharacterState {
 
     public void Enter() {
         StrideController stride = context.Rig.Stride;
-        groundY = stride.StanceHeight;
+        groundY = stride.GroundUnderBody;
+        gradient = stride.SlopeGradient;
         legs = stride.LegsOrderedByFacing(direction);
-        context.Rig.Motor.Velocity = new Vector2(speed * direction, 0f);
+        context.Rig.Motor.Velocity = SlideVelocity;
         context.Rig.Facing.FaceToward(direction);
         context.Rig.HoldsFacing = true;
         context.Rig.Events.RaiseSlideStarted((new Vector2(context.Rig.Body.position.x, groundY), direction));
@@ -78,6 +83,7 @@ public sealed class SlideState : ICharacterState {
         isAiming = commands.IsAiming;
 
         speed = SlidePolicy.NextSpeed(speed, deltaTime, settings.slide);
+        speed = SlopeMath.SlideSpeed(speed, (gradient, direction, deltaTime), context.Rig.Stride.Slope);
         bool blocked = !commands.JumpPressed && TravelIsBlocked(deltaTime);
         bool groundLost = !TryFollowGround();
         bool roomToStand = !commands.CrouchRequested && HasRoomToStand();
@@ -110,7 +116,7 @@ public sealed class SlideState : ICharacterState {
 
     // The walk reads the slide's speed on entry; the flight is handed its own velocity after the change.
     public void Exit() {
-        context.Rig.Motor.Velocity = new Vector2(speed * direction, 0f);
+        context.Rig.Motor.Velocity = new Vector2(SlideVelocity.x, 0f);
         context.Rig.AirPose = AirPoseFrame.None;
         context.Rig.HoldsFacing = false;
         readyAt = Time.time + settings.slide.cooldown;
@@ -119,11 +125,14 @@ public sealed class SlideState : ICharacterState {
 
     // ---- Motion ----------------------------------------------------------------------------------------------
 
-    // The hull slides along the ground at the slide speed; geometry ahead stops it.
+    // Along the ground at the slide speed (up or down a slope along its surface).
+    private Vector2 SlideVelocity => speed * SlopeMath.AlongSurface(gradient, direction);
+
+    // The hull slides along the ground at the slide speed; geometry ahead stops it, a slope it can walk on does not.
     private bool TravelIsBlocked(float deltaTime) {
         KinematicBodyMotor motor = context.Rig.Motor;
-        motor.Velocity = new Vector2(speed * direction, 0f);
-        motor.MoveWithCollisions(deltaTime);
+        motor.Velocity = SlideVelocity;
+        motor.MoveWithCollisions(deltaTime, context.Rig.Stride.Slope.maxSlopeAngle);
         if (speed > 0f && Mathf.Approximately(motor.Velocity.x, 0f)) {
             speed = 0f;
             return true;
@@ -136,12 +145,16 @@ public sealed class SlideState : ICharacterState {
         Transform body = context.Rig.Body;
         Vector2 origin = (Vector2)body.position + Vector2.up * GroundProbeHeadroom;
         float depth = GroundProbeHeadroom + Mathf.Max(0f, body.position.y - groundY) + context.Rig.Stride.MaxStepDown;
-        if (!FootholdProbe.TryFindGroundBelow((origin, depth), context.Rig.Stride.GroundAt(groundY), out Vector2 ground)) {
+        if (!FootholdProbe.TryFindGroundBelow((origin, depth), context.Rig.Stride.GroundAt(groundY), out Vector2 ground, out Vector2 normal)) {
             return false;
         }
         groundY = ground.y;
+        gradient = SlopeMath.IsSloped(normal, context.Rig.Stride.Slope.maxSlopeAngle) ? SlopeMath.Gradient(normal) : 0f;
         return true;
     }
+
+    // The ground's height at x, along the slope under the body.
+    private float GroundLineAt(float x) => groundY + gradient * (x - context.Rig.Body.position.x);
 
     // The pelvis eases down into the slide and then rides the ground at the slide height.
     private void FollowGroundHeight(float deltaTime) {
@@ -201,17 +214,19 @@ public sealed class SlideState : ICharacterState {
 
     // A foot at its offset from the pelvis along the slide, never below the ground nor further than the leg reaches.
     private Vector2 FootOnGround((LegStepper leg, Vector2 offset) foot) {
-        Vector2 wanted = new Vector2(context.Rig.Body.position.x + foot.offset.x * direction, groundY + foot.offset.y);
+        float wantedX = context.Rig.Body.position.x + foot.offset.x * direction;
+        Vector2 wanted = new Vector2(wantedX, GroundLineAt(wantedX) + foot.offset.y);
         Vector2 hip = foot.leg.HipPosition;
         Vector2 reached = hip + Vector2.ClampMagnitude(wanted - hip, foot.leg.LegLength * MaxLimbExtension);
-        return new Vector2(reached.x, Mathf.Max(reached.y, groundY));
+        return new Vector2(reached.x, Mathf.Max(reached.y, GroundLineAt(reached.x)));
     }
 
     // The back hand trails behind near the ground; the front hand is held forward for balance.
     private void PoseArms() {
         SlideSettings slide = settings.slide;
         ArmLimb back = context.Rig.BackArm;
-        Vector2 trailing = new Vector2(back.ShoulderPosition.x + slide.trailingHand.x * direction, groundY + slide.trailingHand.y);
+        float trailingX = back.ShoulderPosition.x + slide.trailingHand.x * direction;
+        Vector2 trailing = new Vector2(trailingX, GroundLineAt(trailingX) + slide.trailingHand.y);
         back.ReachToward(back.ShoulderPosition + Vector2.ClampMagnitude(trailing - back.ShoulderPosition, back.Reach * MaxLimbExtension));
 
         ArmLimb front = context.Rig.FrontArm;

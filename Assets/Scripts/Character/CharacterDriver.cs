@@ -43,6 +43,8 @@ public class CharacterDriver : MonoBehaviour {
     [SerializeField] private SlideSettings slide = new SlideSettings();
     [Tooltip("Pushing crates (dynamic bodies) by walking into them.")]
     [SerializeField] private PushSettings push = new PushSettings();
+    [Tooltip("Walking, running, sliding and rolling on slopes, and the feet on them.")]
+    [SerializeField] private SlopeSettings slope = new SlopeSettings();
 
     [Header("Shooting")]
     [SerializeField] private ShootingSettings shooting = new ShootingSettings();
@@ -78,7 +80,7 @@ public class CharacterDriver : MonoBehaviour {
 
     public CharacterEvents Events { get; private set; }
     // What debug and tuning tools need; the character never reads anything back from them.
-    public CharacterParts Parts => new CharacterParts((stride, posture, torsoMotion, head, armSwing), (crouch, postureRoot), (jump, airborne, states?.Airborne, (airPose, fallSecondary), landing), (shooting, pistol, (weapon, weaponController)), (cameraFeel, followCamera), effects, audioSettings, (wall, states?.WallSlide), (slide, states?.Slide), (ledgeHang, oneWay, states?.Climb), (push, cratePusher, pushPose), (roll, climb));
+    public CharacterParts Parts => new CharacterParts((stride, posture, torsoMotion, head, armSwing), (crouch, postureRoot), (jump, airborne, states?.Airborne, (airPose, fallSecondary), landing), (shooting, pistol, (weapon, weaponController)), (cameraFeel, followCamera), effects, audioSettings, (wall, states?.WallSlide), (slide, states?.Slide), (ledgeHang, oneWay, states?.Climb), (push, cratePusher, pushPose), (roll, climb, slope));
     public PlayerCommands LatestCommands => latestCommands;
     // The full-body state the character is in; null until the character is composed.
     public ICharacterState CurrentState => machine?.Current;
@@ -205,6 +207,7 @@ public class CharacterDriver : MonoBehaviour {
         CharacterFacing facing = new CharacterFacing((transform, authoredFacingSign));
         motor.Bind(stride.transform);
         stride.OneWay = new OneWayPassage(oneWay);
+        stride.Slope = slope;
         stride.Connect((Events, facing));
         frontArm.Initialize(authoredFacingSign);
         backArm.Initialize(authoredFacingSign);

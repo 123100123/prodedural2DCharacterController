@@ -299,7 +299,43 @@ public static class EnvironmentSetup {
                 total++;
             }
         }
-        return $"Shadow casters: {total} level blocks cast onto {string.Join(", ", EnvironmentLayers.ShadowedByBlocks)} ({added} added).";
+        int shapes = 0;
+        foreach (GameObject root in scene.GetRootGameObjects()) {
+            if (root.name == BackgroundRoot) {
+                continue;
+            }
+            // Ground shaped by a polygon (a hill): the caster takes the polygon's outline.
+            foreach (GroundPolygonMesh ground in root.GetComponentsInChildren<GroundPolygonMesh>(true)) {
+                Component caster = ground.GetComponent(casterType);
+                if (caster == null) {
+                    caster = ground.gameObject.AddComponent(casterType);
+                    added++;
+                }
+                SetTargetLayers(caster, targets);
+                ShapeLikeThePolygon(caster, ground.GetComponent<PolygonCollider2D>());
+                shapes++;
+            }
+        }
+        return $"Shadow casters: {total} level blocks and {shapes} ground shapes cast onto {string.Join(", ", EnvironmentLayers.ShadowedByBlocks)} ({added} added).";
+    }
+
+    // The caster's outline is the polygon's path, set explicitly (its shape editor source), whatever source it picked.
+    private static void ShapeLikeThePolygon(Component caster, PolygonCollider2D polygon) {
+        const int ShapeEditorSource = 1;
+        Vector2[] path = polygon.GetPath(0);
+        SerializedObject serialized = new SerializedObject(caster);
+        serialized.FindProperty("m_ShadowCastingSource").intValue = ShapeEditorSource;
+        SerializedProperty shape = serialized.FindProperty("m_ShapePath");
+        shape.arraySize = path.Length;
+        int hash = 17;
+        for (int index = 0; index < path.Length; index++) {
+            Vector2 point = path[index] + polygon.offset;
+            shape.GetArrayElementAtIndex(index).vector3Value = point;
+            hash = hash * 31 + point.GetHashCode();
+        }
+        serialized.FindProperty("m_ShapePathHash").intValue = hash;
+        serialized.ApplyModifiedProperties();
+        EditorUtility.SetDirty(caster);
     }
 
     private static void SetTargetLayers(Component caster, int[] layerIds) {

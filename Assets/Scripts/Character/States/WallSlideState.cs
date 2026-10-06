@@ -162,7 +162,7 @@ public sealed class WallSlideState : ICharacterState {
 
     private WallProbe.Contact Probe(int side) {
         KinematicBodyMotor motor = context.Rig.Motor;
-        return WallProbe.Touch((context.Rig.Body.position, side, motor.HullHalfWidth), (settings, motor.SolidMask));
+        return WallProbe.Touch((context.Rig.Body.position, side, motor.HullHalfWidth), (settings, motor.SolidMask, context.Rig.Stride.Slope.maxSlopeAngle));
     }
 
     // Gap between where the standing feet would be and the ground below; infinity when the ground is further than

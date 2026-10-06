@@ -7,6 +7,10 @@ using UnityEngine;
 public class KinematicBodyMotor {
     // The gap the hull keeps from geometry it moves against.
     public const float SkinWidth = 0.02f;
+    // No surface is a walkable slope: every hit blocks (the airborne and wall moves).
+    public const float NoSlopes = -1f;
+    // How far above a hull contact the check for the surface under it starts.
+    private const float SlopeCheckHeight = 0.05f;
 
     [Tooltip("Hull size: covers the torso and head, not the legs (feet handle ground contact).")]
     [SerializeField] private Vector2 hullSize = new Vector2(0.8f, 2.45f);
@@ -55,10 +59,14 @@ public class KinematicBodyMotor {
     }
 
     // Moves horizontally then vertically; a blocked axis loses its velocity.
-    public void MoveWithCollisions(float deltaTime) {
+    public void MoveWithCollisions(float deltaTime) => MoveWithCollisions(deltaTime, NoSlopes);
+
+    // As above, for a body travelling along the ground (a slide, a roll): slopes no steeper than maxSlopeAngle are ground
+    // to travel along, not walls, so they do not stop the sideways move.
+    public void MoveWithCollisions(float deltaTime, float maxSlopeAngle) {
         Vector2 delta = Velocity * deltaTime;
-        float movedX = MoveAlongAxis(Vector2.right * Mathf.Sign(delta.x), Mathf.Abs(delta.x));
-        float movedY = MoveAlongAxis(Vector2.up * Mathf.Sign(delta.y), Mathf.Abs(delta.y));
+        float movedX = MoveAlongAxis((Vector2.right * Mathf.Sign(delta.x), maxSlopeAngle), Mathf.Abs(delta.x));
+        float movedY = MoveAlongAxis((Vector2.up * Mathf.Sign(delta.y), NoSlopes), Mathf.Abs(delta.y));
 
         Velocity = new Vector2(
             Mathf.Approximately(movedX, Mathf.Abs(delta.x)) ? Velocity.x : 0f,
@@ -75,29 +83,33 @@ public class KinematicBodyMotor {
     }
 
     // How far the hull can travel sideways before touching geometry, up to maxDistance.
-    public float FreeDistance(float direction, float maxDistance) {
-        RaycastHit2D hit = CastHull((Vector2.right * Mathf.Sign(direction), maxDistance + SkinWidth));
-        return hit.collider == null ? maxDistance : Mathf.Max(0f, hit.distance - SkinWidth);
+    public float FreeDistance(float direction, float maxDistance) => FreeDistance(direction, (maxDistance, NoSlopes));
+
+    // As above, with walkable slopes (no steeper than maxSlopeAngle, e.g. a ramp ahead) not counting as walls.
+    public float FreeDistance(float direction, (float maxDistance, float maxSlopeAngle) cast) {
+        RaycastHit2D hit = CastHull((Vector2.right * Mathf.Sign(direction), cast.maxDistance + SkinWidth), cast.maxSlopeAngle);
+        return hit.collider == null ? cast.maxDistance : Mathf.Max(0f, hit.distance - SkinWidth);
     }
 
-    private float MoveAlongAxis(Vector2 direction, float distance) {
+    private float MoveAlongAxis((Vector2 direction, float maxSlopeAngle) axis, float distance) {
         if (distance <= 0f) {
             return 0f;
         }
 
-        float allowed = FreeTravel((direction, distance));
-        body.position += (Vector3)(direction * allowed);
+        float allowed = FreeTravel((axis.direction, distance), axis.maxSlopeAngle);
+        body.position += (Vector3)(axis.direction * allowed);
         return allowed;
     }
 
-    private float FreeTravel((Vector2 direction, float distance) motion) {
-        RaycastHit2D hit = CastHull((motion.direction, motion.distance + SkinWidth));
+    private float FreeTravel((Vector2 direction, float distance) motion, float maxSlopeAngle) {
+        RaycastHit2D hit = CastHull((motion.direction, motion.distance + SkinWidth), maxSlopeAngle);
         return hit.collider == null ? motion.distance : Mathf.Max(0f, hit.distance - SkinWidth);
     }
 
     // Geometry the hull already overlaps (distance 0) does not block, so the hull can move out instead of sticking,
-    // and it must not hide real obstacles further along the cast.
-    private RaycastHit2D CastHull((Vector2 direction, float distance) cast) {
+    // and it must not hide real obstacles further along the cast. Hits on a walkable slope (no steeper than
+    // maxSlopeAngle; NoSlopes for none) do not block either.
+    private RaycastHit2D CastHull((Vector2 direction, float distance) cast, float maxSlopeAngle) {
         Rect hull = CurrentHull;
         ContactFilter2D filter = new ContactFilter2D { useLayerMask = true, layerMask = solidMask };
         int hitCount = Physics2D.CapsuleCast(hull.center, hull.size, CapsuleDirection2D.Vertical, 0f, cast.direction, filter, hullHits, cast.distance);
@@ -105,10 +117,22 @@ public class KinematicBodyMotor {
         RaycastHit2D nearest = default;
         for (int index = 0; index < hitCount; index++) {
             RaycastHit2D hit = hullHits[index];
-            if (hit.distance > 0f && (nearest.collider == null || hit.distance < nearest.distance) && !OneWayPlatform.IsOneWay(hit.collider)) {
+            bool isCloser = hit.distance > 0f && (nearest.collider == null || hit.distance < nearest.distance);
+            if (isCloser && !OneWayPlatform.IsOneWay(hit.collider) && !(maxSlopeAngle > 0f && IsSlopeFace(hit, maxSlopeAngle))) {
                 nearest = hit;
             }
         }
         return nearest;
+    }
+
+    // A hull contact on a sloped face (a ramp), not on a corner: the ground straight under the contact is the same sloped
+    // surface. A box corner the rounded hull touches gives a tilted contact normal, but the ground under it is flat (its
+    // top), so a wall stays a wall.
+    private bool IsSlopeFace(RaycastHit2D hit, float maxSlopeAngle) {
+        if (!SlopeMath.IsSloped(hit.normal, maxSlopeAngle)) {
+            return false;
+        }
+        RaycastHit2D under = Physics2D.Raycast(hit.point + Vector2.up * SlopeCheckHeight, Vector2.down, 2f * SlopeCheckHeight, solidMask);
+        return under.collider == hit.collider && under.distance > 0f && SlopeMath.IsSloped(under.normal, maxSlopeAngle);
     }
 }

@@ -2,6 +2,8 @@ using UnityEngine;
 
 // Dive roll: dive forward with both arms reaching ahead, plant the hands on the ground, roll forward over the shoulders,
 // then bring the feet back to the ground and hand over to walking. Each phase eases from where the previous one left off.
+// On a slope the roll travels along the surface and keeps the body clear of the slope line, not just of the ground
+// under the pivot.
 public sealed class RollState : ICharacterState {
     private enum RollPhase { Dive, HandContact, Roll, Recover }
 
@@ -18,6 +20,8 @@ public sealed class RollState : ICharacterState {
     private int direction;
     private float speed;
     private float groundY;
+    // The slope of the ground under the body (rise per unit of x; 0 on flat ground).
+    private float gradient;
     private float pitch;
     private float chestCurl;
     private (float pitch, float height) phaseStart;
@@ -44,7 +48,8 @@ public sealed class RollState : ICharacterState {
         uprightPose = (context.Rig.Body.localRotation, context.Rig.Chest.localRotation);
         bodySpacePose = LimbPoseInBodySpace();
         legs = context.Rig.Stride.LegsOrderedByFacing(direction);
-        groundY = context.Rig.Stride.StanceHeight;
+        groundY = context.Rig.Stride.GroundUnderBody;
+        gradient = context.Rig.Stride.SlopeGradient;
         (pitch, chestCurl, speed) = (0f, 0f, settings.diveSpeed);
         context.Rig.Motor.Velocity = Vector2.zero;
         StartPhase(RollPhase.Dive);
@@ -148,8 +153,8 @@ public sealed class RollState : ICharacterState {
     private void TravelForward(float deltaTime) {
         KinematicBodyMotor motor = context.Rig.Motor;
         speed = Mathf.Lerp(speed, PhaseSpeed(), FrameRateEase.FractionForFrame(settings.speedEase, deltaTime));
-        motor.Velocity = new Vector2(speed * direction, 0f);
-        motor.MoveWithCollisions(deltaTime);
+        motor.Velocity = speed * SlopeMath.AlongSurface(gradient, direction);
+        motor.MoveWithCollisions(deltaTime, context.Rig.Stride.Slope.maxSlopeAngle);
     }
 
     // No ground within reach under the body means the roll left a ledge.
@@ -158,12 +163,16 @@ public sealed class RollState : ICharacterState {
         Vector2 origin = (Vector2)body.position + Vector2.up * GroundProbeHeadroom;
         float depth = GroundProbeHeadroom + (body.position.y - groundY) + settings.maxGroundDrop;
 
-        if (!FootholdProbe.TryFindGroundBelow((origin, depth), context.Rig.Stride.GroundAt(groundY), out Vector2 ground)) {
+        if (!FootholdProbe.TryFindGroundBelow((origin, depth), context.Rig.Stride.GroundAt(groundY), out Vector2 ground, out Vector2 normal)) {
             return false;
         }
         groundY = ground.y;
+        gradient = SlopeMath.IsSloped(normal, context.Rig.Stride.Slope.maxSlopeAngle) ? SlopeMath.Gradient(normal) : 0f;
         return true;
     }
+
+    // The ground's height at x, along the slope under the body.
+    private float GroundLineAt(float x) => groundY + gradient * (x - context.Rig.Body.position.x);
 
     // Pitch and height move from where the phase started toward the phase's targets, so phases blend without snapping.
     // Rotations are in the rig's authored space; mirroring the root makes them a forward roll for either facing.
@@ -183,14 +192,20 @@ public sealed class RollState : ICharacterState {
         body.position = new Vector3(body.position.x, Mathf.Max(easedY, contactY), body.position.z);
     }
 
-    // The body rolls over its head, shoulders, back and hips: the pivot rises as far as needed to keep them on top of the ground.
+    // The body rolls over its head, shoulders, back and hips: the pivot rises as far as needed to keep them on top of the
+    // ground (on a slope, of the ground under each of them).
     private float LowestClearBodyY() {
-        float pivotY = context.Rig.Body.position.y;
         float deepestBelowPivot = Mathf.Max(
-            Mathf.Max(pivotY - context.Rig.Head.CrownPosition.y, pivotY - context.Rig.Chest.position.y),
-            Mathf.Max(pivotY - context.Rig.FrontArm.ShoulderPosition.y, pivotY - context.Rig.BackArm.ShoulderPosition.y));
+            Mathf.Max(DepthBelowPivot(context.Rig.Head.CrownPosition), DepthBelowPivot(context.Rig.Chest.position)),
+            Mathf.Max(DepthBelowPivot(context.Rig.FrontArm.ShoulderPosition), DepthBelowPivot(context.Rig.BackArm.ShoulderPosition)));
         float hipsClearance = settings.hipRadius - settings.groundClearance;
         return groundY + Mathf.Max(deepestBelowPivot, hipsClearance) + settings.groundClearance;
+    }
+
+    // How far below the pivot a body point is, measured against the slope line: a point over higher ground counts as deeper.
+    private float DepthBelowPivot(Vector2 point) {
+        Vector2 pivot = context.Rig.Body.position;
+        return pivot.y - point.y + gradient * (point.x - pivot.x);
     }
 
     private void CurlChest(float deltaTime) {
@@ -298,7 +313,7 @@ public sealed class RollState : ICharacterState {
         legs.trail.SwingFreelyToward(KeepAboveGround(body.TransformPoint(pose.trail)), ease);
     }
 
-    private Vector2 KeepAboveGround(Vector2 point) => new Vector2(point.x, Mathf.Max(point.y, groundY));
+    private Vector2 KeepAboveGround(Vector2 point) => new Vector2(point.x, Mathf.Max(point.y, GroundLineAt(point.x)));
 
     // Limb offsets are authored relative to the upright body, then carried in body space so they turn with it.
     private (Vector2 leadExtended, Vector2 trailExtended, Vector2 leadTucked, Vector2 trailTucked, Vector2 hands) LimbPoseInBodySpace() {

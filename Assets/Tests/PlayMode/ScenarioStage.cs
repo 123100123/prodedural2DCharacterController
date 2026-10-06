@@ -100,6 +100,16 @@ public sealed class ScenarioStage {
         return top;
     }
 
+    // A hill on the track from startX: a ramp rising at the given angle (degrees) to a flat top the given height above the
+    // track and topWidth wide, then a ramp down at the same angle. One PolygonCollider2D, like the playground's hill.
+    public Hill AddHill((float startX, float height, float angle, float topWidth) hill) {
+        Hill made = new Hill((hill.startX, GroundTop), (hill.height, hill.angle, hill.topWidth));
+        GameObject block = new GameObject("scenarioHill");
+        block.AddComponent<PolygonCollider2D>().points = made.Outline();
+        block.AddComponent<GroundPolygonMesh>().Configure((null, new Color(0.35f, 0.38f, 0.45f, 1f)));
+        return made;
+    }
+
     // A crate (PushableCrate: a dynamic body) standing on the track, its face toward the character at faceX and the crate
     // reaching away from it toward side (+1 right of the face, -1 left). Returns its body.
     public Rigidbody2D AddCrate((float faceX, int side) face, (Vector2 size, float mass) crate) {
@@ -225,6 +235,10 @@ public sealed class ScenarioStage {
 
     private static void ReplaceLevelWithTestTrack() {
         foreach (BoxCollider2D ground in Object.FindObjectsByType<BoxCollider2D>(FindObjectsSortMode.None)) {
+            ground.gameObject.SetActive(false);
+        }
+        // The level's sloped ground (the playground hill) too.
+        foreach (PolygonCollider2D ground in Object.FindObjectsByType<PolygonCollider2D>(FindObjectsSortMode.None)) {
             ground.gameObject.SetActive(false);
         }
         CreateBlock(new Vector2(0f, GroundTop - 0.5f), new Vector2(2f * TrackHalfLength, 1f));

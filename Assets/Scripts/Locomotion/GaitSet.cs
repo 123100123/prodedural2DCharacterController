@@ -10,6 +10,16 @@ public readonly struct GaitSet {
         Crouch = profiles.crouch;
         Transitions = transitions;
         CrouchShare = Mathf.Clamp01(crouchShare);
+        Slope = SlopeGait.Flat;
+    }
+
+    private GaitSet(GaitSet gaits, SlopeGait slope) {
+        Walk = gaits.Walk;
+        Run = gaits.Run;
+        Crouch = gaits.Crouch;
+        Transitions = gaits.Transitions;
+        CrouchShare = gaits.CrouchShare;
+        Slope = slope;
     }
 
     public GaitProfile Walk { get; }
@@ -18,6 +28,16 @@ public readonly struct GaitSet {
     public GaitTransitionSettings Transitions { get; }
     // 0 standing, 1 fully crouched.
     public float CrouchShare { get; }
+    // The slope under the gait (flat unless OnSlope gave one): it scales the speeds the gait heads for and shortens its
+    // steps. The paces (walking, running, crouching) are measured on the flat-ground speed a slope speed stands for, so a
+    // run up a hill is still a run, only slower.
+    public SlopeGait Slope { get; }
+
+    // The same gaits on a slope.
+    public GaitSet OnSlope(SlopeGait slope) => new GaitSet(this, slope);
+
+    // The flat-ground speed a horizontal speed on the slope stands for.
+    public float PaceSpeed(float speed) => Slope.IsFlat ? speed : speed / Slope.SpeedScale(Mathf.Sign(speed));
 
     // A walk and run pair with no crouch, as the gait was before crouching existed.
     public static implicit operator GaitSet((GaitProfile walk, GaitProfile run, GaitTransitionSettings transitions) gaits) {
@@ -29,7 +49,7 @@ public readonly struct GaitSet {
     // the speed) and the crouch gait takes over only as it reaches a crouch walk; the pelvis, which follows the crouch
     // share directly, drops at once.
     public float CrouchWeightAt(float speed) {
-        float fade = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(Crouch.speed, Mathf.Max(Crouch.speed + 0.01f, Walk.speed), Mathf.Abs(speed)));
+        float fade = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(Crouch.speed, Mathf.Max(Crouch.speed + 0.01f, Walk.speed), Mathf.Abs(PaceSpeed(speed))));
         return CrouchShare * (1f - fade);
     }
 
@@ -38,15 +58,15 @@ public readonly struct GaitSet {
     public float ReferenceSpeedAt(float speed) => Mathf.Lerp(Walk.speed, Crouch.speed, CrouchWeightAt(speed));
 
     // 0 standing, 1 at the reference speed and above.
-    public float MovingAt(float speed) => Mathf.Clamp01(Mathf.Abs(speed) / Mathf.Max(0.01f, ReferenceSpeedAt(speed)));
+    public float MovingAt(float speed) => Mathf.Clamp01(Mathf.Abs(PaceSpeed(speed)) / Mathf.Max(0.01f, ReferenceSpeedAt(speed)));
 
     // The walk-to-run blend the speed asks for (none while the crouch gait is in use: it is slower than a walk).
-    public float RunningAt(float speed) => LocomotionPace.RunningAt(speed, (Walk, Run, Transitions));
+    public float RunningAt(float speed) => LocomotionPace.RunningAt(PaceSpeed(speed), (Walk, Run, Transitions));
 
     // The gait in use at a speed, with the walk-to-run blend the body has actually reached.
     public GaitProfile At(float speed, float runningShare) {
         GaitProfile standing = GaitProfile.Blend((Walk, Run), runningShare);
-        return GaitProfile.Blend((standing, Crouch), CrouchWeightAt(speed));
+        return Slope.Shorten(GaitProfile.Blend((standing, Crouch), CrouchWeightAt(speed)));
     }
 
     // The gait the body settles into at a speed.
@@ -55,6 +75,6 @@ public readonly struct GaitSet {
     // The speed to head for: the walk or run speed, or the crouch speed as far as the character is crouched.
     public float TargetSpeed((float direction, bool running) intent) {
         float standing = intent.direction * (intent.running ? Run.speed : Walk.speed);
-        return Mathf.Lerp(standing, intent.direction * Crouch.speed, CrouchShare);
+        return Mathf.Lerp(standing, intent.direction * Crouch.speed, CrouchShare) * Slope.SpeedScale(Mathf.Sign(intent.direction));
     }
 }

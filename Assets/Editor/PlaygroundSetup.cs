@@ -5,8 +5,8 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 
 // Builds a showcase area at the right end of the level in the open scene, to try the moves on: a pit to wall-jump out of,
-// a low ceiling to slide under, a ledge to hang from, one-way platforms to drop through, two crates to push, three
-// targets to shoot and a lamp. Everything is idempotent (one "Playground" root whose children are replaced on a rebuild,
+// a low ceiling to slide under, a ledge to hang from, one-way platforms to drop through, a 45° hill to walk, run, slide
+// and roll over, two crates to push, three targets to shoot and a lamp. Everything is idempotent (one "Playground" root whose children are replaced on a rebuild,
 // undo-registered) and Build() refuses a scene with unsaved changes, like EnvironmentSetup, so a scripted save never
 // carries edits that were not made here. Run it from Tools > Procedural Character > Build Playground, or through the MCP.
 //
@@ -43,15 +43,23 @@ public static class PlaygroundSetup {
     private const float LedgeHeight = 4.2f;
     private const float PlatformThickness = 0.4f;
     // The one-way platforms are a staircase a jump can climb: each top is a rise higher than the last (the held jump's
-    // feet clear about 1.7 from a standing start and 2.4 from a run) and a short hop away from the next.
+    // feet clear about 1.7 from a standing start and 2.4 from a run, so a standing jump clears each rise comfortably) and a
+    // short hop away from the next.
     private const float PlatformWidth = 6f;
-    private const float PlatformRise = 1.6f;
+    public const float PlatformRise = 1.4f;
     private const float PlatformGap = 1.5f;
     // Past the hang ledge (ending at 68), with a run-up before it.
     private const float PlatformStart = 72f;
     private const float PlatformEdgeHeight = 0.1f;
     // The clear stretch between the staircase (ending at 93) and the pit, kept for the hill section.
     private const float HillRoom = 30f;
+    // The hill: a 45° ramp up, a flat top and a 45° ramp down, with a run-up before it and flat floor after it.
+    private const float HillStart = 100f;
+    public const float HillHeight = 4.5f;
+    private const float HillTopWidth = 6f;
+    // The hill's polygon reaches this far into the floor under it, so no seam shows between them.
+    private const float HillFooting = 0.5f;
+    private static readonly Color HillTint = new Color(0.86f, 0.86f, 0.86f, 1f);
     private const float PitLeft = 94f + HillRoom;
     private const float PitWallWidth = 6f;
     private const float PitGap = 2.8f;
@@ -100,6 +108,7 @@ public static class PlaygroundSetup {
         builder.SlideCeiling();
         builder.HangLedge();
         builder.OneWayPlatforms();
+        builder.Hill();
         builder.WallJumpPit();
         string lamp = builder.Lamp();
 
@@ -257,6 +266,28 @@ public static class PlaygroundSetup {
             strip.transform.localScale = new Vector3(1f, PlatformEdgeHeight / PlatformThickness, 1f);
             strip.transform.position = new Vector3(platform.transform.position.x, Start.y + top - PlatformEdgeHeight / 2f, platform.transform.position.z);
             Dress(strip, PlatformEdgeTint, 1);
+        }
+
+        // A hill of one polygon: a 45° ramp up, a flat top and a 45° ramp down. Its face is a mesh filling the collider's
+        // outline (GroundPolygonMesh) with the level's tile and lit material on the level layer; EnvironmentSetup gives it a
+        // shadow caster shaped like the polygon.
+        public void Hill() {
+            float run = HillHeight;
+            GameObject hill = Create("Hill", new Vector3(Start.x + HillStart, Start.y, depth));
+            hill.AddComponent<PolygonCollider2D>().points = new[] {
+                new Vector2(0f, -HillFooting), new Vector2(0f, 0f), new Vector2(run, HillHeight),
+                new Vector2(run + HillTopWidth, HillHeight), new Vector2(2f * run + HillTopWidth, 0f), new Vector2(2f * run + HillTopWidth, -HillFooting),
+            };
+            hill.AddComponent<MeshFilter>();
+            MeshRenderer face = hill.AddComponent<MeshRenderer>();
+            face.sharedMaterial = lit;
+            face.sortingLayerName = EnvironmentLayers.Level;
+            face.sortingOrder = 0;
+            face.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            face.receiveShadows = false;
+            GroundPolygonMesh mesh = hill.AddComponent<GroundPolygonMesh>();
+            mesh.Configure((sprite.texture, HillTint));
+            EditorUtility.SetDirty(mesh);
         }
 
         // A pit with sheer walls just wider than the character, entered by walking off the left edge: wall-jump up between them
