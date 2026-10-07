@@ -6,7 +6,8 @@ using UnityEngine.TestTools;
 
 // Shift as a persistent run intent on the real character: the walk runs as soon as it can; Shift with no direction does
 // nothing; a tapped crouch gives way to the intent (ramping up to the run, no snap) while a held one or a low ceiling
-// does not; a roll, a landing and a climb hand their momentum on and the run takes over; aiming holds it to a walk.
+// does not; a roll, a landing and a climb hand their momentum on and the run takes over; aiming runs toward the aim side and
+// backpedalling while aiming holds it to a walk.
 // The F1 telemetry names the state, why it cannot run, and the last switch.
 public class RunIntentScenarioTests : ScenarioFixture {
     private StrideController Stride => Stage.Stride;
@@ -301,23 +302,58 @@ public class RunIntentScenarioTests : ScenarioFixture {
     }
 
     [UnityTest]
-    public IEnumerator AimingWithShiftWalksAndSaysSo() {
+    public IEnumerator BackpedallingWhileAimingWithShiftWalksAndSaysSo() {
         Stage.Press(Key.D, Key.LeftShift);
         yield return Hold(1.5f);
         Assert.That(Speed, Is.GreaterThan(Stride.Run.speed * 0.9f), "running");
 
         LocomotionTelemetry aiming = null;
         for (float elapsed = 0f; elapsed < 2.5f; elapsed += ScenarioStage.FrameTime) {
-            Stage.AimAt(Body + new Vector2(6f, 2f));
+            Stage.AimAt(Body + new Vector2(-6f, 2f));
             yield return null;
         }
         aiming = Telemetry;
-        Assert.That(Speed, Is.EqualTo(Stride.Walk.speed).Within(0.4f), "aiming slows to a walk");
-        Assert.That(aiming.Readiness.Block, Is.EqualTo(RunBlock.Aiming));
+        Assert.That(Speed, Is.EqualTo(Stride.Walk.speed).Within(0.4f), "backpedalling while aiming slows to a walk");
+        Assert.That(aiming.Readiness.Block, Is.EqualTo(RunBlock.AimingBackward));
         Assert.That(aiming.RunIntentPending, Is.True);
 
         Stage.StopAiming();
         yield return Hold(1.5f);
         Assert.That(Speed, Is.GreaterThan(Stride.Run.speed * 0.9f), "runs again");
+    }
+
+    [UnityTest]
+    public IEnumerator AimingTowardTheSideItMovesWithShiftRuns() {
+        Stage.Press(Key.D, Key.LeftShift);
+        for (float elapsed = 0f; elapsed < 2.5f; elapsed += ScenarioStage.FrameTime) {
+            Stage.AimAt(Body + new Vector2(6f, 2f));
+            yield return null;
+        }
+        LocomotionTelemetry aiming = Telemetry;
+        Report($"aiming right, running right at {Speed:F2} u/s (run {Stride.Run.speed:F2})");
+        Assert.That(aiming.StateName, Is.EqualTo("Walk"));
+        Assert.That(Speed, Is.GreaterThan(Stride.Run.speed * 0.9f), "aiming toward the run direction runs");
+        Assert.That(aiming.Readiness.CanRun, Is.True, "nothing holds the run back");
+        Assert.That(aiming.RunIntentPending, Is.False);
+    }
+
+    [UnityTest]
+    public IEnumerator ShiftPressedLateInTheClimbStillRunsOnFromTheTop() {
+        float ledgeTop = Stage.AddLedge((Body.x + 1.6f, 2.5f, 30f));
+        Stage.Press(Key.D);
+        yield return Hold(1f);
+        yield return Tap(Key.Space);
+        yield return WaitUntil(() => State is ClimbState, 1f);
+        Assert.That(State, Is.InstanceOf<ClimbState>(), "climbs");
+        yield return WaitUntil(() => Body.y > ledgeTop || !(State is ClimbState), 6f);
+        Assert.That(State, Is.InstanceOf<ClimbState>(), "the pelvis is over the ledge top and the climb is not over");
+        Stage.Press(Key.LeftShift);
+
+        yield return WaitUntil(() => State is WalkState, 6f);
+        Report($"stood on top carrying {Telemetry.CarriedSpeed:F2} u/s");
+        Assert.That(Telemetry.PreviousStateName, Is.EqualTo("Climb"));
+        Assert.That(Telemetry.CarriedSpeed, Is.GreaterThan(0f), "the late Shift started the run-on");
+        yield return Hold(2f);
+        Assert.That(Speed, Is.GreaterThan(Stride.Run.speed * 0.9f), "runs on");
     }
 }

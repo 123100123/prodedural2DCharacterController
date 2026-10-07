@@ -52,12 +52,13 @@ public class SlideTests {
     }
 
     [Test]
-    public void TheRunIntentNeedsTheRunInputAMoveAndNoAim() {
-        Assert.That(SlidePolicy.IsRunIntent((true, 1f, false)), Is.True);
-        Assert.That(SlidePolicy.IsRunIntent((true, -1f, false)), Is.True);
-        Assert.That(SlidePolicy.IsRunIntent((false, 1f, false)), Is.False, "no run input");
-        Assert.That(SlidePolicy.IsRunIntent((true, SlidePolicy.InputDeadZone * 0.5f, false)), Is.False, "no move");
-        Assert.That(SlidePolicy.IsRunIntent((true, 1f, true)), Is.False, "aiming slows to a walk");
+    public void TheRunIntentNeedsTheRunInputAMoveAndNoBackpedalWhileAiming() {
+        Assert.That(SlidePolicy.IsRunIntent((true, 1f, false, 1)), Is.True);
+        Assert.That(SlidePolicy.IsRunIntent((true, -1f, false, 1)), Is.True);
+        Assert.That(SlidePolicy.IsRunIntent((false, 1f, false, 1)), Is.False, "no run input");
+        Assert.That(SlidePolicy.IsRunIntent((true, SlidePolicy.InputDeadZone * 0.5f, false, 1)), Is.False, "no move");
+        Assert.That(SlidePolicy.IsRunIntent((true, 1f, true, 1)), Is.True, "aiming toward the side it runs");
+        Assert.That(SlidePolicy.IsRunIntent((true, 1f, true, -1)), Is.False, "backpedalling while aiming is a walk");
     }
 
     [Test]

@@ -22,7 +22,7 @@ public static class SlidePolicy {
 
         // Crouch went down this frame (the press, not a held or latched crouch).
         public bool CrouchPressed { get; }
-        // The run input is held while moving (and not aiming, which slows to a walk).
+        // The run input is held while moving (while aiming, only toward the side the character faces).
         public bool RunIntent { get; }
         // Signed ground speed of the gait (positive toward world right).
         public float GroundSpeed { get; }
@@ -56,9 +56,9 @@ public static class SlidePolicy {
         public bool RoomToStand { get; }
     }
 
-    // Holding run while moving (not aiming): the input asks for a run.
-    public static bool IsRunIntent((bool runHeld, float moveAxis, bool isAiming) input) {
-        return RunIntent.Resolve((input.runHeld, input.moveAxis)) && !input.isAiming;
+    // Holding run while moving (while aiming, only toward the side the character faces): the input asks for a run.
+    public static bool IsRunIntent((bool runHeld, float moveAxis, bool isAiming, int facing) input) {
+        return RunIntent.Resolve((input.runHeld, input.moveAxis)) && !RunIntent.AimingBackward(input.isAiming, input.moveAxis, input.facing);
     }
 
     // A crouch press on the ground, at a speed worth sliding: running (or near the run speed), faster than a slide ends,

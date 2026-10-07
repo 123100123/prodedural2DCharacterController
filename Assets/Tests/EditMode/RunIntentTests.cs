@@ -15,11 +15,13 @@ public class RunIntentTests {
     }
 
     [Test]
-    public void TheSlidesRunIntentIsTheSameRuleWithoutAiming() {
+    public void TheSlidesRunIntentIsTheSameRuleTowardTheAimSide() {
         Assert.That(SlidePolicy.InputDeadZone, Is.EqualTo(RunIntent.InputDeadZone));
-        Assert.That(SlidePolicy.IsRunIntent((true, 1f, false)), Is.True);
-        Assert.That(SlidePolicy.IsRunIntent((true, 1f, true)), Is.False, "aiming slows to a walk");
-        Assert.That(SlidePolicy.IsRunIntent((true, 0f, false)), Is.False);
+        Assert.That(SlidePolicy.IsRunIntent((true, 1f, false, 1)), Is.True);
+        Assert.That(SlidePolicy.IsRunIntent((true, 1f, true, 1)), Is.True, "aiming toward the side it moves runs");
+        Assert.That(SlidePolicy.IsRunIntent((true, -1f, true, -1)), Is.True);
+        Assert.That(SlidePolicy.IsRunIntent((true, 1f, true, -1)), Is.False, "backpedalling while aiming is a walk");
+        Assert.That(SlidePolicy.IsRunIntent((true, 0f, false, 1)), Is.False);
     }
 
     [Test]
@@ -32,7 +34,8 @@ public class RunIntentTests {
 
     [Test]
     public void TheWalkNamesWhatHoldsItBackInOrder() {
-        Assert.That(OnFeet(aiming: true, held: true).Block, Is.EqualTo(RunBlock.Aiming), "aiming first");
+        Assert.That(OnFeet(aimingBackward: true, held: true).Block, Is.EqualTo(RunBlock.AimingBackward), "backpedalling while aiming first");
+        Assert.That(OnFeet(held: true).Block, Is.EqualTo(RunBlock.CrouchHeld), "aiming forward does not block the run");
         Assert.That(OnFeet(held: true, requested: true, headroom: true).Block, Is.EqualTo(RunBlock.CrouchHeld), "a held crouch wins");
         Assert.That(OnFeet(requested: true, headroom: true).Block, Is.EqualTo(RunBlock.NoHeadroom), "a low ceiling keeps the crouch");
         Assert.That(OnFeet(tap: true).Block, Is.EqualTo(RunBlock.CrouchTap), "a press that may still be a tap");
@@ -77,12 +80,17 @@ public class RunIntentTests {
         const float smallTilt = 0.156f;
         Assert.That(smallTilt, Is.LessThan(RunIntent.InputDeadZone));
         Assert.That(RunIntent.Resolve((true, smallTilt)), Is.False, "no intent inside the dead zone");
-        Assert.That(RunIntent.GaitRuns((true, smallTilt, false)), Is.True, "but the gait runs");
-        Assert.That(RunIntent.GaitRuns((true, 0f, false)), Is.False);
-        Assert.That(RunIntent.GaitRuns((true, 1f, true)), Is.False, "aiming walks");
-        Assert.That(RunIntent.GaitRuns((false, 1f, false)), Is.False);
+        Assert.That(RunIntent.GaitRuns((true, smallTilt, false, 1)), Is.True, "but the gait runs");
+        Assert.That(RunIntent.GaitRuns((true, 0f, false, 1)), Is.False);
+        Assert.That(RunIntent.GaitRuns((true, 1f, true, 1)), Is.True, "aiming right while moving right runs");
+        Assert.That(RunIntent.GaitRuns((true, -1f, true, -1)), Is.True, "aiming left while moving left runs");
+        Assert.That(RunIntent.GaitRuns((true, 1f, true, -1)), Is.False, "backpedalling right while aiming left walks");
+        Assert.That(RunIntent.GaitRuns((true, -smallTilt, true, 1)), Is.False, "a small backward tilt walks too");
+        Assert.That(RunIntent.GaitRuns((true, -1f, false, 1)), Is.True, "without aiming the facing does not matter");
+        Assert.That(RunIntent.GaitRuns((false, 1f, false, 1)), Is.False);
+        Assert.That(RunIntent.AimingBackward(true, 0f, 1), Is.False, "standing still is not backpedalling");
         GaitSet gaits = new GaitSet((GaitProfile.Walk, GaitProfile.Run, GaitProfile.Crouch), GaitTransitionSettings.Default, 0f);
-        float target = gaits.TargetSpeed((smallTilt, RunIntent.GaitRuns((true, smallTilt, false))));
+        float target = gaits.TargetSpeed((smallTilt, RunIntent.GaitRuns((true, smallTilt, false, 1))));
         Assert.That(target, Is.EqualTo(smallTilt * GaitProfile.Run.speed).Within(1e-4f));
     }
 
@@ -155,9 +163,9 @@ public class RunIntentTests {
         Assert.That(calls, Is.EqualTo(new[] { "First.Enter", "First.Exit", "Second.Enter" }), "exit before enter, as before");
     }
 
-    private static RunReadiness OnFeet(bool aiming = false, bool requested = false, bool held = false, bool headroom = false, bool pushing = false, bool tap = false) {
+    private static RunReadiness OnFeet(bool aimingBackward = false, bool requested = false, bool held = false, bool headroom = false, bool pushing = false, bool tap = false) {
         // A held crouch is also requested (the reader's crouch request is held or latched); a pending tap is held.
-        return RunReadiness.OnFeet((aiming, (requested || held || tap, held || tap, tap, headroom), pushing));
+        return RunReadiness.OnFeet((aimingBackward, (requested || held || tap, held || tap, tap, headroom), pushing));
     }
 
     private sealed class FakeState : ICharacterState {

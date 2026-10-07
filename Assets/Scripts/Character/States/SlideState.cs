@@ -60,7 +60,7 @@ public sealed class SlideState : ICharacterState {
             return false;
         }
         StrideController stride = context.Rig.Stride;
-        bool runIntent = SlidePolicy.IsRunIntent((commands.RunHeld, commands.MoveAxis, commands.IsAiming));
+        bool runIntent = SlidePolicy.IsRunIntent((commands.RunHeld, commands.MoveAxis, commands.IsAiming, context.Rig.Facing.Sign));
         bool grounded = !stride.HasLostGround && !stride.IsPastSupportEdge;
         SlidePolicy.Entry entry = new SlidePolicy.Entry((true, runIntent), (stride.GroundSpeed, stride.Run.speed), (grounded, SlidePolicy.IsReady(Time.time, readyAt)));
         if (!SlidePolicy.CanStart(entry, settings.slide)) {

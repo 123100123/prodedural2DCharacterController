@@ -76,6 +76,8 @@ share of the run speed below the intent's dead zone (`RunIntent.GaitRuns`). The 
 near its standing height (`maxStandGap`), rising toward it when running out, so the walk does not jerk it up. The state machine records the last switch, and the F1 LIVE
 tab has a "Run intent" section.
 
+**Phase 16, Aim-side running, climb run-intent re-sample:** while aiming, Shift runs when the move axis points the way the character faces (the way it aims); backpedalling while aiming stays a walk (`RunIntent.AimingBackward`, the readiness reason `RunBlock.AimingBackward`; `RunIntent.GaitRuns` and `SlidePolicy.IsRunIntent` take the facing sign). The climb already re-reads the intent every tick until it stands on top, so Shift pressed mid-climb is honoured; a test pins it.
+
 ## Status
 
 | Phase | Status | Commit |
@@ -95,5 +97,6 @@ tab has a "Run intent" section.
 | 13 45° slopes and a hill | done | |
 | 14 Helicopter hover targets with points popups | done | |
 | 15 Shift as a run intent | done | |
+| 16 Aim-side running, climb run-intent re-sample | done | |
 
 Also on the branch: `e54982c` (test seam: scenario tests aim at world points, independent of the Game view) and `f463c6d` (fixes from the verifier pass: disposal of recomposed collaborators, casing, audio and aim edge cases).
