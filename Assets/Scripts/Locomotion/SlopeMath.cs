@@ -52,21 +52,25 @@ public static class SlopeMath {
     }
 }
 
-// The slope under the gait as the gait sees it: the gradient and the settings that shape walking on it. The default is flat
-// ground, which leaves every gait value as it is.
+// The slope under the gait as the gait sees it: the gradient, the settings that shape walking on it, and the legs whose
+// reach bounds the stance on it (SlopeReach). The default is flat ground with no legs known, which leaves every gait value
+// as it is.
 public readonly struct SlopeGait {
-    public SlopeGait(float gradient, SlopeSettings settings) {
-        Gradient = gradient;
-        UphillFactor = settings.uphillSpeedFactor;
-        DownhillFactor = settings.downhillSpeedFactor;
-        StrideShortening = settings.strideShortening;
+    public SlopeGait(float gradient, SlopeSettings settings) : this(gradient, (settings.uphillSpeedFactor, settings.downhillSpeedFactor)) {
     }
 
-    public SlopeGait(float gradient, (float uphill, float downhill, float strideShortening) factors) {
+    public SlopeGait(float gradient, (float uphill, float downhill) factors) {
         Gradient = gradient;
         UphillFactor = factors.uphill;
         DownhillFactor = factors.downhill;
-        StrideShortening = factors.strideShortening;
+        Legs = default;
+    }
+
+    private SlopeGait(SlopeGait slope, LegReach legs) {
+        Gradient = slope.Gradient;
+        UphillFactor = slope.UphillFactor;
+        DownhillFactor = slope.DownhillFactor;
+        Legs = legs;
     }
 
     public static SlopeGait Flat => default;
@@ -74,8 +78,12 @@ public readonly struct SlopeGait {
     public float Gradient { get; }
     public float UphillFactor { get; }
     public float DownhillFactor { get; }
-    public float StrideShortening { get; }
+    // The legs the stance is fitted to; unknown (default) leaves the steps as the gait has them.
+    public LegReach Legs { get; }
     public bool IsFlat => Gradient == 0f;
+
+    // The same slope with the legs whose reach bounds the stance on it.
+    public SlopeGait Reaching(LegReach legs) => new SlopeGait(this, legs);
 
     // Horizontal ground speed on the slope for each unit of flat-ground speed, moving toward directionSign: the cosine of
     // the slope (the surface is longer than its run) times the uphill or downhill factor, which grows with steepness.
@@ -89,18 +97,19 @@ public readonly struct SlopeGait {
         return Mathf.Max(0.05f, Mathf.Cos(angle * Mathf.Deg2Rad) * factor);
     }
 
-    // Share of the flat step length the steps keep on this slope.
-    public float StrideScale => IsFlat ? 1f : Mathf.Max(0.2f, 1f - StrideShortening * SlopeMath.Steepness(Gradient));
+    // How the gait's stance at a speed fits the legs on this slope (SlopeReach.Fit). Flat ground fits the same way: the
+    // flat gait is designed within the legs' reach, so there the bound leaves the steps as they are.
+    public SlopeStance StanceOf(GaitProfile gait, float speed) => SlopeReach.Fit((gait, speed), Gradient, Legs);
 
-    // The gait's step lengths, shortened for the slope.
-    public GaitProfile Shorten(GaitProfile gait) {
-        if (IsFlat) {
+    // The gait with its steps no longer than the legs reach on this slope (with the pelvis as low as the stance fitted at
+    // this speed rides it): a cap rather than a share, so the gait keeps its own steps wherever they are shorter.
+    public GaitProfile Bound(GaitProfile gait, float speed) {
+        if (!Legs.IsKnown) {
             return gait;
         }
-        float scale = StrideScale;
-        gait.stepLengthPerRootSpeed *= scale;
-        gait.minStepLength *= scale;
-        gait.maxStepLength *= scale;
+        float cap = StanceOf(gait, speed).StepCap;
+        gait.maxStepLength = Mathf.Min(gait.maxStepLength, cap);
+        gait.minStepLength = Mathf.Min(gait.minStepLength, cap);
         return gait;
     }
 }

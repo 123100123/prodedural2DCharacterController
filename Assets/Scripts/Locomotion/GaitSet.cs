@@ -28,8 +28,8 @@ public readonly struct GaitSet {
     public GaitTransitionSettings Transitions { get; }
     // 0 standing, 1 fully crouched.
     public float CrouchShare { get; }
-    // The slope under the gait (flat unless OnSlope gave one): it scales the speeds the gait heads for and shortens its
-    // steps. The paces (walking, running, crouching) are measured on the flat-ground speed a slope speed stands for, so a
+    // The slope under the gait (flat unless OnSlope gave one): it scales the speeds the gait heads for and bounds its
+    // steps by the legs' reach on it (SlopeReach). The paces (walking, running, crouching) are measured on the flat-ground speed a slope speed stands for, so a
     // run up a hill is still a run, only slower.
     public SlopeGait Slope { get; }
 
@@ -63,10 +63,17 @@ public readonly struct GaitSet {
     // The walk-to-run blend the speed asks for (none while the crouch gait is in use: it is slower than a walk).
     public float RunningAt(float speed) => LocomotionPace.RunningAt(PaceSpeed(speed), (Walk, Run, Transitions));
 
-    // The gait in use at a speed, with the walk-to-run blend the body has actually reached.
-    public GaitProfile At(float speed, float runningShare) {
+    // The gait in use at a speed, with the walk-to-run blend the body has actually reached, its steps bounded by the legs'
+    // reach on the slope.
+    public GaitProfile At(float speed, float runningShare) => Slope.Bound(Unbounded(speed, runningShare), speed);
+
+    // How the stance of that gait fits the legs on the slope: the step it may take, the reach that bounds it and how much
+    // lower the pelvis rides for it.
+    public SlopeStance StanceAt(float speed, float runningShare) => Slope.StanceOf(Unbounded(speed, runningShare), speed);
+
+    private GaitProfile Unbounded(float speed, float runningShare) {
         GaitProfile standing = GaitProfile.Blend((Walk, Run), runningShare);
-        return Slope.Shorten(GaitProfile.Blend((standing, Crouch), CrouchWeightAt(speed)));
+        return GaitProfile.Blend((standing, Crouch), CrouchWeightAt(speed));
     }
 
     // The gait the body settles into at a speed.

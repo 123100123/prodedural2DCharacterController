@@ -17,7 +17,8 @@ public class SlopeScenarioTests : ScenarioFixture {
     private const float RampMargin = 0.7f;
     // A foot's turn is measured once it has been planted this long (it turns onto the ground late in its step and settles
     // within SlopeSettings.ankleBlendTime of touching down).
-    private const float SettledFootTime = 0.15f;
+    // (0.1 s: on a 45° ramp a running foot is down only about 0.12 s, its steps bounded by the legs' reach.)
+    private const float SettledFootTime = 0.1f;
     private const float FootOnSurfaceTolerance = 0.05f;
     private const float AnkleTolerance = 4f;
 

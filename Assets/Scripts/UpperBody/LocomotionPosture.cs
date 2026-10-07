@@ -47,7 +47,8 @@ public class LocomotionPosture {
     private float BaseLean() {
         StrideController stride = rig.Stride;
         float idleLean = settings.idleLean + stride.CrouchSettings.idleLean * stride.CrouchShare;
-        return PostureLean.BaseLean((idleLean, stride.CurrentGait.lean, stride.Pace.Moving));
+        float slopeLean = PostureLean.SlopeLean((stride.SlopeGradient, rig.Facing.Sign), stride.Slope.slopeLean);
+        return PostureLean.BaseLean((idleLean, stride.CurrentGait.lean, stride.Pace.Moving)) + slopeLean;
     }
 
     // Uses the gait's ground speed rather than the body position, so the step's own surge and bob do not read as starts.

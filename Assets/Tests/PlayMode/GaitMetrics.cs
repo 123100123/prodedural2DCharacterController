@@ -97,6 +97,31 @@ public sealed class GaitMetrics {
     public float WorstSupportExtension => SupportSamples.Count == 0 ? 0f : SupportSamples.Max(sample => sample.SupportExtension);
     public float MeanSupportExtension => SupportSamples.Count == 0 ? 0f : SupportSamples.Average(sample => sample.SupportExtension);
     public float MeanCatchUp => samples.Count == 0 ? 1f : samples.Average(sample => sample.CatchUp);
+    public float MaxCatchUp => samples.Count == 0 ? 1f : samples.Max(sample => sample.CatchUp);
+    // Largest hip-to-foot distance (share of the leg) and horizontal lag of a planted foot behind its hip.
+    public float WorstTrailingExtension => Worst(sample => sample.TrailingExtension);
+    public float WorstTrailingLag => Worst(sample => sample.TrailingLag);
+    // Mean distance between consecutive plants of opposite feet (a step) and of the same foot (a stride), and the mean time
+    // between plants of the same foot (the cycle period).
+    public float MeanStepLength => MeanOf(PlantSpacings(false).Select(spacing => spacing.distance));
+    public float MeanStrideLength => MeanOf(PlantSpacings(true).Select(spacing => spacing.distance));
+    public float MeanCyclePeriod => MeanOf(PlantSpacings(true).Select(spacing => spacing.time));
+    // Largest frame-to-frame movement of a foot planted in both frames: a planted foot never slides or snaps.
+    public float WorstPlantedFootJump {
+        get {
+            float worst = 0f;
+            for (int index = 1; index < samples.Count; index++) {
+                GaitRecorder.Sample previous = samples[index - 1];
+                GaitRecorder.Sample current = samples[index];
+                if (!previous.IsDrivingGait || !current.IsDrivingGait) {
+                    continue;
+                }
+                worst = previous.FrontGrounded && current.FrontGrounded ? Mathf.Max(worst, Vector2.Distance(previous.FrontFoot, current.FrontFoot)) : worst;
+                worst = previous.BackGrounded && current.BackGrounded ? Mathf.Max(worst, Vector2.Distance(previous.BackFoot, current.BackFoot)) : worst;
+            }
+            return worst;
+        }
+    }
     public int BalanceSteps => CountOver(sample => sample.BalanceSteps);
     public int PhaseResyncs => CountOver(sample => sample.PhaseResyncs);
     public int FootholdFailures => CountOver(sample => sample.FootholdFailures);
@@ -109,6 +134,32 @@ public sealed class GaitMetrics {
                $"balanceSteps={BalanceSteps} resyncs={PhaseResyncs} footholdFailures={FootholdFailures} " +
                $"midStancePelvis={MidStancePelvisOffset:F2} supportExt={MeanSupportExtension:F2}/{WorstSupportExtension:F2} catchUp={MeanCatchUp:F2}" +
                (RepeatedLegLifts > 0 ? $" lifts: {LiftSequence}" : "");
+    }
+
+    private float Worst(System.Func<GaitRecorder.Sample, float> value) {
+        List<float> values = samples.Select(value).Where(found => !float.IsNaN(found)).ToList();
+        return values.Count == 0 ? 0f : values.Max();
+    }
+
+    private static float MeanOf(IEnumerable<float> values) {
+        List<float> list = values.ToList();
+        return list.Count == 0 ? 0f : list.Average();
+    }
+
+    // Horizontal distance and time between each plant and the next plant of the other foot (sameFoot false) or of the
+    // same foot (true).
+    private List<(float distance, float time)> PlantSpacings(bool sameFoot) {
+        List<GaitRecorder.FootEvent> plants = events.Where(footEvent => !footEvent.IsLift).ToList();
+        List<(float distance, float time)> spacings = new List<(float distance, float time)>();
+        for (int index = 1; index < plants.Count; index++) {
+            for (int earlier = index - 1; earlier >= 0; earlier--) {
+                if ((plants[earlier].Front == plants[index].Front) == sameFoot) {
+                    spacings.Add((Mathf.Abs(plants[index].Foot.x - plants[earlier].Foot.x), plants[index].Time - plants[earlier].Time));
+                    break;
+                }
+            }
+        }
+        return spacings;
     }
 
     private List<GaitRecorder.Sample> SupportSamples => samples.Where(sample => !float.IsNaN(sample.SupportExtension)).ToList();

@@ -13,6 +13,8 @@ public sealed class StepScheduler {
     private readonly MotionLatch motion = new MotionLatch();
     private (bool front, bool back) cues;
     private (bool front, bool back) outOfTurn;
+    // A leg that stepped ahead of its cue (released at full extension): its coming cue was answered by that step.
+    private (bool front, bool back) steppedAhead;
     private (bool front, float secondsAgo) lastLift = (false, float.PositiveInfinity);
 
     public float Phase => cycle.Phase;
@@ -38,13 +40,17 @@ public sealed class StepScheduler {
             StridesThisTick = 0f;
             cues = (false, false);
             outOfTurn = (false, false);
+            steppedAhead = (false, false);
             return;
         }
 
         StridesThisTick = Mathf.Abs(tick.speed) * tick.deltaTime / Mathf.Max(0.01f, tick.strideLength);
         SwingShare = Mathf.MoveTowards(SwingShare, tick.targetSwingShare, transitions.swingShareChangePerCycle * StridesThisTick);
         (bool frontLeg, bool backLeg) crossed = cycle.Advance(StridesThisTick);
-        cues = (cues.front || crossed.frontLeg, cues.back || crossed.backLeg);
+        // A cue a leg already answered by stepping ahead of it is used up as it comes.
+        (bool front, bool back) answered = (crossed.frontLeg && steppedAhead.front, crossed.backLeg && steppedAhead.back);
+        steppedAhead = (steppedAhead.front && !crossed.frontLeg, steppedAhead.back && !crossed.backLeg);
+        cues = (cues.front || (crossed.frontLeg && !answered.front), cues.back || (crossed.backLeg && !answered.back));
     }
 
     // The feet were just placed in a stance by something else (a landing, a roll): the gait starts afresh from it, with
@@ -53,6 +59,7 @@ public sealed class StepScheduler {
         motion.Reset();
         cues = (false, false);
         outOfTurn = (false, false);
+        steppedAhead = (false, false);
         StridesThisTick = 0f;
     }
 
@@ -88,8 +95,19 @@ public sealed class StepScheduler {
         if (wasOutOfTurn) {
             cycle.SyncToLift(frontLeg);
             outOfTurn = frontLeg ? (false, outOfTurn.back) : (outOfTurn.front, false);
+            steppedAhead = (false, false);
         }
         return wasOutOfTurn;
+    }
+
+    // The leg is next to step but its cue has not come yet: no cue pending and its lift phase is less than half a cycle away
+    // (the other leg's comes first otherwise).
+    public bool IsNextToStep(bool frontLeg) => !IsCued(frontLeg) && !(frontLeg ? steppedAhead.front : steppedAhead.back) && cycle.StridesUntilLift(frontLeg) <= 0.5f;
+
+    // The leg stepped ahead of its cue as its normal next step (a trailing foot released at full extension): the cue, when
+    // it comes, is used up by that step, so the clock keeps its phase and the legs stay half a cycle apart.
+    public void StepAheadOfCue(bool frontLeg) {
+        steppedAhead = frontLeg ? (true, steppedAhead.back) : (steppedAhead.front, true);
     }
 
     // Cues a leg out of turn (an emergency balance step). When it lifts, the clock is put at its lift, so the other leg

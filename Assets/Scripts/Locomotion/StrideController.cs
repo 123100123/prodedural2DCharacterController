@@ -96,6 +96,14 @@ public class StrideController : MonoBehaviour {
     private (float share, float gradient) slopeBlend;
     // Where each foot's ground was last read, so it is read once per foothold.
     private (Vector2 front, Vector2 back) ankleGroundSpots = (new Vector2(float.NaN, float.NaN), new Vector2(float.NaN, float.NaN));
+    // The legs' reach as measured at the start of this gait step (unknown before the first), and how the stance at the
+    // current speed fits it: the step the gait may take, the reach that bounds it and how much lower the pelvis rides.
+    private LegReach legReach;
+    private SlopeStance stance = SlopeStance.Unbounded(0f);
+    // How far below its gait height the planted legs' reach holds the pelvis this frame.
+    private float ceilingSink;
+    // The last gait step planned: the spot it aimed for and the foothold it took.
+    private (float desiredX, Vector2 foothold) lastPlannedStep;
 
     public LegStepper FrontLeg => frontLeg;
     public LegStepper BackLeg => backLeg;
@@ -131,9 +139,23 @@ public class StrideController : MonoBehaviour {
     public Vector2 BodyVelocity => Carriage.Velocity;
 
     // The walk, run and crouch profiles with how crouched the character is: asks "the gait at a speed".
-    // On a slope the gait set carries it: slower uphill, a little faster downhill, shorter steps (GaitSet.Slope).
+    // On a slope the gait set carries it and the legs: slower uphill, a little faster downhill, and steps no longer than
+    // the legs reach on it (GaitSet.Slope, SlopeReach). Flat ground keeps the flat gait exactly as designed: its steady
+    // walk and run are within that reach (a steady run pushes off at its limit, SlopeReachTests), and only a run blend
+    // lagging behind a fast acceleration would be bounded there, which the flat gait's own catch-up already answers. The
+    // reach on a gentle slope tends to the flat reach as the gradient does, so nothing jumps where a slope begins.
     public GaitSet Gaits => new GaitSet((walk, run, crouchGait), transitions, crouchShare).OnSlope(GaitSlope);
-    private SlopeGait GaitSlope => IsDrivingGait && SlopeGradient != 0f ? new SlopeGait(SlopeGradient, slope) : SlopeGait.Flat;
+    private SlopeGait GaitSlope => IsDrivingGait && SlopeGradient != 0f ? new SlopeGait(SlopeGradient, slope).Reaching(legReach) : SlopeGait.Flat;
+    // How the stance at the current speed fits the legs on the ground under the gait (SlopeReach.Fit).
+    public SlopeStance Stance => stance;
+    // What the slope does to the gait this frame, for inspection.
+    public SlopeGaitReadout SlopeReadout => new SlopeGaitReadout(
+        (SlopeGradient, Mathf.Sign(groundSpeed)),
+        (supportResolver.Current.SupportLeg, SupportExtension(), TrailingPlantedExtension()),
+        (stance, GaitTiming.StrideLength(groundSpeed, CurrentGait)),
+        (lastPlannedStep.desiredX, lastPlannedStep.foothold),
+        (bodyTarget.y, ceilingSink),
+        (diagnostics.CatchUp, diagnostics.BalanceSteps, diagnostics.PhaseResyncs, diagnostics.ExtensionReleases));
     // How crouched the character is (0 standing, 1 crouched), what a crouch does to the body, and how far it lowers the pelvis.
     public float CrouchShare => crouchShare;
     public CrouchSettings CrouchSettings => crouchSettings;
@@ -247,13 +269,14 @@ public class StrideController : MonoBehaviour {
 
     private void TickGaitStep(float deltaTime, (float direction, bool running, (float min, float max) feetSpan, (float min, float max) bodySpan) intent) {
         TrackTerrain(deltaTime);
+        legReach = MeasureLegReach();
         AccelerateGround((intent.direction, intent.running, deltaTime));
         landingCompression.Update((0f, deltaTime), landingCompressionSpring);
         AdvanceAnchor((deltaTime, AnchorSpan(intent)));
         BlendGaitWithSpeed(deltaTime);
         AdvanceGaitClock(deltaTime);
         RecoverSupport();
-        LiftFeetOnCue(intent.feetSpan);
+        LiftFeetOnCue(intent.feetSpan, deltaTime);
         ReplanSwingsOnIntentChange(intent.feetSpan);
         SettleFeetWhenIdle();
         TickLegs(deltaTime);
@@ -376,6 +399,21 @@ public class StrideController : MonoBehaviour {
         float running = Mathf.MoveTowards(Pace.Running, gaits.RunningAt(groundSpeed), transitions.runBlendRate * deltaTime);
         Pace = new LocomotionPace((gaits.MovingAt(groundSpeed), running));
         CurrentGait = gaits.At(groundSpeed, running);
+        stance = gaits.StanceAt(groundSpeed, running);
+    }
+
+    // The legs as they stand at the start of this gait step: the hips' height over the ground under them (the standing
+    // height less how far the hips sit below the pivot, which the posture's lean changes, and the crouch; on a slope the
+    // ground under hips that the lean swings behind the pivot is lower going up and higher going down), how far a
+    // supporting leg reaches, the reach reserve the pelvis may sink by for a push-off foot, and the room left above the
+    // crouch limit.
+    private LegReach MeasureLegReach() {
+        Vector2 hips = (frontLeg.HipPosition + backLeg.HipPosition) / 2f;
+        float hipDepth = transform.position.y - hips.y;
+        float groundUnderHipsRise = SlopeGradient * (hips.x - transform.position.x);
+        float reach = Mathf.Min(frontLeg.LegLength, backLeg.LegLength) * body.legExtension;
+        float crouchRoom = Mathf.Max(0f, crouchSettings.depth - CrouchDrop);
+        return new LegReach((bodyHeight - hipDepth - CrouchDrop - groundUnderHipsRise, reach), (body.maxReachDrop, crouchRoom));
     }
 
     // Walls always bound the body; while stopping (no target speed), so does the stopping margin past the leading foot. Only the
@@ -474,33 +512,71 @@ public class StrideController : MonoBehaviour {
     // pelvis swings the hips behind the pivot.
     private float HipOffsetX(LegStepper leg) => leg.HipPosition.x - transform.position.x;
 
-    // A cued leg lifts as soon as it is planted and the other foot lets it; until then the cue stays pending.
-    private void LiftFeetOnCue((float min, float max) feetSpan) {
+    // A cued leg lifts as soon as it is planted and the other foot lets it; until then the cue stays pending. A trailing
+    // foot stretched to full extension before its cue steps then as its normal next step (a release on extension).
+    private void LiftFeetOnCue((float min, float max) feetSpan, float deltaTime) {
         if (!IsMoving) {
             return;
         }
-        TryLiftOnCue((frontLeg, backLeg), feetSpan);
-        TryLiftOnCue((backLeg, frontLeg), feetSpan);
+        TryLiftOnCue((frontLeg, backLeg), (feetSpan, deltaTime));
+        TryLiftOnCue((backLeg, frontLeg), (feetSpan, deltaTime));
     }
 
-    // A cue with no foothold ahead is used up, so at a ledge the body moves on past the planted feet and falls.
-    private void TryLiftOnCue((LegStepper stepping, LegStepper other) legs, (float min, float max) feetSpan) {
+    // A cue with no foothold ahead is used up, so at a ledge the body moves on past the planted feet and falls. A release
+    // on extension that finds no foothold is not: the foot stays planted and its cue tries again.
+    private void TryLiftOnCue((LegStepper stepping, LegStepper other) legs, ((float min, float max) feetSpan, float deltaTime) tick) {
         bool isFrontLeg = legs.stepping == frontLeg;
-        if (!scheduler.MayLiftNow(isFrontLeg, (legs.stepping.IsGrounded, legs.other.LetsOtherLegLift))) {
+        bool cued = scheduler.MayLiftNow(isFrontLeg, (legs.stepping.IsGrounded, legs.other.LetsOtherLegLift));
+        bool released = !cued && IsReleasedOnExtension(legs, tick.deltaTime);
+        if (!cued && !released) {
             return;
         }
-        scheduler.ConsumeCue(isFrontLeg);
+        if (cued) {
+            scheduler.ConsumeCue(isFrontLeg);
+        }
 
         float direction = Mathf.Sign(groundSpeed);
-        (float landingHipX, float desiredX, float duration) landing = ForecastLanding((direction, 0f, (legs.other.FootTarget.x, HipOffsetX(legs.stepping)), feetSpan));
+        (float landingHipX, float desiredX, float duration) landing = ForecastLanding((direction, 0f, (legs.other.FootTarget.x, HipOffsetX(legs.stepping)), tick.feetSpan));
         SwingTiming timing = GaitSwingTiming(landing.duration);
-        lastStepFoundNoFoothold = !TryStepToward((legs.stepping, legs.other, landing.desiredX, direction), (landing.landingHipX, timing, CurrentGait.liftHeight, Pace.Running));
-        if (lastStepFoundNoFoothold) {
-            diagnostics.RecordFootholdFailure(Time.time);
-            return;
+        bool stepped = TryStepToward((legs.stepping, legs.other, landing.desiredX, direction), (landing.landingHipX, timing, CurrentGait.liftHeight, Pace.Running));
+        if (released) {
+            if (!stepped) {
+                return;
+            }
+            scheduler.StepAheadOfCue(isFrontLeg);
+            diagnostics.RecordExtensionRelease(Time.time);
+        }
+        else {
+            lastStepFoundNoFoothold = !stepped;
+            if (lastStepFoundNoFoothold) {
+                diagnostics.RecordFootholdFailure(Time.time);
+                return;
+            }
         }
         RememberPlannedIntent(isFrontLeg);
         Carriage.Push(CurrentGait.pushOffImpulse * Pace.Moving);
+    }
+
+    // The trailing planted foot of the leg next to step, stretched to the release extension (SupportRecovery), while the
+    // other foot carries the body or lets this one lift.
+    private bool IsReleasedOnExtension((LegStepper stepping, LegStepper other) legs, float deltaTime) {
+        if (!legs.stepping.IsGrounded || Mathf.Approximately(groundSpeed, 0f)) {
+            return false;
+        }
+        bool isFrontLeg = legs.stepping == frontLeg;
+        float extension = ExtensionAtLowestPelvis(legs.stepping, deltaTime);
+        (bool isTrailing, bool isNextToStep, bool otherLetsLift) state = (TrailingLag(legs.stepping) > 0f, scheduler.IsNextToStep(isFrontLeg), legs.other.LetsOtherLegLift);
+        return SupportRecovery.ReleasesOnExtension((extension, slope.releaseExtension), state);
+    }
+
+    // How stretched the leg will be to its planted foot once the body has travelled this gait step, with the pelvis as low
+    // as the gait lets it sink (its gait height less the reach reserve) unless it is lower already: the leg's true
+    // hip-to-foot distance as a share of its length, when the pelvis has done all it can to keep the foot.
+    private float ExtensionAtLowestPelvis(LegStepper leg, float deltaTime) {
+        float lowestPelvis = bodyHeights.gait - body.maxReachDrop;
+        float sinkLeft = Mathf.Max(0f, transform.position.y - lowestPelvis);
+        Vector2 hip = leg.HipPosition + new Vector2(groundSpeed * deltaTime, -sinkLeft);
+        return SlopeReach.Extension(hip, leg.FootTarget, leg.LegLength);
     }
 
     // When the intended speed changes mid-stride (stopping, turning, speeding up), a gait step still in the air is
@@ -520,7 +596,9 @@ public class StrideController : MonoBehaviour {
 
         float progress = legs.stepping.StepProgress;
         (float landingHipX, float desiredX, float duration) landing = ForecastLanding((Mathf.Sign(groundSpeed), progress, (legs.other.FootTarget.x, HipOffsetX(legs.stepping)), feetSpan));
-        if (!TryPlanFoothold((legs.stepping, legs.other, landing.desiredX), landing.landingHipX, out Vector2 foothold)) {
+        float releaseShare = Mathf.Clamp01((legs.stepping.SwingTiming.ReleaseProgress - progress) / Mathf.Max(0.05f, 1f - progress));
+        float supportHipX = Mathf.Lerp(legs.other.HipPosition.x, landing.landingHipX, releaseShare);
+        if (!TryPlanFoothold((legs.stepping, legs.other, landing.desiredX), (landing.landingHipX, supportHipX), out Vector2 foothold)) {
             return;
         }
         // The ceiling is a whole-swing duration: the remaining share of it must cover the forecast rest of the swing.
@@ -604,12 +682,14 @@ public class StrideController : MonoBehaviour {
     private bool TryStepToward(
         (LegStepper stepping, LegStepper planted, float desiredX, float direction) step,
         (float landingHipX, SwingTiming timing, float liftHeight, float runShare) motion) {
-        if (!TryPlanFoothold((step.stepping, step.planted, step.desiredX), motion.landingHipX, out Vector2 foothold)) {
+        float supportHipX = Mathf.Lerp(step.planted.HipPosition.x, motion.landingHipX, motion.timing.ReleaseProgress);
+        if (!TryPlanFoothold((step.stepping, step.planted, step.desiredX), (motion.landingHipX, supportHipX), out Vector2 foothold)) {
             return false;
         }
         if ((foothold.x - step.stepping.FootTarget.x) * step.direction < footholdLimits.minStepLength) {
             return false;
         }
+        lastPlannedStep = (step.desiredX, foothold);
         step.stepping.BeginStep((foothold, motion.timing), (motion.liftHeight, motion.runShare));
         if (scheduler.RecordLift(step.stepping == frontLeg)) {
             diagnostics.RecordPhaseResync(Time.time);
@@ -617,17 +697,31 @@ public class StrideController : MonoBehaviour {
         return true;
     }
 
-    private bool TryPlanFoothold((LegStepper stepping, LegStepper planted, float desiredX) step, float landingHipX, out Vector2 foothold) {
+    // hips: where the hip will be when the foot lands, and when the planted foot may lift (the other foot is far enough
+    // through its swing): until then the planted foot must stay within reach, so a foothold that keeps it is preferred.
+    private bool TryPlanFoothold((LegStepper stepping, LegStepper planted, float desiredX) step, (float landingHipX, float supportHipX) hips, out Vector2 foothold) {
+        bool holdsSupport = IsMoving && step.planted.IsGrounded;
         FootholdRequest request = new FootholdRequest {
             DesiredX = step.desiredX,
-            LandingHipX = landingHipX,
+            LandingHipX = hips.landingHipX,
             PlantedFoot = step.planted.FootTarget,
             HipHeight = step.stepping.HipPosition.y - StanceHeight,
             LegLength = step.stepping.LegLength,
             ForwardSign = Mathf.Sign(step.desiredX - transform.position.x),
+            SupportReach = holdsSupport ? step.planted.LegLength * slope.releaseExtension : 0f,
+            SupportHipX = hips.supportHipX,
+            SupportSink = body.maxReachDrop,
         };
 
-        FootholdLimits limits = StepLimitsOnSlope((Mathf.Abs(request.DesiredX - request.PlantedFoot.x), SlopeAhead(request.DesiredX, request.PlantedFoot)));
+        float gradientAhead = SlopeAhead(request.DesiredX, request.PlantedFoot);
+        // On a slope (underfoot or at the landing spot), the hip at touchdown rides the ground under it rather than the
+        // mean height of the feet: stepping off a crest, the landing hip is far below a foot still on the top.
+        if ((SlopeGradient != 0f || gradientAhead != 0f) && TryFindGroundUnder(hips.landingHipX, out float landingGround)) {
+            request.HasLandingGround = true;
+            request.LandingGroundY = landingGround;
+            request.HipAboveGround = step.stepping.HipPosition.y - GroundUnderBody;
+        }
+        FootholdLimits limits = StepLimitsOnSlope((Mathf.Abs(request.DesiredX - request.PlantedFoot.x), gradientAhead));
         FootholdProbe.CollectCandidates((request.DesiredX, request.PlantedFoot.y, step.stepping.FootTarget), (limits, SupportAt(request.PlantedFoot.y)), footholdCandidates);
         return FootholdPlanner.TryChooseFoothold(request, (footholdCandidates, limits), out foothold);
     }
@@ -677,6 +771,7 @@ public class StrideController : MonoBehaviour {
 
         float gaitHeight = GaitHeight();
         (float target, float ceiling) height = BodyHeightLimits(gaitHeight);
+        ceilingSink = Mathf.Max(0f, gaitHeight - height.ceiling);
         bodyHeights = (BaselineHeight, gaitHeight, height.ceiling);
         bodyTarget = new Vector2(BodyTargetX(), height.target);
         Carriage.Carry((bodyTarget, frame.deltaTime), (body.horizontalSpring, body.verticalSpring, frame.bodySpan, height.ceiling));
@@ -726,7 +821,9 @@ public class StrideController : MonoBehaviour {
     // The gait's height, never higher than the planted legs reach: the spring's target, and the ceiling it may not
     // overshoot. The reach is measured from where the body is: its springs trail the anchor a little at speed, and
     // measuring from the anchor would make a trailing foot seem further behind than it is. A foot so far away that
-    // reaching it would sink the body more than the reach drop is about to step anyway, and does not hold it down.
+    // reaching it would sink the body more than the reach reserve (maxReachDrop) is about to step anyway (released at
+    // full extension), and does not hold it down: the stance is bounded so that its push-off needs no more than that
+    // reserve on any slope (SlopeReach.Fit), and where a lower pelvis is needed the gait height itself is lowered (Drop).
     private (float target, float ceiling) BodyHeightLimits(float gaitHeight) {
         float pelvisX = transform.position.x;
         float reachable = Mathf.Min(HighestPelvisOver((frontLeg, pelvisX)), HighestPelvisOver((backLeg, pelvisX)));
@@ -747,8 +844,9 @@ public class StrideController : MonoBehaviour {
 
     private float BaselineHeight => GroundUnderBody + SlopeLead + bodyHeight - CurrentGait.pelvisDrop * Pace.Moving - CrouchDrop - WindupCrouch - landingCompression.Value - SlopeDrop;
 
-    // On a slope the pelvis rides lower: the feet ahead and behind it stand higher and lower than the ground under it.
-    private float SlopeDrop => slope.bodyDrop * SlopeMath.Steepness(SlopeGradient) * slopeBlend.share;
+    // How much lower the pelvis rides for the legs to reach the stance (SlopeStance.Drop): derived from the reach on the
+    // ground under the gait, 0 wherever the step alone can be fitted to it (flat ground and most slopes).
+    private float SlopeDrop => stance.Drop;
 
     // On a slope the ground under the body rises or falls steadily as it moves; the target is aimed ahead by the vertical
     // spring's tracking lag, so the body rides the surface instead of trailing it.
@@ -772,6 +870,17 @@ public class StrideController : MonoBehaviour {
         float share = Mathf.MoveTowards(slopeBlend.share, targetShare, deltaTime / SlopeBlendTime);
         float gradient = Mathf.Lerp(slopeBlend.gradient, targetGradient, 1f - Mathf.Exp(-deltaTime / SlopeGradientSmoothing));
         slopeBlend = (share, share > 0f ? gradient : 0f);
+    }
+
+    // The ground under x, looked for from as high above the body and as far below it as the steepest walkable slope could
+    // carry the ground over the distance from the body.
+    private bool TryFindGroundUnder(float x, out float groundY) {
+        float slopeRise = Mathf.Abs(x - transform.position.x) * Mathf.Tan(Mathf.Clamp(slope.maxSlopeAngle, 0f, 80f) * Mathf.Deg2Rad);
+        Vector2 origin = new Vector2(x, transform.position.y + slopeRise);
+        float depth = 2f * slopeRise + bodyHeight + footholdLimits.maxStepDown + SlopeStanceSearch;
+        bool found = FootholdProbe.TryFindGroundBelow((origin, depth), GroundAt(StanceHeight), out Vector2 ground);
+        groundY = ground.y;
+        return found;
     }
 
     // The gradient of walkable sloped ground at x, looked for as far above and below the planted foot as the steepest
@@ -834,6 +943,22 @@ public class StrideController : MonoBehaviour {
     }
 
     private float LowestPhase => GaitWaves.LowestPhase((CurrentGait.dutyFactor, CurrentGait.lowAfterContact));
+
+    private LegStepper SupportingLeg() {
+        SupportStance.Leg leg = supportResolver.Current.SupportLeg;
+        return leg == SupportStance.Leg.Front ? frontLeg : leg == SupportStance.Leg.Back ? backLeg : null;
+    }
+
+    private static float LegExtension(LegStepper leg) => leg != null && leg.IsGrounded ? SlopeReach.Extension(leg.HipPosition, leg.FootTarget, leg.LegLength) : float.NaN;
+
+    private float SupportExtension() => LegExtension(SupportingLeg());
+
+    // The larger true extension of a planted foot behind its hip (NaN with none).
+    private float TrailingPlantedExtension() {
+        float front = TrailingLag(frontLeg) > 0f ? LegExtension(frontLeg) : float.NaN;
+        float back = TrailingLag(backLeg) > 0f ? LegExtension(backLeg) : float.NaN;
+        return float.IsNaN(front) ? back : float.IsNaN(back) ? front : Mathf.Max(front, back);
+    }
 
     private float HighestPelvisOver((LegStepper leg, float pelvisX) support) {
         if (!support.leg.IsGrounded) {

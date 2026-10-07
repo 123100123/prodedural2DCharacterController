@@ -363,6 +363,54 @@ public class MovementPresetTests {
     }
 
     [Test]
+    public void TheSlopeReachSettingsSurviveAJsonRoundTrip() {
+        MovementPreset original = MovementPreset.CodeDefaults();
+        original.slope.releaseExtension = 1.0625f;
+        original.slope.slopeLean = 0.25f;
+
+        MovementPreset loaded = MovementPreset.FromJson(original.ToJson());
+        Assert.That(loaded.slope.releaseExtension, Is.EqualTo(1.0625f));
+        Assert.That(loaded.slope.slopeLean, Is.EqualTo(0.25f));
+        Assert.That(loaded.ToJson(), Is.EqualTo(original.ToJson()));
+    }
+
+    // A preset saved at version 13, before the gait was bounded by the legs' reach on slopes, has slope settings without
+    // the release extension and the slope lean: they load at their code defaults, and the legacy values it saved (step
+    // shortening, pelvis drop) still load as saved.
+    [Test]
+    public void AVersionThirteenPresetLoadsTheSlopeReachDefaults() {
+        MovementPreset saved = MovementPreset.CodeDefaults();
+        saved.slope.uphillSpeedFactor = 0.625f;
+        saved.slope.strideShortening = 0.375f;
+        saved.version = 13;
+        string versionThirteen = WithoutField(WithoutField(saved.ToJson(), "releaseExtension"), "slopeLean");
+        Assert.That(versionThirteen, Does.Not.Contain("\"releaseExtension\""));
+        Assert.That(versionThirteen, Does.Not.Contain("\"slopeLean\""));
+        Assert.That(versionThirteen, Does.Contain("\"slope\""), "only the new fields are taken out");
+
+        MovementPreset loaded = MovementPreset.FromJson(versionThirteen);
+        SlopeSettings defaults = new SlopeSettings();
+        Assert.That(MovementPreset.CurrentVersion, Is.GreaterThan(13));
+        Assert.That(loaded.version, Is.EqualTo(13), "what the file says");
+        Assert.That(loaded.slope.uphillSpeedFactor, Is.EqualTo(0.625f));
+        Assert.That(loaded.slope.strideShortening, Is.EqualTo(0.375f), "the legacy value loads as saved");
+        Assert.That(loaded.slope.releaseExtension, Is.EqualTo(defaults.releaseExtension));
+        Assert.That(loaded.slope.slopeLean, Is.EqualTo(defaults.slopeLean));
+    }
+
+    // The JSON with one "name": value line taken out (ToJson writes one field per line).
+    private static string WithoutField(string json, string name) {
+        string[] lines = json.Split('\n');
+        System.Text.StringBuilder kept = new System.Text.StringBuilder();
+        foreach (string line in lines) {
+            if (!line.TrimStart().StartsWith("\"" + name + "\":", System.StringComparison.Ordinal)) {
+                kept.Append(line).Append('\n');
+            }
+        }
+        return kept.ToString();
+    }
+
+    [Test]
     public void CopyFromCoversEveryRollMomentumAndRunExitField() {
         AssertCopyFromCoversEveryField(new RollMomentumSettings(), (target, source) => target.CopyFrom(source), new string[0]);
         AssertCopyFromCoversEveryField(new RollRunExitSettings(), (target, source) => target.CopyFrom(source), new string[0]);

@@ -18,6 +18,7 @@ public sealed class LiveTelemetryView {
         AddSection(("Gait", GaitReadouts()));
         AddSection(("Run intent", RunIntentReadouts()));
         AddSection(("Roll", RollReadouts()));
+        AddSection(("Slope gait", SlopeGaitReadouts()));
         AddSection(("Crouch", CrouchReadouts()));
         AddSection(("Airborne", AirborneReadouts()));
         AddSection(("Landing", LandingReadouts()));
@@ -70,6 +71,26 @@ public sealed class LiveTelemetryView {
         yield return ("Speed at recovery start", t => $"{t.Roll.RecoverySpeed:0.00} u/s");
         yield return ("Handed back / carried into walk", t => $"{t.Roll.HandedBack:0.00} / {t.CarriedSpeed:0.00} u/s");
     }
+
+    // How the ground's slope bounds the gait (SlopeReach): the slope, the legs' extension, the reach behind and ahead of
+    // the hip and the stride it allows (along the surface), where the last step aimed and landed, the pelvis and how far
+    // the planted legs' reach sinks it, and how the gait recovered.
+    private static IEnumerable<(string label, Func<LocomotionTelemetry, string> format)> SlopeGaitReadouts() {
+        yield return ("Slope angle / normal / tangent", t => $"{t.SlopeGait.Angle:+0.0;-0.0}° / ({t.SlopeGait.Normal.x:0.00}, {t.SlopeGait.Normal.y:0.00}) / ({t.SlopeGait.Tangent.x:0.00}, {t.SlopeGait.Tangent.y:0.00})");
+        yield return ("Support foot / extension", t => t.SlopeGait.SupportLeg == SupportStance.Leg.None ? "none" : $"{t.SlopeGait.SupportLeg.ToString().ToLowerInvariant()} / {ExtensionText(t.SlopeGait.SupportExtension)}");
+        yield return ("Trailing-leg extension", t => ExtensionText(t.SlopeGait.TrailingExtension));
+        yield return ("MaxLag / MaxLead", t => $"{ReachText(t.SlopeGait.Stance.MaxLag)} / {ReachText(t.SlopeGait.Stance.MaxLead)}");
+        yield return ("Stride along surface: now / reach-bounded", t => $"{t.SlopeGait.StrideAlongSurface:0.00} / {(t.SlopeGait.Stance.IsBounded ? t.SlopeGait.BoundedStrideAlongSurface.ToString("0.00") + " u (bounded)" : "not bounded")}");
+        yield return ("Planned foot X / foothold displacement", t => $"{t.SlopeGait.PlannedX:0.00} / {t.SlopeGait.FootholdDisplacementAlongSurface:+0.00;-0.00} u along the surface");
+        yield return ("Pelvis target Y / reach-ceiling sink", t => $"{t.SlopeGait.PelvisTargetY:0.000} / {t.SlopeGait.CeilingSink:0.000} u");
+        yield return ("Pelvis drop for reach", t => $"{t.SlopeGait.Stance.Drop:0.000} u");
+        yield return ("Catch-up", t => $"{t.SlopeGait.CatchUp:0.00}×");
+        yield return ("Balance steps / resyncs / extension releases", t => $"{t.SlopeGait.BalanceSteps} / {t.SlopeGait.PhaseResyncs} / {t.SlopeGait.ExtensionReleases}");
+    }
+
+    private static string ExtensionText(float extension) => float.IsNaN(extension) ? "-" : extension.ToString("0.000");
+
+    private static string ReachText(float reach) => float.IsInfinity(reach) ? "-" : $"{reach:0.00} u";
 
     private static IEnumerable<(string label, Func<LocomotionTelemetry, string> format)> CrouchReadouts() {
         yield return ("Crouch share", t => $"{t.CrouchShare:0.00}{(t.IsHeadroomBlocked ? "  (held by a low ceiling)" : t.IsCrouching ? "  (crouching)" : "")}");
@@ -180,6 +201,7 @@ public sealed class LiveTelemetryView {
         AddFlag((row, "BALANCE STEP", t => t.BalanceSteps));
         AddFlag((row, "PHASE RESYNC", t => t.PhaseResyncs));
         AddFlag((row, "FOOTHOLD FAILED", t => t.FootholdFailures));
+        AddFlag((row, "EXTENSION RELEASE", t => t.ExtensionReleases));
         Root.Add(row);
     }
 

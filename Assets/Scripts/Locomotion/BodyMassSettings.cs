@@ -12,7 +12,8 @@ public struct BodyMassSettings {
     [Tooltip("Share of the leg length a supporting leg may extend to; the pelvis never rises higher than its planted legs " +
              "reach. Just below 1: a push-off leg straightens behind the body, yet never locks out completely.")]
     [Range(0.8f, 1f)] public float legExtension;
-    [Tooltip("Most the leg-reach limit may lower the pelvis below its gait height; a foot further away is about to step anyway.")]
+    [Tooltip("Most the leg-reach limit may lower the pelvis below its gait height (the reach reserve); a foot further away is " +
+             "released at full extension. The stance on a slope is bounded so its push-off needs no more than this (SlopeReach).")]
     public float maxReachDrop;
     [Tooltip("Largest downward push a foot plant may give the body, in units per second.")]
     public float maxPlantImpulse;

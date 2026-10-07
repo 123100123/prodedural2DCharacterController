@@ -26,6 +26,13 @@ public sealed class GaitRecorder {
         public readonly float SupportProgress;
         // Hip-to-foot distance of the planted support leg as a share of the leg's length.
         public readonly float SupportExtension;
+        // Where each foot's target is (its foothold while planted).
+        public readonly Vector2 FrontFoot;
+        public readonly Vector2 BackFoot;
+        // Largest hip-to-foot distance (share of the leg) of a planted foot behind its hip along the motion (NaN: none).
+        public readonly float TrailingExtension;
+        // Largest horizontal distance a planted foot is behind its hip along the motion (NaN: none).
+        public readonly float TrailingLag;
 
         public Sample(GaitRecorder recorder, float time) {
             StrideController stride = recorder.stride;
@@ -52,6 +59,21 @@ public sealed class GaitRecorder {
             PelvisOverSupport = isSupported ? (stride.transform.position.x - support.FootX) * support.Direction : float.NaN;
             LegStepper supportLeg = support.SupportLeg == SupportStance.Leg.Back ? stride.BackLeg : stride.FrontLeg;
             SupportExtension = isSupported ? Vector2.Distance(supportLeg.HipPosition, supportLeg.FootTarget) / supportLeg.LegLength : float.NaN;
+            FrontFoot = stride.FrontLeg.FootTarget;
+            BackFoot = stride.BackLeg.FootTarget;
+            float direction = Mathf.Sign(stride.GroundSpeed);
+            (float extension, float lag) front = Trailing(stride.FrontLeg, direction, stride.IsMoving);
+            (float extension, float lag) back = Trailing(stride.BackLeg, direction, stride.IsMoving);
+            TrailingExtension = float.IsNaN(front.extension) ? back.extension : float.IsNaN(back.extension) ? front.extension : Mathf.Max(front.extension, back.extension);
+            TrailingLag = float.IsNaN(front.lag) ? back.lag : float.IsNaN(back.lag) ? front.lag : Mathf.Max(front.lag, back.lag);
+        }
+
+        private static (float extension, float lag) Trailing(LegStepper leg, float direction, bool moving) {
+            float lag = (leg.HipPosition.x - leg.FootTarget.x) * direction;
+            if (!moving || !leg.IsGrounded || lag <= 0f) {
+                return (float.NaN, float.NaN);
+            }
+            return (Vector2.Distance(leg.HipPosition, leg.FootTarget) / leg.LegLength, lag);
         }
     }
 
@@ -59,11 +81,14 @@ public sealed class GaitRecorder {
         public readonly float Time;
         public readonly bool Front;
         public readonly bool IsLift;
+        // The foot's target at the event: its foothold when it plants.
+        public readonly Vector2 Foot;
 
-        public FootEvent((float time, bool front, bool isLift) footEvent) {
+        public FootEvent((float time, bool front, bool isLift) footEvent, Vector2 foot = default) {
             Time = footEvent.time;
             Front = footEvent.front;
             IsLift = footEvent.isLift;
+            Foot = foot;
         }
     }
 
@@ -102,10 +127,10 @@ public sealed class GaitRecorder {
 
     private void RecordFootChanges((Sample previous, Sample current) frames) {
         if (frames.previous.FrontGrounded != frames.current.FrontGrounded) {
-            footEvents.Add(new FootEvent((time, true, !frames.current.FrontGrounded)));
+            footEvents.Add(new FootEvent((time, true, !frames.current.FrontGrounded), frames.current.FrontFoot));
         }
         if (frames.previous.BackGrounded != frames.current.BackGrounded) {
-            footEvents.Add(new FootEvent((time, false, !frames.current.BackGrounded)));
+            footEvents.Add(new FootEvent((time, false, !frames.current.BackGrounded), frames.current.BackFoot));
         }
     }
 

@@ -126,6 +126,10 @@ public sealed class LocomotionTelemetry {
     public (int count, float secondsAgo) BalanceSteps { get; private set; }
     public (int count, float secondsAgo) PhaseResyncs { get; private set; }
     public (int count, float secondsAgo) FootholdFailures { get; private set; }
+    public (int count, float secondsAgo) ExtensionReleases { get; private set; }
+    // What the ground's slope does to the gait: the slope, the legs' extension and reach, the stride it allows, the last
+    // planned step, the pelvis's reach-ceiling sink and the recovery counts.
+    public SlopeGaitReadout SlopeGait { get; private set; }
 
     public static Mode Classify((bool isMoving, float running) gait) {
         if (!gait.isMoving) {
@@ -237,5 +241,7 @@ public sealed class LocomotionTelemetry {
         BalanceSteps = (diagnostics.BalanceSteps, time - diagnostics.LastBalanceStep);
         PhaseResyncs = (diagnostics.PhaseResyncs, time - diagnostics.LastPhaseResync);
         FootholdFailures = (diagnostics.FootholdFailures, time - diagnostics.LastFootholdFailure);
+        ExtensionReleases = (diagnostics.ExtensionReleases, time - diagnostics.LastExtensionRelease);
+        SlopeGait = stride.SlopeReadout;
     }
 }

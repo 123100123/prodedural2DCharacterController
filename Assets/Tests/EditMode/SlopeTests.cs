@@ -71,22 +71,27 @@ public class SlopeTests {
         Assert.That(flat.TargetSpeed((1f, true)), Is.EqualTo(GaitProfile.Run.speed), "flat ground keeps the speeds");
     }
 
+    // Steps on a slope are bounded by the legs' reach (SlopeReach), not by a share of the flat step: steeper ground
+    // shortens them more, flat ground and unknown legs keep them, and only the steps change.
     [Test]
     public void StepsShortenWithSteepnessAndFlatGroundKeepsThem() {
         SlopeSettings settings = new SlopeSettings();
         GaitProfile walk = GaitProfile.Walk;
-        SlopeGait steep = new SlopeGait(1f, settings);
-        GaitProfile shortened = steep.Shorten(walk);
-        Assert.That(steep.StrideScale, Is.EqualTo(1f - settings.strideShortening).Within(0.0001f));
-        Assert.That(shortened.stepLengthPerRootSpeed, Is.EqualTo(walk.stepLengthPerRootSpeed * steep.StrideScale).Within(0.0001f));
-        Assert.That(shortened.maxStepLength, Is.EqualTo(walk.maxStepLength * steep.StrideScale).Within(0.0001f));
-        Assert.That(shortened.minStepLength, Is.EqualTo(walk.minStepLength * steep.StrideScale).Within(0.0001f));
-        Assert.That(shortened.speed, Is.EqualTo(walk.speed), "only the steps change");
-        Assert.That(new SlopeGait(-0.3f, settings).StrideScale, Is.InRange(steep.StrideScale, 1f), "a gentler slope shortens less");
-        Assert.That(SlopeGait.Flat.Shorten(walk).stepLengthPerRootSpeed, Is.EqualTo(walk.stepLengthPerRootSpeed));
+        LegReach legs = SlopeReachTests.RigLegs;
+        float speed = 2f;
+        GaitProfile steep = new SlopeGait(1f, settings).Reaching(legs).Bound(walk, speed);
+        GaitProfile gentle = new SlopeGait(Mathf.Tan(15f * Mathf.Deg2Rad), settings).Reaching(legs).Bound(walk, speed);
+        GaitProfile flat = new SlopeGait(0f, settings).Reaching(legs).Bound(walk, speed);
+        float flatStep = GaitTiming.StepLength(speed, walk);
 
-        float flatStep = GaitTiming.StepLength(2f, walk);
-        float slopeStep = GaitTiming.StepLength(2f, Gaits().OnSlope(steep).At(2f, 0f));
+        Assert.That(GaitTiming.StepLength(speed, steep), Is.LessThan(flatStep));
+        Assert.That(GaitTiming.StepLength(speed, gentle), Is.InRange(GaitTiming.StepLength(speed, steep), flatStep), "a gentler slope shortens less");
+        Assert.That(GaitTiming.StepLength(speed, flat), Is.EqualTo(flatStep), "flat ground keeps the steps");
+        Assert.That(new SlopeGait(1f, settings).Bound(walk, speed).maxStepLength, Is.EqualTo(walk.maxStepLength), "unknown legs leave the gait as it is");
+        Assert.That(steep.speed, Is.EqualTo(walk.speed), "only the steps change");
+        Assert.That(steep.stepLengthPerRootSpeed, Is.EqualTo(walk.stepLengthPerRootSpeed), "the steps are capped, not rescaled");
+
+        float slopeStep = GaitTiming.StepLength(speed, Gaits().OnSlope(new SlopeGait(1f, settings).Reaching(legs)).At(speed, 0f));
         Assert.That(slopeStep, Is.LessThan(flatStep));
     }
 

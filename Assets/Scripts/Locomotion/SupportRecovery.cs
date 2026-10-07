@@ -18,6 +18,14 @@ public static class SupportRecovery {
         public bool NeedsBalanceStep { get; }
     }
 
+    // A planted trailing foot is released as its normal next step once keeping it would stretch the leg to the release
+    // extension (measured with the pelvis as low as the gait lets it sink, after this tick's travel), as long as the other
+    // foot carries the body or lets this one lift (it is far enough through its swing that the gait already would), and
+    // the clock has this leg stepping next anyway. Otherwise the cadence and, failing that, the balance step answer it.
+    public static bool ReleasesOnExtension((float extension, float releaseExtension) stretch, (bool isTrailing, bool isNextToStep, bool otherLetsLift) legs) {
+        return legs.isTrailing && legs.isNextToStep && legs.otherLetsLift && stretch.extension >= stretch.releaseExtension;
+    }
+
     // trailExcess: how much further behind the hip the furthest planted foot is than a normal stance ends.
     // projectedTrailExcess: how far beyond its leg's reach a planted foot will trail when the clock cues it at the present
     // cadence.

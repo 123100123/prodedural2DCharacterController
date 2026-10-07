@@ -5,7 +5,7 @@ using UnityEngine;
 // and what is copied out to commit a tuned configuration back into the project. Lighting has its own preset.
 [Serializable]
 public class MovementPreset : ITuningPreset<MovementPreset> {
-    public const int CurrentVersion = 13;
+    public const int CurrentVersion = 14;
 
     // Written to every saved file; lets a later change to the format recognise the files written before it.
     public int version = CurrentVersion;
@@ -35,6 +35,8 @@ public class MovementPreset : ITuningPreset<MovementPreset> {
     public RollMomentumSettings rollMomentum;
     public RollRunExitSettings rollRunExit;
     public ClimbSettings climb;
+    // Since version 14: the release extension and the torso's slope lean (missing before then); the step shortening and
+    // pelvis drop are kept, unused, so older files still load.
     public SlopeSettings slope;
     public GaitTransitionSettings transitions;
     public BalanceSettings balance;

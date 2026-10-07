@@ -13,6 +13,13 @@ public static class PostureLean {
         return Mathf.Clamp(forwardAcceleration * settings.leanPerAcceleration, -settings.maxAccelerationLean, settings.maxAccelerationLean);
     }
 
+    // On a slope the torso leans toward the uphill side by slopeLean degrees per degree of slope: forward climbing, back
+    // descending. gradient: rise per unit of x (positive rising toward world right); facingSign: +1 facing right.
+    public static float SlopeLean((float gradient, int facingSign) ground, float slopeLean) {
+        float uphillAhead = ground.gradient * ground.facingSign;
+        return slopeLean * Mathf.Atan(uphillAhead) * Mathf.Rad2Deg;
+    }
+
     public static float Total((float baseLean, float accelerationLean) lean, PostureSettings settings) {
         return Mathf.Clamp(lean.baseLean + lean.accelerationLean, -settings.maxTotalLean, settings.maxTotalLean);
     }

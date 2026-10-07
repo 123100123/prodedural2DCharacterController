@@ -13,6 +13,9 @@ public sealed class GaitDiagnostics {
     public float LastBalanceStep { get; private set; } = float.NegativeInfinity;
     public int PhaseResyncs { get; private set; }
     public float LastPhaseResync { get; private set; } = float.NegativeInfinity;
+    // Trailing feet released at full extension ahead of their cue (normal steps: neither balance steps nor resyncs).
+    public int ExtensionReleases { get; private set; }
+    public float LastExtensionRelease { get; private set; } = float.NegativeInfinity;
     public int FootholdFailures { get; private set; }
     public float LastFootholdFailure { get; private set; } = float.NegativeInfinity;
     // Cadence multiplier the support recovery applies at the moment (1 when the feet keep up).
@@ -38,6 +41,11 @@ public sealed class GaitDiagnostics {
     public void RecordPhaseResync(float time) {
         PhaseResyncs++;
         LastPhaseResync = time;
+    }
+
+    public void RecordExtensionRelease(float time) {
+        ExtensionReleases++;
+        LastExtensionRelease = time;
     }
 
     public void RecordFootholdFailure(float time) {
