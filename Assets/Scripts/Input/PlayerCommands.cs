@@ -13,10 +13,15 @@ public struct PlayerCommands {
     public bool JumpHeld;
     public bool RollPressed;
     public bool RunHeld;
+    // The run input is held with a direction (RunIntent.Resolve): the player wants to run as soon as the character can.
+    // Filled by the driver after reading the input; the states decide when it can be fulfilled.
+    public bool RunIntent;
     // Aim is held, or was latched on by a quick tap.
     public bool IsAiming;
     // Crouch is held, or was latched on by a quick tap.
     public bool CrouchRequested;
+    // The crouch button is physically down this frame (a held crouch, as opposed to one only a tap's latch holds).
+    public bool CrouchHeld;
     // The crouch button went down this frame (a press while running starts a slide).
     public bool CrouchPressed;
     public bool FirePressed;

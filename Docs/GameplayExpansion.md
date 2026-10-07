@@ -63,6 +63,16 @@ this branch. `main` is not touched until the user approves the whole batch.
     `EnvironmentSetup` conventions (sorting layer, lit sprites, `ShadowCaster2D`). Run it, save the scene, stage only
     its hunks. Update `AGENTS.md` layout notes and this doc's status.
 
+**Phase 15, Shift as a run intent** (after the plan above): Shift held with a direction (`RunIntent.Resolve`, filled into `PlayerCommands.RunIntent`
+by the driver) means "run as soon as the character can"; Shift alone does nothing. Each full-body state answers
+`ICharacterState.RunReadinessFor(commands)` itself (a `RunReadiness` with a `RunBlock` reason: the walk names aiming,
+a held or latched crouch, a low ceiling or a push; the other states name themselves) and acts on the intent at its
+own legal exit: the roll's recovery keeps the roll's speed and hands over part way through
+(`RollRunExitSettings`), the climb stands up already moving, landings and slides carry their speed into the walk,
+which then runs. The intent cancels a tap-latched crouch (the driver drops the latch when the walk reports
+`CrouchLatched`); a held Ctrl and a low ceiling keep it. The state machine records the last switch, and the F1 LIVE
+tab has a "Run intent" section.
+
 ## Status
 
 | Phase | Status | Commit |
@@ -81,5 +91,6 @@ this branch. `main` is not touched until the user approves the whole batch.
 | 12 Reachable one-way platform staircase | done | |
 | 13 45° slopes and a hill | done | |
 | 14 Helicopter hover targets with points popups | done | |
+| 15 Shift as a run intent | done | |
 
 Also on the branch: `e54982c` (test seam: scenario tests aim at world points, independent of the Game view) and `f463c6d` (fixes from the verifier pass: disposal of recomposed collaborators, casing, audio and aim edge cases).

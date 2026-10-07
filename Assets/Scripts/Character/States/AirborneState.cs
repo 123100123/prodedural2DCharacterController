@@ -41,8 +41,13 @@ public sealed class AirborneState : ICharacterState {
         secondary = new FallSecondaryMotion(settings.fall);
     }
 
+    public string Name => "Airborne";
     public bool AllowsUpperBodyActions => true;
     public bool AllowsCrouch => true;
+
+    // The landing hands its horizontal speed to the walk (a soft landing keeps all of it, a hard one loses some), and
+    // the walk runs on from it while the intent is held. A buffered jump still wins.
+    public RunReadiness RunReadinessFor(PlayerCommands commands) => RunReadiness.BlockedBy(RunBlock.Airborne);
 
     // Read-only view of the flight for debug tools (the impact speed of the last landing stays after it).
     public AirSnapshot Snapshot {

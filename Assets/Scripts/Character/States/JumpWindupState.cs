@@ -16,8 +16,12 @@ public sealed class JumpWindupState : ICharacterState {
         this.settings = settings;
     }
 
+    public string Name => "JumpWindup";
     public bool AllowsUpperBodyActions => true;
     public bool AllowsCrouch => true;
+
+    // The windup is committed to the jump; the landing walks on and runs if the intent is still there.
+    public RunReadiness RunReadinessFor(PlayerCommands commands) => RunReadiness.BlockedBy(RunBlock.JumpWindup);
 
     // From the grounded gait, which carries on through the windup; or after a landing (a jump pressed just before it),
     // when the gait is handed the landing momentum first.

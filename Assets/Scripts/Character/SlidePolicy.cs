@@ -4,7 +4,7 @@ using UnityEngine;
 // gathers the facts (input, ground, probes); these decide.
 public static class SlidePolicy {
     // Stick input smaller than this is no move input (the run input alone, standing, is not running).
-    public const float InputDeadZone = 0.2f;
+    public const float InputDeadZone = RunIntent.InputDeadZone;
 
     // Why a slide ends, or that it goes on. Listed in priority order: a jump wins over everything.
     public enum Outcome { Slide, Jump, GroundLost, HitWall, Stopped, Released }
@@ -58,7 +58,7 @@ public static class SlidePolicy {
 
     // Holding run while moving (not aiming): the input asks for a run.
     public static bool IsRunIntent((bool runHeld, float moveAxis, bool isAiming) input) {
-        return input.runHeld && !input.isAiming && Mathf.Abs(input.moveAxis) > InputDeadZone;
+        return RunIntent.Resolve((input.runHeld, input.moveAxis)) && !input.isAiming;
     }
 
     // A crouch press on the ground, at a speed worth sliding: running (or near the run speed), faster than a slide ends,

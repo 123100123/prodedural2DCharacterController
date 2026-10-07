@@ -5,14 +5,26 @@ using UnityEngine;
 public sealed class WalkState : ICharacterState {
     private readonly StateContext context;
     private readonly CratePusher pusher;
+    private readonly CrouchController crouch;
 
-    public WalkState(StateContext context, CratePusher pusher) {
+    public WalkState(StateContext context, (CratePusher pusher, CrouchController crouch) body) {
         this.context = context;
-        this.pusher = pusher;
+        pusher = body.pusher;
+        crouch = body.crouch;
     }
 
+    public string Name => "Walk";
     public bool AllowsUpperBodyActions => true;
     public bool AllowsCrouch => true;
+    // The ground speed the gait was handed when walking last began (from the motor velocity the previous state left):
+    // the momentum carried into the walk or run.
+    public float CarriedSpeed { get; private set; }
+
+    // The walk is the state that runs: it does so as soon as the run intent is there, unless aiming, a crouch or a push
+    // holds it back (RunReadiness.OnFeet). The crouch facts are the crouch controller's from its last tick.
+    public RunReadiness RunReadinessFor(PlayerCommands commands) {
+        return RunReadiness.OnFeet((commands.IsAiming, (commands.CrouchRequested, commands.CrouchHeld, crouch.IsHeadroomBlocked), pusher.IsPushing));
+    }
 
     public void Begin() => context.Machine.ChangeTo(this);
 
@@ -20,6 +32,7 @@ public sealed class WalkState : ICharacterState {
     // begins on feet just placed in a stance (spawning, landing, after a roll or a climb), so the gait starts from it.
     public void Enter() {
         context.Rig.Stride.BeginGroundedMotion(context.Rig.Motor.Velocity);
+        CarriedSpeed = context.Rig.Stride.GroundSpeed;
         context.Rig.Stride.RestartGaitFromStance();
         context.Rig.Motor.Velocity = Vector2.zero;
     }
@@ -76,9 +89,10 @@ public sealed class WalkState : ICharacterState {
         return true;
     }
 
-    // Running needs the run input and no aiming: aiming slows the character to a walk.
+    // Running needs the run intent and no aiming: aiming slows the character to a walk. A crouch blends the target down
+    // toward the crouch speed through the crouch share, so a crouch let go into a run ramps up rather than snapping.
     private (float direction, bool running, (float min, float max) feetSpan, (float min, float max) bodySpan) GaitIntent(PlayerCommands commands) {
         ((float min, float max) feet, (float min, float max) body) spans = WallSpans.Within(context.Rig);
-        return (commands.MoveAxis, commands.RunHeld && !commands.IsAiming, spans.feet, spans.body);
+        return (commands.MoveAxis, commands.RunIntent && !commands.IsAiming, spans.feet, spans.body);
     }
 }

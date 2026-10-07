@@ -31,8 +31,12 @@ public sealed class WallSlideState : ICharacterState {
     }
 
     // Aiming and shooting need the arms, which brace on the wall.
+    public string Name => "WallSlide";
     public bool AllowsUpperBodyActions => false;
     public bool AllowsCrouch => false;
+
+    // Sliding down a wall ends in a landing (the walk runs from there) or a wall jump.
+    public RunReadiness RunReadinessFor(PlayerCommands commands) => RunReadiness.BlockedBy(RunBlock.WallSliding);
 
     public bool IsSliding => context.Machine.Current == this;
     // +1 when the wall is to the right of the body, -1 to the left; 0 when not sliding.

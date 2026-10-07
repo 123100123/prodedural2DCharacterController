@@ -3,7 +3,7 @@ using UnityEngine;
 // The collaborators a composed character hands to tools that tune and inspect it. Plain references, so the
 // character knows nothing about who uses them: the tools depend on the character, never the other way round.
 public readonly struct CharacterParts {
-    public CharacterParts((StrideController stride, LocomotionPosture posture, TorsoMotion torso, HeadLook head, ArmSwing arms) movement, (CrouchController crouch, Transform postureRoot) body, (JumpSettings jump, AirborneSettings airborne, AirborneState airborneState, (AirPoseSettings pose, FallSecondarySettings fall) air, LandingSettings landing) moves, (ShootingSettings shooting, Pistol pistol, (WeaponSettings settings, WeaponController controller) shot) weapon, (CameraFeelSettings settings, FollowCamera camera) cameraRig, EffectsSettings effects, CharacterAudioSettings audio, (WallSettings settings, WallSlideState state) wall, (SlideSettings settings, SlideState state) slide, (LedgeHangSettings hang, OneWaySettings oneWay, ClimbState climb) ledges, (PushSettings settings, CratePusher pusher, PushPose pose) push, (RollSettings roll, ClimbSettings climb, SlopeSettings slope) moveTuning) {
+    public CharacterParts((StrideController stride, LocomotionPosture posture, TorsoMotion torso, HeadLook head, ArmSwing arms) movement, (CrouchController crouch, Transform postureRoot) body, (JumpSettings jump, AirborneSettings airborne, AirborneState airborneState, (AirPoseSettings pose, FallSecondarySettings fall) air, LandingSettings landing) moves, (ShootingSettings shooting, Pistol pistol, (WeaponSettings settings, WeaponController controller) shot) weapon, (CameraFeelSettings settings, FollowCamera camera) cameraRig, EffectsSettings effects, CharacterAudioSettings audio, (WallSettings settings, WallSlideState state) wall, (SlideSettings settings, SlideState state) slide, (LedgeHangSettings hang, OneWaySettings oneWay, ClimbState climb) ledges, (PushSettings settings, CratePusher pusher, PushPose pose) push, (RollSettings roll, ClimbSettings climb, SlopeSettings slope) moveTuning, (CharacterStateMachine machine, WalkState walk) fullBody) {
         Stride = movement.stride;
         Posture = movement.posture;
         Torso = movement.torso;
@@ -38,6 +38,8 @@ public readonly struct CharacterParts {
         Roll = moveTuning.roll;
         ClimbSettings = moveTuning.climb;
         Slope = moveTuning.slope;
+        Machine = fullBody.machine;
+        Walk = fullBody.walk;
     }
 
     public StrideController Stride { get; }
@@ -81,4 +83,9 @@ public readonly struct CharacterParts {
     public RollSettings Roll { get; }
     public ClimbSettings ClimbSettings { get; }
     public SlopeSettings Slope { get; }
+    // The full-body state machine, for the current state, its run readiness and the last switch; null until the
+    // character is composed.
+    public CharacterStateMachine Machine { get; }
+    // The grounded walk, for the speed it was handed when it last began; null until the character is composed.
+    public WalkState Walk { get; }
 }

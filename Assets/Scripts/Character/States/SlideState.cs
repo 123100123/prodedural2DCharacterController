@@ -36,9 +36,15 @@ public sealed class SlideState : ICharacterState {
     // Aiming and shooting run on top of the slide: the shooting stance takes the arms and head, the slide keeps the legs,
     // the low body, the lean and the facing (a pointer behind is held at the aim's steepest angle in front rather than
     // turning the character, whose legs would then fold the wrong way). Not aiming, the slide poses the arms itself.
+    public string Name => "Slide";
     public bool AllowsUpperBodyActions => isAiming;
     // The slide holds the crouch itself (the crouch hull and the low crouch share it hands back to the walk).
     public bool AllowsCrouch => true;
+
+    // Committed while it slides: it ends where friction or the crouch's release lets it (standing where there is room)
+    // and hands its speed to the walk, which runs on from it. The latch of the crouch tap that started it is the slide's
+    // own, so it is not cancelled here.
+    public RunReadiness RunReadinessFor(PlayerCommands commands) => RunReadiness.BlockedBy(RunBlock.Sliding);
 
     public bool IsSliding => context.Machine.Current == this;
     // The crouch is held while sliding, whatever the input.

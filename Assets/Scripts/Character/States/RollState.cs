@@ -2,8 +2,9 @@ using UnityEngine;
 
 // Dive roll: dive forward with both arms reaching ahead, plant the hands on the ground, roll forward over the shoulders,
 // then bring the feet back to the ground and hand over to walking. Each phase eases from where the previous one left off.
-// On a slope the roll travels along the surface and keeps the body clear of the slope line, not just of the ground
-// under the pivot.
+// With the run intent along the roll, the recovery keeps the roll's travel speed and hands over to the run part way
+// through (RollRunExitSettings), so the run starts from the roll's speed rather than from the slow recovery. On a slope
+// the roll travels along the surface and keeps the body clear of the slope line, not just of the ground under the pivot.
 public sealed class RollState : ICharacterState {
     private enum RollPhase { Dive, HandContact, Roll, Recover }
 
@@ -13,6 +14,7 @@ public sealed class RollState : ICharacterState {
 
     private readonly StateContext context;
     private readonly RollSettings settings;
+    private readonly RollRunExitSettings runExit;
 
     private RollPhase phase;
     private float phaseElapsed;
@@ -30,14 +32,23 @@ public sealed class RollState : ICharacterState {
     private (Vector2 leadExtended, Vector2 trailExtended, Vector2 leadTucked, Vector2 trailTucked, Vector2 hands) bodySpacePose;
     private (LegStepper lead, LegStepper trail) legs;
     private (Vector2 lead, Vector2 trail) recoveryFootholds;
+    // The run intent points along the roll this frame (only acted on in the recovery).
+    private bool runsAlong;
 
-    public RollState(StateContext context, RollSettings settings) {
+    public RollState(StateContext context, (RollSettings roll, RollRunExitSettings runExit) settings) {
         this.context = context;
-        this.settings = settings;
+        this.settings = settings.roll;
+        runExit = settings.runExit;
     }
 
+    public string Name => "Roll";
     public bool AllowsUpperBodyActions => false;
     public bool AllowsCrouch => false;
+
+    // The dive, the hand contact and the roll over are committed; the recovery is where the run intent can take over.
+    public RunReadiness RunReadinessFor(PlayerCommands commands) {
+        return RunReadiness.BlockedBy(phase == RollPhase.Recover ? RunBlock.RollRecovering : RunBlock.RollCommitted);
+    }
 
     public bool CanStart => settings.enabled && Time.time >= readyTime;
 
@@ -58,6 +69,7 @@ public sealed class RollState : ICharacterState {
     public void Tick(float deltaTime, PlayerCommands commands) {
         phaseElapsed += deltaTime;
         float progress = Mathf.Clamp01(phaseElapsed / PhaseDuration());
+        runsAlong = RunIntent.Along((commands.RunIntent, commands.MoveAxis), direction);
 
         TravelForward(deltaTime);
         if (!TryFindGroundUnderBody()) {
@@ -70,6 +82,9 @@ public sealed class RollState : ICharacterState {
         PoseLimbs((progress, deltaTime));
         context.Rig.Stride.PlaceStrideTargetUnderBody();
 
+        if (phase == RollPhase.Recover && runExit.HandsOver((runsAlong, progress)) && TryRunOut()) {
+            return;
+        }
         if (IsPhaseComplete(progress)) {
             AdvancePhase();
         }
@@ -126,7 +141,7 @@ public sealed class RollState : ICharacterState {
             case RollPhase.Dive: return settings.diveSpeed;
             case RollPhase.HandContact: return settings.contactSpeed;
             case RollPhase.Roll: return settings.rollSpeed;
-            default: return settings.recoverSpeed;
+            default: return runExit.KeepsTravelSpeed(runsAlong) ? settings.rollSpeed : settings.recoverSpeed;
         }
     }
 
@@ -352,6 +367,17 @@ public sealed class RollState : ICharacterState {
             }
         }
         return new Vector2(search.bodyX, groundY);
+    }
+
+    // Part way through the recovery, toward a run: the feet settle where the body is and the walk takes the roll's
+    // velocity from the motor (written by the travel this frame), so the run ramps up from the roll's speed. False if the
+    // feet find no ground: the recovery carries on and stands up (or falls) at its end as usual.
+    private bool TryRunOut() {
+        if (!context.Rig.Stride.TrySettleStance((context.Rig.Body.position.x, direction, groundY))) {
+            return false;
+        }
+        context.States.Walk.Begin();
+        return true;
     }
 
     // The body is left in a slight crouch; the walking gait rises out of it.

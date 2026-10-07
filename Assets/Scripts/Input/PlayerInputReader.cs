@@ -53,6 +53,7 @@ public sealed class PlayerInputReader : IDisposable {
             RunHeld = !isTyping && run.IsPressed(),
             IsAiming = ReadAimMode(isPointerOverUi),
             CrouchRequested = ReadCrouchMode(isTyping),
+            CrouchHeld = !isTyping && crouch.IsPressed(),
             CrouchPressed = !isTyping && crouch.WasPressedThisFrame(),
             FirePressed = !isPointerOverUi && fire.WasPressedThisFrame(),
             ReloadPressed = !isTyping && reload.WasPressedThisFrame(),

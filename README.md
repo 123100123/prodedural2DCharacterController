@@ -19,8 +19,8 @@ Controls are listed below. To try the moves, climb onto the raised block at the 
 | Move left / right | A / D (or ← / →) | Left stick |
 | Vertical (up / down: climb out of a hang, let go, drop through) | W / S (or ↑ / ↓) | Left stick up / down |
 | Jump (hold for height, release early for a hop; climbs instead when a too-high ledge is ahead) | Space | South button |
-| Run (while walking; not while aiming) | Hold Left Shift | Press left stick |
-| Crouch (hold, or tap to latch on and off); pressed while running it slides | Left Ctrl | Press right stick |
+| Run intent: hold with a direction to run as soon as the character can (after a landing, a roll, a climb or a crouch); not while aiming; alone, with no direction, it does nothing | Hold Left Shift | Press left stick |
+| Crouch (hold, or tap to latch on and off); pressed while running it slides. Shift with a direction cancels a tapped crouch and runs; a held Ctrl wins (crouch walk); a low ceiling keeps the crouch until there is room | Left Ctrl | Press right stick |
 | Roll toward the facing direction (on by default; toggle it in F1) | Left Alt | East button |
 | Aim: face and aim at the pointer (hold, or tap to latch on and off) | Right mouse button | Left trigger |
 | Fire (while aiming) | Left mouse button | Right trigger |
@@ -144,7 +144,7 @@ The full-body states switch through `CharacterStateMachine`. Each state receives
 ## 7. Moves
   - **Crouch** ([CrouchController](Assets/Scripts/Character/CrouchController.cs)): a modifier on the states that allow it (walking, the jump windup, the air), not a state of its own, so aiming, shooting and jumping work from it for free.
     - Left Ctrl is hold-or-tap. The crouch share rises through a spring while the feet stay planted: the pelvis sinks by `depth`, the legs flex, the torso folds and the arms are held in close.
-    - Crouching, the **crouch gait** takes over at crouch speeds (about 1.8 u/s): short, low steps with the feet down most of the cycle. The run key is ignored, and crouching while running slows through the speed ramp (no slide). The pelvis drops at once; the gait's timing follows the speed.
+    - Crouching, the **crouch gait** takes over at crouch speeds (about 1.8 u/s): short, low steps with the feet down most of the cycle. A held crouch ignores the run key, and crouching while running slows through the speed ramp (no slide). Shift with a direction cancels a tapped (latched) crouch: the character stands and ramps up to the run through the crouch spring and the speed ramp, without a snap. The pelvis drops at once; the gait's timing follows the speed.
     - The collision hull shrinks from the top. Releasing under a ceiling too low to stand under keeps the character crouched until there is room.
   - **Jump** ([JumpMomentum](Assets/Scripts/Character/JumpMomentum.cs), [AirSteering](Assets/Scripts/Character/AirSteering.cs)):
     - The launch keeps the **ground speed** (plus a forward impulse that grows to a run), so a running jump goes much further than a standing one. The windup shrinks as the character speeds up: standing, a full load; running, it pushes off mid-stride with no stop.
@@ -205,6 +205,7 @@ The full-body states switch through `CharacterStateMachine`. Each state receives
   Settings are organised in **tuning domains**, each with its own preset type: **Movement** (`MovementPreset`) and **Lighting** (`LightingPreset`). A domain is a set of tabs declared as data (`MovementTuningSchema`, `LightingTuningSchema`): each parameter names its tab, group, unit, range and how it reads and writes the preset, and each setting is offered in exactly one tab. Presets are versioned JSON that loads over the code defaults, so a file saved before a setting existed keeps that setting's default. Hidden, the panel only waits for its key. Open, clicks over it and typing into its fields don't reach gameplay. A field holds the keyboard only after you click into it, and clicking outside gives it back.
   - **LIVE:** what the gait is doing, in sections:
     - **Gait:** classification (IDLE, WALK, RUN or TRANSITION), input, ground and intended speed, pace and run blend.
+    - **Run intent:** Shift held and the run intent (Shift with a direction), whether the intent is pending, the current full-body state, whether it can transition to a run and, if not, why (aiming, crouch held, crouch latched, low ceiling, pushing, airborne, jump windup, roll committed or recovering, climbing, wall sliding, sliding), the last state switch and how long ago, and the speed carried into the walk or run.
     - **Timing:** gait phase, cycle period and cadence, duty factor and swing share, catch-up, the last planted foot, the front-to-back and back-to-front contact intervals, and the balance step and resync counts.
     - **Support:** the support leg (front, back, both feet or flight), the support foot's X and stance progress, the contact lead share, the pelvis X against its target and the stride anchor, and the support offset and surge.
     - **Height:** pelvis Y and target, the gait baseline and bob, and the reach ceiling (marked when it limits the pelvis).

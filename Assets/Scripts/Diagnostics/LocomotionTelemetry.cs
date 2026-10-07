@@ -38,12 +38,14 @@ public sealed class LocomotionTelemetry {
     private readonly (LocomotionPosture posture, TorsoMotion torso, HeadLook head, Transform postureRoot) upperBody;
     private readonly CrouchController crouch;
     private readonly AirborneState airborne;
+    private readonly (CharacterStateMachine machine, WalkState walk) fullBody;
 
-    public LocomotionTelemetry(StrideController stride, (LocomotionPosture posture, TorsoMotion torso, HeadLook head, Transform postureRoot) upperBody, (CrouchController crouch, AirborneState airborne) states) {
+    public LocomotionTelemetry(StrideController stride, (LocomotionPosture posture, TorsoMotion torso, HeadLook head, Transform postureRoot) upperBody, (CrouchController crouch, AirborneState airborne) states, (CharacterStateMachine machine, WalkState walk) fullBody = default) {
         this.stride = stride;
         this.upperBody = upperBody;
         crouch = states.crouch;
         airborne = states.airborne;
+        this.fullBody = fullBody;
     }
 
     public Mode Classification { get; private set; }
@@ -71,6 +73,18 @@ public sealed class LocomotionTelemetry {
     public GaitPreview Preview { get; private set; }
     public float MoveAxis { get; private set; }
     public bool RunHeld { get; private set; }
+    // Run intent: the run input held with a direction; whether the current state could run now (and why not); and
+    // whether the intent is waiting on the state (pending: wanted, but the state cannot run yet).
+    public bool RunIntent { get; private set; }
+    public RunReadiness Readiness { get; private set; }
+    public bool RunIntentPending => RunIntent && !Readiness.CanRun;
+    // The full-body state and the last switch: its cached names, how long ago, and how many switches so far.
+    public string StateName { get; private set; } = "-";
+    public string PreviousStateName { get; private set; } = "-";
+    public float SecondsSinceStateChange { get; private set; }
+    public int StateChanges { get; private set; }
+    // The ground speed the walk was handed when it last began: the momentum carried into the walk or run.
+    public float CarriedSpeed { get; private set; }
     public bool IsDrivingGait { get; private set; }
 
     public float GroundSpeed { get; private set; }
@@ -123,6 +137,7 @@ public sealed class LocomotionTelemetry {
 
     public void Refresh((PlayerCommands commands, float time) frame) {
         ReadInput(frame.commands);
+        ReadRunIntent((frame.commands, frame.time));
         ReadGait();
         ReadCrouch();
         Air = airborne.Snapshot;
@@ -135,6 +150,23 @@ public sealed class LocomotionTelemetry {
         MoveAxis = commands.MoveAxis;
         RunHeld = commands.RunHeld;
         Preview = stride.Preview;
+    }
+
+    // Allocation-free: the readiness is an enum and the state names are constants.
+    private void ReadRunIntent((PlayerCommands commands, float time) frame) {
+        RunIntent = frame.commands.RunIntent;
+        CharacterStateMachine machine = fullBody.machine;
+        ICharacterState current = machine?.Current;
+        if (current == null) {
+            Readiness = RunReadiness.Ready;
+            return;
+        }
+        Readiness = current.RunReadinessFor(frame.commands);
+        StateName = current.Name;
+        PreviousStateName = machine.Previous?.Name ?? "-";
+        SecondsSinceStateChange = frame.time - machine.LastChangeTime;
+        StateChanges = machine.ChangeCount;
+        CarriedSpeed = fullBody.walk?.CarriedSpeed ?? 0f;
     }
 
     private void ReadGait() {

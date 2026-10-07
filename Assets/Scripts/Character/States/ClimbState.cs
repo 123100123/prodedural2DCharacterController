@@ -24,6 +24,8 @@ public sealed class ClimbState : ICharacterState {
     // What the player chose for the hang so far, and how long the body has been left hanging.
     private LedgeHangPolicy.Choice choice;
     private float timeHanging;
+    // The run intent points the way the climb faces this frame: standing on top, the walk starts already moving.
+    private bool runsOnFromTop;
 
     public ClimbState(StateContext context, (ClimbSettings climb, LedgeHangSettings hang) settings) {
         this.context = context;
@@ -32,8 +34,12 @@ public sealed class ClimbState : ICharacterState {
         detector = new LedgeDetector(settings.climb);
     }
 
+    public string Name => "Climb";
     public bool AllowsUpperBodyActions => false;
     public bool AllowsCrouch => false;
+
+    // Committed until the feet stand on top; with the run intent toward the top, the walk then starts moving and runs.
+    public RunReadiness RunReadinessFor(PlayerCommands commands) => RunReadiness.BlockedBy(RunBlock.Climbing);
 
     // Hanging from the ledge, waiting for the player's choice.
     public bool IsHanging => context.Machine.Current == this && phase == ClimbPhase.Hang && timeHanging > 0f;
@@ -94,6 +100,7 @@ public sealed class ClimbState : ICharacterState {
     public void Tick(float deltaTime, PlayerCommands commands) {
         phaseElapsed += deltaTime;
         float progress = Mathf.Clamp01(phaseElapsed / PhaseDuration());
+        runsOnFromTop = RunIntent.Along((commands.RunIntent, commands.MoveAxis), ledge.ClimbDirection);
         if (phase <= ClimbPhase.Hang) {
             LedgeHangPolicy.Choice now = LedgeHangPolicy.Decide((commands.MoveAxis * ledge.ClimbDirection, commands.VerticalAxis, commands.JumpPressed), hang);
             choice = LedgeHangPolicy.Remember(choice, now);
@@ -221,12 +228,17 @@ public sealed class ClimbState : ICharacterState {
         return ledge.Corner + new Vector2(ledge.ClimbDirection * offsetTowardLedge.x, offsetTowardLedge.y);
     }
 
-    // Falls back to a stance right past the edge when the planned one does not fit on the top.
+    // Falls back to a stance right past the edge when the planned one does not fit on the top. The climb leaves the
+    // body still; with the run intent toward the top, the walk is handed a start speed so the run ramps up from a moving
+    // start (the gait's own start threshold) rather than from a dead stop.
     private void StandOnTop() {
         StrideController stride = context.Rig.Stride;
         float edgeStanceX = ledge.Corner.x + ledge.ClimbDirection * (stride.StanceHalfWidth + ScrambleFootWallGap);
         if (stride.TrySettleStance((keyframes.standing.x, ledge.ClimbDirection, ledge.Corner.y))
             || stride.TrySettleStance((edgeStanceX, ledge.ClimbDirection, ledge.Corner.y))) {
+            if (runsOnFromTop) {
+                context.Rig.Motor.Velocity = new Vector2(ledge.ClimbDirection * stride.Transitions.startSpeed, 0f);
+            }
             context.States.Walk.Begin();
             return;
         }

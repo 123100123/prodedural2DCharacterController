@@ -32,6 +32,8 @@ public class CharacterDriver : MonoBehaviour {
     [SerializeField] private FallSecondarySettings fallSecondary = new FallSecondarySettings();
     [SerializeField] private LandingSettings landing = new LandingSettings();
     [SerializeField] private RollSettings roll = new RollSettings();
+    [Tooltip("Leaving a roll into a run when the run intent points along it.")]
+    [SerializeField] private RollRunExitSettings rollRunExit = new RollRunExitSettings();
     [SerializeField] private ClimbSettings climb = new ClimbSettings();
     [Tooltip("Hanging from a ledge: holding, climbing on or letting go.")]
     [SerializeField] private LedgeHangSettings ledgeHang = new LedgeHangSettings();
@@ -80,7 +82,7 @@ public class CharacterDriver : MonoBehaviour {
 
     public CharacterEvents Events { get; private set; }
     // What debug and tuning tools need; the character never reads anything back from them.
-    public CharacterParts Parts => new CharacterParts((stride, posture, torsoMotion, head, armSwing), (crouch, postureRoot), (jump, airborne, states?.Airborne, (airPose, fallSecondary), landing), (shooting, pistol, (weapon, weaponController)), (cameraFeel, followCamera), effects, audioSettings, (wall, states?.WallSlide), (slide, states?.Slide), (ledgeHang, oneWay, states?.Climb), (push, cratePusher, pushPose), (roll, climb, slope));
+    public CharacterParts Parts => new CharacterParts((stride, posture, torsoMotion, head, armSwing), (crouch, postureRoot), (jump, airborne, states?.Airborne, (airPose, fallSecondary), landing), (shooting, pistol, (weapon, weaponController)), (cameraFeel, followCamera), effects, audioSettings, (wall, states?.WallSlide), (slide, states?.Slide), (ledgeHang, oneWay, states?.Climb), (push, cratePusher, pushPose), (roll, climb, slope), (machine, states?.Walk));
     public PlayerCommands LatestCommands => latestCommands;
     // The full-body state the character is in; null until the character is composed.
     public ICharacterState CurrentState => machine?.Current;
@@ -163,7 +165,7 @@ public class CharacterDriver : MonoBehaviour {
 
     // Full-body state first, then the posture and the upper-body layer on top of it.
     private void Update() {
-        PlayerCommands commands = input.ReadCommands();
+        PlayerCommands commands = ResolveRunIntent(input.ReadCommands());
         latestCommands = commands;
         cameraAim = (false, Vector2.zero);
         weaponController.Tick(Time.time, Time.deltaTime, commands.ReloadPressed);
@@ -179,6 +181,18 @@ public class CharacterDriver : MonoBehaviour {
             PoseUpperBody(commands);
             torsoMotion.Tick(Time.deltaTime);
         }
+    }
+
+    // Input only says what the player wants; the state the character is in says whether it can run now. A crouch only a
+    // tap's latch holds is the one block the run intent clears (a held crouch button and a low ceiling are not): the
+    // latch is dropped, and this frame's crouch and state already see it gone.
+    private PlayerCommands ResolveRunIntent(PlayerCommands commands) {
+        commands.RunIntent = RunIntent.Resolve((commands.RunHeld, commands.MoveAxis));
+        if (RunIntent.CancelsCrouchLatch(commands.RunIntent, machine.Current.RunReadinessFor(commands))) {
+            input.ConsumeCrouchPress();
+            commands.CrouchRequested = false;
+        }
+        return commands;
     }
 
     // The push drives the crate at the physics rate (the walk decided this frame whether it pushes).
@@ -219,10 +233,10 @@ public class CharacterDriver : MonoBehaviour {
         CharacterStates built = new CharacterStates();
         StateContext context = new StateContext((machine, rig, built));
         built.Register((
-            new WalkState(context, cratePusher),
+            new WalkState(context, (cratePusher, crouch)),
             new JumpWindupState(context, (jump, airborne)),
             new AirborneState(context, (airborne, jump, airPose, fallSecondary, landing)),
-            new RollState(context, roll),
+            new RollState(context, (roll, rollRunExit)),
             new ClimbState(context, (climb, ledgeHang)),
             new WallSlideState(context, wall),
             new SlideState(context, (slide, jump))));

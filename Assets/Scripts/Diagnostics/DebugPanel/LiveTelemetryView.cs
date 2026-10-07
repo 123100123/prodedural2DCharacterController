@@ -16,6 +16,7 @@ public sealed class LiveTelemetryView {
         Root = new VisualElement();
         AddFlags();
         AddSection(("Gait", GaitReadouts()));
+        AddSection(("Run intent", RunIntentReadouts()));
         AddSection(("Crouch", CrouchReadouts()));
         AddSection(("Airborne", AirborneReadouts()));
         AddSection(("Landing", LandingReadouts()));
@@ -46,6 +47,15 @@ public sealed class LiveTelemetryView {
         yield return ("Move axis / run held", t => $"{t.MoveAxis:0.00} / {(t.RunHeld ? "yes" : "no")}");
         yield return ("Ground / intended speed", t => $"{t.GroundSpeed:0.00} / {t.IntendedSpeed:0.00} u/s");
         yield return ("Pace moving / run blend", t => $"{t.Pace.Moving:0.00} / {t.Pace.Running:0.00}");
+    }
+
+    private static IEnumerable<(string label, Func<LocomotionTelemetry, string> format)> RunIntentReadouts() {
+        yield return ("Run held / run intent", t => $"{(t.RunHeld ? "yes" : "no")} / {(t.RunIntent ? "yes" : "no")}");
+        yield return ("Run intent pending", t => t.RunIntentPending ? $"yes (waiting: {t.Readiness.Reason})" : "no");
+        yield return ("Current state", t => t.StateName);
+        yield return ("Can transition to run", t => t.Readiness.CanRun ? "yes" : $"no ({t.Readiness.Reason})");
+        yield return ("Last transition", t => $"{t.PreviousStateName} → {t.StateName}, {t.SecondsSinceStateChange:0.00} s ago (#{t.StateChanges})");
+        yield return ("Velocity carried into walk/run", t => $"{t.CarriedSpeed:0.00} u/s");
     }
 
     private static IEnumerable<(string label, Func<LocomotionTelemetry, string> format)> CrouchReadouts() {

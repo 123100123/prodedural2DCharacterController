@@ -1,0 +1,142 @@
+using System.Collections.Generic;
+using NUnit.Framework;
+using UnityEngine;
+
+// Shift as a run intent: the pure rules (the intent itself, the walk's readiness, the crouch latch it cancels, the roll's
+// run exit), each state's own readiness answer, and the state machine's record of its last switch.
+public class RunIntentTests {
+    [Test]
+    public void TheRunInputWithNoDirectionIsNoIntent() {
+        Assert.That(RunIntent.Resolve((true, 0f)), Is.False, "Shift alone does nothing");
+        Assert.That(RunIntent.Resolve((true, 0.1f)), Is.False, "inside the stick dead zone");
+        Assert.That(RunIntent.Resolve((false, 1f)), Is.False, "a direction alone is a walk");
+        Assert.That(RunIntent.Resolve((true, 1f)), Is.True);
+        Assert.That(RunIntent.Resolve((true, -1f)), Is.True);
+    }
+
+    [Test]
+    public void TheSlidesRunIntentIsTheSameRuleWithoutAiming() {
+        Assert.That(SlidePolicy.InputDeadZone, Is.EqualTo(RunIntent.InputDeadZone));
+        Assert.That(SlidePolicy.IsRunIntent((true, 1f, false)), Is.True);
+        Assert.That(SlidePolicy.IsRunIntent((true, 1f, true)), Is.False, "aiming slows to a walk");
+        Assert.That(SlidePolicy.IsRunIntent((true, 0f, false)), Is.False);
+    }
+
+    [Test]
+    public void TheIntentPointsAlongADirectionOnlyWhenItIsThere() {
+        Assert.That(RunIntent.Along((true, 1f), 1), Is.True);
+        Assert.That(RunIntent.Along((true, -1f), 1), Is.False, "pointing back");
+        Assert.That(RunIntent.Along((false, 1f), 1), Is.False, "no intent");
+        Assert.That(RunIntent.Along((true, -1f), -1), Is.True);
+    }
+
+    [Test]
+    public void TheWalkNamesWhatHoldsItBackInOrder() {
+        Assert.That(OnFeet(aiming: true, held: true).Block, Is.EqualTo(RunBlock.Aiming), "aiming first");
+        Assert.That(OnFeet(held: true, requested: true, headroom: true).Block, Is.EqualTo(RunBlock.CrouchHeld), "a held crouch wins");
+        Assert.That(OnFeet(requested: true, headroom: true).Block, Is.EqualTo(RunBlock.NoHeadroom), "a low ceiling keeps the crouch");
+        Assert.That(OnFeet(requested: true).Block, Is.EqualTo(RunBlock.CrouchLatched));
+        Assert.That(OnFeet(pushing: true).Block, Is.EqualTo(RunBlock.Pushing));
+        Assert.That(OnFeet().CanRun, Is.True, "nothing in the way");
+        Assert.That(OnFeet().Block, Is.EqualTo(RunBlock.None));
+    }
+
+    [Test]
+    public void TheRunIntentCancelsALatchedCrouchButNotAHeldOne() {
+        Assert.That(RunIntent.CancelsCrouchLatch(true, OnFeet(requested: true)), Is.True, "latched + intent: cancel");
+        Assert.That(RunIntent.CancelsCrouchLatch(true, OnFeet(requested: true, held: true)), Is.False, "held + intent: keep (crouch walk)");
+        Assert.That(RunIntent.CancelsCrouchLatch(false, OnFeet(requested: true)), Is.False, "no intent (Shift with no direction): keep");
+        Assert.That(RunIntent.CancelsCrouchLatch(true, OnFeet(requested: true, headroom: true)), Is.False, "under a low ceiling: keep");
+        Assert.That(RunIntent.CancelsCrouchLatch(true, RunReadiness.BlockedBy(RunBlock.Sliding)), Is.False, "the slide's own latch stays");
+    }
+
+    [Test]
+    public void TheRollHandsOverToTheRunPartWayThroughTheRecoveryOnlyWithTheIntentAlongIt() {
+        RollRunExitSettings settings = new RollRunExitSettings();
+        Assert.That(settings.runExitShare, Is.GreaterThan(0f).And.LessThan(1f));
+        Assert.That(settings.HandsOver((true, settings.runExitShare - 0.01f)), Is.False, "too early");
+        Assert.That(settings.HandsOver((true, settings.runExitShare)), Is.True);
+        Assert.That(settings.HandsOver((false, 1f)), Is.False, "no intent along the roll: the full recovery");
+        Assert.That(settings.KeepsTravelSpeed(true), Is.True);
+        Assert.That(settings.KeepsTravelSpeed(false), Is.False);
+
+        settings.enabled = false;
+        Assert.That(settings.HandsOver((true, 1f)), Is.False, "switched off");
+        Assert.That(settings.KeepsTravelSpeed(true), Is.False);
+    }
+
+    [Test]
+    public void EveryStateAnswersForItselfWithItsOwnReason() {
+        CharacterStateMachine machine = new CharacterStateMachine();
+        CharacterStates states = new CharacterStates();
+        StateContext context = new StateContext((machine, null, states));
+        PlayerCommands running = new PlayerCommands { MoveAxis = 1f, RunHeld = true, RunIntent = true };
+        Dictionary<ICharacterState, RunBlock> expected = new Dictionary<ICharacterState, RunBlock> {
+            { new JumpWindupState(context, (new JumpSettings(), new AirborneSettings())), RunBlock.JumpWindup },
+            { new AirborneState(context, (new AirborneSettings(), new JumpSettings(), new AirPoseSettings(), new FallSecondarySettings(), new LandingSettings())), RunBlock.Airborne },
+            { new RollState(context, (new RollSettings(), new RollRunExitSettings())), RunBlock.RollCommitted },
+            { new ClimbState(context, (new ClimbSettings(), new LedgeHangSettings())), RunBlock.Climbing },
+            { new WallSlideState(context, new WallSettings()), RunBlock.WallSliding },
+            { new SlideState(context, (new SlideSettings(), new JumpSettings())), RunBlock.Sliding },
+        };
+        HashSet<string> names = new HashSet<string> { "Walk" };
+        foreach (KeyValuePair<ICharacterState, RunBlock> state in expected) {
+            RunReadiness readiness = state.Key.RunReadinessFor(running);
+            Assert.That(readiness.Block, Is.EqualTo(state.Value), state.Key.Name);
+            Assert.That(readiness.CanRun, Is.False, state.Key.Name);
+            Assert.That(readiness.Reason, Is.Not.Empty);
+            Assert.That(names.Add(state.Key.Name), Is.True, $"{state.Key.Name} is a name of its own");
+        }
+    }
+
+    [Test]
+    public void EveryReasonHasAName() {
+        foreach (RunBlock block in System.Enum.GetValues(typeof(RunBlock))) {
+            Assert.That(RunReadiness.BlockedBy(block).Reason, Is.Not.Empty, block.ToString());
+        }
+    }
+
+    [Test]
+    public void TheMachineRecordsItsLastSwitch() {
+        CharacterStateMachine machine = new CharacterStateMachine();
+        List<string> calls = new List<string>();
+        FakeState first = new FakeState("First", calls);
+        FakeState second = new FakeState("Second", calls);
+        Assert.That(machine.ChangeCount, Is.Zero);
+        Assert.That(machine.Previous, Is.Null);
+
+        machine.ChangeTo(first);
+        Assert.That(machine.Current, Is.SameAs(first));
+        Assert.That(machine.Previous, Is.Null, "nothing before the first state");
+        Assert.That(machine.ChangeCount, Is.EqualTo(1));
+
+        machine.ChangeTo(second);
+        Assert.That(machine.Current, Is.SameAs(second));
+        Assert.That(machine.Previous, Is.SameAs(first));
+        Assert.That(machine.ChangeCount, Is.EqualTo(2));
+        Assert.That(machine.LastChangeTime, Is.EqualTo(Time.time));
+        Assert.That(calls, Is.EqualTo(new[] { "First.Enter", "First.Exit", "Second.Enter" }), "exit before enter, as before");
+    }
+
+    private static RunReadiness OnFeet(bool aiming = false, bool requested = false, bool held = false, bool headroom = false, bool pushing = false) {
+        // A held crouch is also requested (the reader's crouch request is held or latched).
+        return RunReadiness.OnFeet((aiming, (requested || held, held, headroom), pushing));
+    }
+
+    private sealed class FakeState : ICharacterState {
+        private readonly List<string> calls;
+
+        public FakeState(string name, List<string> calls) {
+            Name = name;
+            this.calls = calls;
+        }
+
+        public string Name { get; }
+        public bool AllowsUpperBodyActions => true;
+        public bool AllowsCrouch => true;
+        public RunReadiness RunReadinessFor(PlayerCommands commands) => RunReadiness.Ready;
+        public void Enter() => calls.Add(Name + ".Enter");
+        public void Tick(float deltaTime, PlayerCommands commands) { }
+        public void Exit() => calls.Add(Name + ".Exit");
+    }
+}
