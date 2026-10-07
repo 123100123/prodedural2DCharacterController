@@ -70,7 +70,10 @@ a held or latched crouch, a low ceiling or a push; the other states name themsel
 own legal exit: the roll's recovery keeps the roll's speed and hands over part way through
 (`RollRunExitSettings`), the climb stands up already moving, landings and slides carry their speed into the walk,
 which then runs. The intent cancels a tap-latched crouch (the driver drops the latch when the walk reports
-`CrouchLatched`); a held Ctrl and a low ceiling keep it. The state machine records the last switch, and the F1 LIVE
+`CrouchLatched`) and ignores a Ctrl press still short enough to be a tap (`CrouchTap`); Ctrl held past the tap time and
+a low ceiling keep the crouch, and the slide still starts on the press edge. The walk's gait still runs at the stick's
+share of the run speed below the intent's dead zone (`RunIntent.GaitRuns`). The roll hands over only once the pelvis is
+near its standing height (`maxStandGap`), rising toward it when running out, so the walk does not jerk it up. The state machine records the last switch, and the F1 LIVE
 tab has a "Run intent" section.
 
 ## Status

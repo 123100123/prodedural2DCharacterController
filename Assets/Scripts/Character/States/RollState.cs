@@ -82,7 +82,7 @@ public sealed class RollState : ICharacterState {
         PoseLimbs((progress, deltaTime));
         context.Rig.Stride.PlaceStrideTargetUnderBody();
 
-        if (phase == RollPhase.Recover && runExit.HandsOver((runsAlong, progress)) && TryRunOut()) {
+        if (phase == RollPhase.Recover && runExit.HandsOver((runsAlong, progress, StandGap)) && TryRunOut()) {
             return;
         }
         if (IsPhaseComplete(progress)) {
@@ -153,12 +153,14 @@ public sealed class RollState : ICharacterState {
         }
     }
 
-    // The roll phase has no height of its own: the body keeps its lowest point on the ground instead.
+    // The roll phase has no height of its own: the body keeps its lowest point on the ground instead. Running out of the
+    // recovery, the body rises toward its full standing height rather than the recovery crouch, so it comes near enough
+    // to standing for the walk to take it (RollRunExitSettings.maxStandGap) part way through.
     private float PhaseBodyHeight() {
         switch (phase) {
             case RollPhase.Dive: return settings.diveBodyHeight;
             case RollPhase.HandContact: return settings.contactBodyHeight;
-            default: return context.Rig.Stride.BodyHeight - settings.recoverCrouch;
+            default: return context.Rig.Stride.BodyHeight - (runExit.KeepsTravelSpeed(runsAlong) ? 0f : settings.recoverCrouch);
         }
     }
 
@@ -368,6 +370,9 @@ public sealed class RollState : ICharacterState {
         }
         return new Vector2(search.bodyX, groundY);
     }
+
+    // How far the pelvis is below where it stands.
+    private float StandGap => groundY + context.Rig.Stride.BodyHeight - context.Rig.Body.position.y;
 
     // Part way through the recovery, toward a run: the feet settle where the body is and the walk takes the roll's
     // velocity from the motor (written by the travel this frame), so the run ramps up from the roll's speed. False if the

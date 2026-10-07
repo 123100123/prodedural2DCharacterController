@@ -22,6 +22,8 @@ public struct PlayerCommands {
     public bool CrouchRequested;
     // The crouch button is physically down this frame (a held crouch, as opposed to one only a tap's latch holds).
     public bool CrouchHeld;
+    // The crouch button is down on a press still short enough to end as a tap: not yet a held crouch.
+    public bool CrouchTapPending;
     // The crouch button went down this frame (a press while running starts a slide).
     public bool CrouchPressed;
     public bool FirePressed;

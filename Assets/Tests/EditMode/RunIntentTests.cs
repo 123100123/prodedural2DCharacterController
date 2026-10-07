@@ -35,6 +35,8 @@ public class RunIntentTests {
         Assert.That(OnFeet(aiming: true, held: true).Block, Is.EqualTo(RunBlock.Aiming), "aiming first");
         Assert.That(OnFeet(held: true, requested: true, headroom: true).Block, Is.EqualTo(RunBlock.CrouchHeld), "a held crouch wins");
         Assert.That(OnFeet(requested: true, headroom: true).Block, Is.EqualTo(RunBlock.NoHeadroom), "a low ceiling keeps the crouch");
+        Assert.That(OnFeet(tap: true).Block, Is.EqualTo(RunBlock.CrouchTap), "a press that may still be a tap");
+        Assert.That(OnFeet(tap: true, headroom: true).Block, Is.EqualTo(RunBlock.NoHeadroom));
         Assert.That(OnFeet(requested: true).Block, Is.EqualTo(RunBlock.CrouchLatched));
         Assert.That(OnFeet(pushing: true).Block, Is.EqualTo(RunBlock.Pushing));
         Assert.That(OnFeet().CanRun, Is.True, "nothing in the way");
@@ -51,17 +53,52 @@ public class RunIntentTests {
     }
 
     [Test]
+    public void UnderTheIntentACrouchPressThatMayStillBeATapDoesNotCrouch() {
+        Assert.That(RunIntent.IgnoresCrouchTap(true, OnFeet(tap: true)), Is.True, "a young press is ignored");
+        Assert.That(RunIntent.IgnoresCrouchTap(false, OnFeet(tap: true)), Is.False, "no intent: it crouches as before");
+        Assert.That(RunIntent.IgnoresCrouchTap(true, OnFeet(held: true)), Is.False, "held past the tap time: crouch walk");
+        Assert.That(RunIntent.IgnoresCrouchTap(true, RunReadiness.BlockedBy(RunBlock.Sliding)), Is.False, "the slide's crouch is its own");
+        Assert.That(RunIntent.CancelsCrouchLatch(true, OnFeet(tap: true)), Is.False, "nothing to cancel yet");
+    }
+
+    [Test]
+    public void TheToggleTellsAPressThatMayStillBeATapFromAHold() {
+        HoldOrTapToggle toggle = new HoldOrTapToggle(0.25f);
+        toggle.Update((true, false, true), 0f);
+        Assert.That(toggle.IsPossibleTap(0.2f), Is.True);
+        Assert.That(toggle.IsPossibleTap(0.3f), Is.False, "held past the tap time");
+        toggle.CancelLatch();
+        Assert.That(toggle.IsPossibleTap(0.1f), Is.False, "a press whose start was forgotten is a hold");
+    }
+
+    // The gait still runs at the stick's share of the run speed below the intent's dead zone, as before the intent.
+    [Test]
+    public void ASmallStickTiltWithRunHeldHeadsForItsShareOfTheRunSpeed() {
+        const float smallTilt = 0.156f;
+        Assert.That(smallTilt, Is.LessThan(RunIntent.InputDeadZone));
+        Assert.That(RunIntent.Resolve((true, smallTilt)), Is.False, "no intent inside the dead zone");
+        Assert.That(RunIntent.GaitRuns((true, smallTilt, false)), Is.True, "but the gait runs");
+        Assert.That(RunIntent.GaitRuns((true, 0f, false)), Is.False);
+        Assert.That(RunIntent.GaitRuns((true, 1f, true)), Is.False, "aiming walks");
+        Assert.That(RunIntent.GaitRuns((false, 1f, false)), Is.False);
+        GaitSet gaits = new GaitSet((GaitProfile.Walk, GaitProfile.Run, GaitProfile.Crouch), GaitTransitionSettings.Default, 0f);
+        float target = gaits.TargetSpeed((smallTilt, RunIntent.GaitRuns((true, smallTilt, false))));
+        Assert.That(target, Is.EqualTo(smallTilt * GaitProfile.Run.speed).Within(1e-4f));
+    }
+
+    [Test]
     public void TheRollHandsOverToTheRunPartWayThroughTheRecoveryOnlyWithTheIntentAlongIt() {
         RollRunExitSettings settings = new RollRunExitSettings();
         Assert.That(settings.runExitShare, Is.GreaterThan(0f).And.LessThan(1f));
-        Assert.That(settings.HandsOver((true, settings.runExitShare - 0.01f)), Is.False, "too early");
-        Assert.That(settings.HandsOver((true, settings.runExitShare)), Is.True);
-        Assert.That(settings.HandsOver((false, 1f)), Is.False, "no intent along the roll: the full recovery");
+        Assert.That(settings.HandsOver((true, settings.runExitShare - 0.01f, 0f)), Is.False, "too early");
+        Assert.That(settings.HandsOver((true, settings.runExitShare, settings.maxStandGap)), Is.True);
+        Assert.That(settings.HandsOver((true, 1f, settings.maxStandGap + 0.01f)), Is.False, "the pelvis is still too low: the walk would jerk it up");
+        Assert.That(settings.HandsOver((false, 1f, 0f)), Is.False, "no intent along the roll: the full recovery");
         Assert.That(settings.KeepsTravelSpeed(true), Is.True);
         Assert.That(settings.KeepsTravelSpeed(false), Is.False);
 
         settings.enabled = false;
-        Assert.That(settings.HandsOver((true, 1f)), Is.False, "switched off");
+        Assert.That(settings.HandsOver((true, 1f, 0f)), Is.False, "switched off");
         Assert.That(settings.KeepsTravelSpeed(true), Is.False);
     }
 
@@ -118,9 +155,9 @@ public class RunIntentTests {
         Assert.That(calls, Is.EqualTo(new[] { "First.Enter", "First.Exit", "Second.Enter" }), "exit before enter, as before");
     }
 
-    private static RunReadiness OnFeet(bool aiming = false, bool requested = false, bool held = false, bool headroom = false, bool pushing = false) {
-        // A held crouch is also requested (the reader's crouch request is held or latched).
-        return RunReadiness.OnFeet((aiming, (requested || held, held, headroom), pushing));
+    private static RunReadiness OnFeet(bool aiming = false, bool requested = false, bool held = false, bool headroom = false, bool pushing = false, bool tap = false) {
+        // A held crouch is also requested (the reader's crouch request is held or latched); a pending tap is held.
+        return RunReadiness.OnFeet((aiming, (requested || held || tap, held || tap, tap, headroom), pushing));
     }
 
     private sealed class FakeState : ICharacterState {

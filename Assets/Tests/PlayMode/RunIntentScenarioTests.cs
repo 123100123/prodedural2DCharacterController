@@ -144,8 +144,9 @@ public class RunIntentScenarioTests : ScenarioFixture {
         Assert.That(Speed, Is.GreaterThan(Stride.Run.speed * 0.9f), "and runs");
     }
 
-    // Rolls from the current motion and returns how many frames the roll lasted and the speed it handed to the walk.
-    private IEnumerator Roll(System.Action<(int frames, float handed)> result) {
+    // Rolls from the current motion and returns how many frames the roll lasted, the speed it handed to the walk, how
+    // far the pelvis was below its standing height then, and its largest one-frame rise over the next 30 frames.
+    private IEnumerator Roll(System.Action<(int frames, float handed, float standGap, float worstRise)> result) {
         Stage.Press(Key.LeftAlt);
         yield return WaitUntil(() => State is RollState, 0.3f);
         Stage.Release(Key.LeftAlt);
@@ -159,7 +160,16 @@ public class RunIntentScenarioTests : ScenarioFixture {
             frames++;
         }
         Assert.That(State, Is.InstanceOf<WalkState>(), "back on its feet");
-        result((frames, Mathf.Abs(Telemetry.CarriedSpeed)));
+        float handed = Mathf.Abs(Telemetry.CarriedSpeed);
+        float standGap = Stride.StanceHeight + Stride.BodyHeight - Body.y;
+        float worstRise = 0f;
+        float previousY = Body.y;
+        for (int frame = 0; frame < 30; frame++) {
+            yield return null;
+            worstRise = Mathf.Max(worstRise, Body.y - previousY);
+            previousY = Body.y;
+        }
+        result((frames, handed, standGap, worstRise));
     }
 
     [UnityTest]
@@ -167,15 +177,17 @@ public class RunIntentScenarioTests : ScenarioFixture {
         RollSettings roll = Stage.Character.Parts.Roll;
         Stage.Press(Key.D);
         yield return Hold(1.5f);
-        (int frames, float handed) walked = (0, 0f);
+        (int frames, float handed, float standGap, float worstRise) walked = (0, 0f, 0f, 0f);
         yield return Roll(r => walked = r);
         yield return Hold(1f);
 
         Stage.Press(Key.LeftShift);
         yield return Hold(1.5f);
-        (int frames, float handed) ran = (0, 0f);
+        (int frames, float handed, float standGap, float worstRise) ran = (0, 0f, 0f, 0f);
         yield return Roll(r => ran = r);
-        Report($"roll without Shift: {walked.frames} frames, handed {walked.handed:F2} u/s; with Shift + D: {ran.frames} frames, handed {ran.handed:F2} u/s (roll speed {roll.rollSpeed:F2}, recovery {roll.recoverSpeed:F2})");
+        Report($"roll without Shift: {walked.frames} frames, handed {walked.handed:F2} u/s, pelvis {walked.standGap:F3} below standing, worst one-frame rise {walked.worstRise:F3}");
+        Report($"roll with Shift + D: {ran.frames} frames, handed {ran.handed:F2} u/s, pelvis {ran.standGap:F3} below standing, worst one-frame rise {ran.worstRise:F3} (roll speed {roll.rollSpeed:F2}, recovery {roll.recoverSpeed:F2})");
+        Assert.That(ran.worstRise, Is.LessThanOrEqualTo(Mathf.Max(0.2f, walked.worstRise + 0.02f)), "the walk does not jerk the pelvis up after the early hand-over");
         Assert.That(ran.frames, Is.LessThan(walked.frames), "hands over earlier");
         Assert.That(ran.handed, Is.GreaterThanOrEqualTo(roll.rollSpeed * 0.9f), "at the roll's travel speed");
         Assert.That(ran.handed, Is.GreaterThan(walked.handed), "more than the recovery hands over");
@@ -184,6 +196,55 @@ public class RunIntentScenarioTests : ScenarioFixture {
         yield return Hold(1.5f);
         Assert.That(State, Is.InstanceOf<WalkState>());
         Assert.That(Speed, Is.GreaterThan(Stride.Run.speed * 0.9f), "runs on");
+    }
+
+    [UnityTest]
+    public IEnumerator ACrouchTapWhileRunningWithShiftWhenNoSlideCanStartNeitherCrouchesNorSlows() {
+        SlideSettings slide = Stage.Character.Parts.Slide;
+        slide.cooldown = 10f;
+        Stage.Press(Key.D, Key.LeftShift);
+        yield return Hold(1.5f);
+        Stage.Press(Key.LeftCtrl);
+        yield return WaitUntil(() => State is SlideState, 0.2f);
+        Assert.That(State, Is.InstanceOf<SlideState>(), "the first press slides");
+        yield return Hold(0.4f);
+        Stage.Release(Key.LeftCtrl);
+        yield return WaitUntil(() => State is WalkState, 1f);
+        yield return Hold(1.5f);
+        Assert.That(Speed, Is.GreaterThan(8.5f), "running again, the slide cooling down");
+
+        Stage.Press(Key.LeftCtrl);
+        float worstShare = 0f;
+        float slowest = Speed;
+        bool slid = false;
+        for (int frame = 0; frame < 72; frame++) {
+            if (frame == 12) {
+                Stage.Release(Key.LeftCtrl);
+            }
+            yield return null;
+            slid |= State is SlideState;
+            worstShare = Mathf.Max(worstShare, Telemetry.CrouchShare);
+            slowest = Mathf.Min(slowest, Speed);
+        }
+        Report($"0.2 s Ctrl tap at a run with Shift: crouch share at most {worstShare:F3}, speed at least {slowest:F2}");
+        Assert.That(slid, Is.False, "the slide is cooling down");
+        Assert.That(worstShare, Is.LessThan(0.1f), "no crouch bob");
+        Assert.That(slowest, Is.GreaterThanOrEqualTo(8.5f), "keeps running");
+        Assert.That(Telemetry.CrouchShare, Is.LessThan(0.05f), "and no latch is left");
+    }
+
+    [UnityTest]
+    public IEnumerator ACrouchHeldPastTheTapTimeWhileRunningWithShiftCrouches() {
+        Stage.Character.Parts.Slide.enabled = false;
+        Stage.Press(Key.D, Key.LeftShift);
+        yield return Hold(1.5f);
+        Stage.Press(Key.LeftCtrl);
+        yield return Hold(0.15f);
+        Assert.That(Telemetry.Readiness.Block, Is.EqualTo(RunBlock.CrouchTap), "may still be a tap");
+        yield return Hold(2f);
+        Assert.That(Telemetry.Readiness.Block, Is.EqualTo(RunBlock.CrouchHeld), "a hold wins");
+        Assert.That(Telemetry.CrouchShare, Is.GreaterThan(0.95f));
+        Assert.That(Speed, Is.EqualTo(Stride.CrouchGait.speed).Within(0.25f), "crouch walks");
     }
 
     [UnityTest]

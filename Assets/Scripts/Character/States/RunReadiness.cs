@@ -8,6 +8,9 @@ public enum RunBlock {
     CrouchHeld,
     // Only a quick tap's latch holds the crouch: the run intent cancels it.
     CrouchLatched,
+    // The crouch button is down on a press still short enough to be a tap: under the run intent it does not crouch
+    // (only a press held past the tap time does).
+    CrouchTap,
     // A ceiling too low to stand under keeps the character crouched until there is room.
     NoHeadroom,
     // Pushing a crate limits the gait's speed.
@@ -29,7 +32,7 @@ public enum RunBlock {
 public readonly struct RunReadiness {
     // What the F1 panel shows for each reason, built once (indexed by RunBlock).
     private static readonly string[] ReasonNames = {
-        "none", "aiming", "crouch held", "crouch latched", "low ceiling", "pushing", "airborne", "jump windup",
+        "none", "aiming", "crouch held", "crouch latched", "crouch tap", "low ceiling", "pushing", "airborne", "jump windup",
         "roll committed", "roll recovering", "climbing", "wall sliding", "sliding",
     };
 
@@ -46,18 +49,22 @@ public readonly struct RunReadiness {
 
     public static RunReadiness BlockedBy(RunBlock block) => new RunReadiness(block);
 
-    // The grounded walk: aiming slows it to a walk; a held crouch wins over the run; a low ceiling keeps the crouch; a
-    // crouch only the tap latch holds is the one block the run intent clears (the driver drops the latch); a push
-    // limits the speed. Otherwise the walk runs as soon as the run intent is there.
-    public static RunReadiness OnFeet((bool isAiming, (bool requested, bool held, bool headroomBlocked) crouch, bool isPushing) walk) {
+    // The grounded walk: aiming slows it to a walk; a crouch held past the tap time wins over the run; a low ceiling
+    // keeps the crouch; a press that may still be a tap and a crouch only the tap latch holds are the blocks the run
+    // intent clears (the driver ignores the press and drops the latch); a push limits the speed. Otherwise the walk runs
+    // as soon as the run intent is there.
+    public static RunReadiness OnFeet((bool isAiming, (bool requested, bool held, bool tapPending, bool headroomBlocked) crouch, bool isPushing) walk) {
         if (walk.isAiming) {
             return BlockedBy(RunBlock.Aiming);
         }
-        if (walk.crouch.held) {
+        if (walk.crouch.held && !walk.crouch.tapPending) {
             return BlockedBy(RunBlock.CrouchHeld);
         }
         if (walk.crouch.headroomBlocked) {
             return BlockedBy(RunBlock.NoHeadroom);
+        }
+        if (walk.crouch.held) {
+            return BlockedBy(RunBlock.CrouchTap);
         }
         if (walk.crouch.requested) {
             return BlockedBy(RunBlock.CrouchLatched);

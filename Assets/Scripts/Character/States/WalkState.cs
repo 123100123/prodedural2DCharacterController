@@ -23,7 +23,7 @@ public sealed class WalkState : ICharacterState {
     // The walk is the state that runs: it does so as soon as the run intent is there, unless aiming, a crouch or a push
     // holds it back (RunReadiness.OnFeet). The crouch facts are the crouch controller's from its last tick.
     public RunReadiness RunReadinessFor(PlayerCommands commands) {
-        return RunReadiness.OnFeet((commands.IsAiming, (commands.CrouchRequested, commands.CrouchHeld, crouch.IsHeadroomBlocked), pusher.IsPushing));
+        return RunReadiness.OnFeet((commands.IsAiming, (commands.CrouchRequested, commands.CrouchHeld, commands.CrouchTapPending, crouch.IsHeadroomBlocked), pusher.IsPushing));
     }
 
     public void Begin() => context.Machine.ChangeTo(this);
@@ -89,10 +89,11 @@ public sealed class WalkState : ICharacterState {
         return true;
     }
 
-    // Running needs the run intent and no aiming: aiming slows the character to a walk. A crouch blends the target down
-    // toward the crouch speed through the crouch share, so a crouch let go into a run ramps up rather than snapping.
+    // Running needs the run input with a direction and no aiming (RunIntent.GaitRuns): aiming slows the character to a
+    // walk. A crouch blends the target down toward the crouch speed through the crouch share, so a crouch let go into a
+    // run ramps up rather than snapping.
     private (float direction, bool running, (float min, float max) feetSpan, (float min, float max) bodySpan) GaitIntent(PlayerCommands commands) {
         ((float min, float max) feet, (float min, float max) body) spans = WallSpans.Within(context.Rig);
-        return (commands.MoveAxis, commands.RunIntent && !commands.IsAiming, spans.feet, spans.body);
+        return (commands.MoveAxis, RunIntent.GaitRuns((commands.RunHeld, commands.MoveAxis, commands.IsAiming)), spans.feet, spans.body);
     }
 }

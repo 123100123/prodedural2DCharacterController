@@ -54,6 +54,7 @@ public sealed class PlayerInputReader : IDisposable {
             IsAiming = ReadAimMode(isPointerOverUi),
             CrouchRequested = ReadCrouchMode(isTyping),
             CrouchHeld = !isTyping && crouch.IsPressed(),
+            CrouchTapPending = !isTyping && crouch.IsPressed() && crouchMode.IsPossibleTap(UnityEngine.Time.unscaledTime),
             CrouchPressed = !isTyping && crouch.WasPressedThisFrame(),
             FirePressed = !isPointerOverUi && fire.WasPressedThisFrame(),
             ReloadPressed = !isTyping && reload.WasPressedThisFrame(),

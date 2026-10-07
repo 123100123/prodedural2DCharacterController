@@ -12,6 +12,13 @@ public static class RunIntent {
         return input.runHeld && Mathf.Abs(input.moveAxis) > InputDeadZone;
     }
 
+    // Whether the walk heads for the run speed: the run input with any move input, so a gamepad stick tilted less than
+    // the dead zone still runs at its share of the run speed (the gait scales the speed by the axis). The dead zone only
+    // gates the intent's effects on other states (the crouch, the slide, the roll and climb exits).
+    public static bool GaitRuns((bool runHeld, float moveAxis, bool isAiming) input) {
+        return input.runHeld && input.moveAxis != 0f && !input.isAiming;
+    }
+
     // The intent points the given way (+1 right, -1 left): what a roll or a climb asks before it hands over to the run.
     public static bool Along((bool runIntent, float moveAxis) intent, int direction) {
         return intent.runIntent && intent.moveAxis * direction > 0f;
@@ -21,5 +28,11 @@ public static class RunIntent {
     // (the state reports those as other reasons).
     public static bool CancelsCrouchLatch(bool runIntent, RunReadiness readiness) {
         return runIntent && readiness.Block == RunBlock.CrouchLatched;
+    }
+
+    // A crouch press still short enough to be a tap does not crouch under the run intent. The slide is unaffected: it
+    // starts on the press edge (PlayerCommands.CrouchPressed), which this leaves alone, and holds its own crouch.
+    public static bool IgnoresCrouchTap(bool runIntent, RunReadiness readiness) {
+        return runIntent && readiness.Block == RunBlock.CrouchTap;
     }
 }

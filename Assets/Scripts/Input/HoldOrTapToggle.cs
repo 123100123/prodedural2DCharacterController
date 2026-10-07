@@ -20,6 +20,10 @@ public sealed class HoldOrTapToggle {
         return button.isHeld || isLatched;
     }
 
+    // The button is down on a press still short enough to end as a tap (one whose start was forgotten by CancelLatch is a
+    // hold).
+    public bool IsPossibleTap(float now) => pressStartTime.HasValue && now - pressStartTime.Value <= maxTapDuration;
+
     // Drops the latch and forgets the press in progress, so that press's release does not toggle it back on.
     public void CancelLatch() {
         isLatched = false;

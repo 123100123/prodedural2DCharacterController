@@ -183,13 +183,16 @@ public class CharacterDriver : MonoBehaviour {
         }
     }
 
-    // Input only says what the player wants; the state the character is in says whether it can run now. A crouch only a
-    // tap's latch holds is the one block the run intent clears (a held crouch button and a low ceiling are not): the
-    // latch is dropped, and this frame's crouch and state already see it gone.
+    // Input only says what the player wants; the state the character is in says whether it can run now. A crouch tap is
+    // the one block the run intent clears (a crouch held past the tap time and a low ceiling are not): a press that may
+    // still be a tap does not crouch, and the latch a tap leaves is dropped. This frame's crouch and state already see it.
     private PlayerCommands ResolveRunIntent(PlayerCommands commands) {
         commands.RunIntent = RunIntent.Resolve((commands.RunHeld, commands.MoveAxis));
-        if (RunIntent.CancelsCrouchLatch(commands.RunIntent, machine.Current.RunReadinessFor(commands))) {
+        RunReadiness readiness = machine.Current.RunReadinessFor(commands);
+        if (RunIntent.CancelsCrouchLatch(commands.RunIntent, readiness)) {
             input.ConsumeCrouchPress();
+            commands.CrouchRequested = false;
+        } else if (RunIntent.IgnoresCrouchTap(commands.RunIntent, readiness)) {
             commands.CrouchRequested = false;
         }
         return commands;
