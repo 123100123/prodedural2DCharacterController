@@ -15,6 +15,8 @@ public class RunIntentScenarioTests : ScenarioFixture {
     private float Speed => Mathf.Abs(Stride.GroundSpeed);
     private ICharacterState State => Stage.Character.CurrentState;
     private LocomotionTelemetry Telemetry => Stage.Inspector.ReadTelemetry();
+    // The speed the last roll ended at and handed over.
+    private float RollFinalSpeed => Stage.Character.Parts.RollState.Readout.HandedBack;
 
     private IEnumerator WaitUntil(System.Func<bool> condition, float maxSeconds) {
         for (float elapsed = 0f; elapsed < maxSeconds && !condition(); elapsed += ScenarioStage.FrameTime) {
@@ -175,7 +177,6 @@ public class RunIntentScenarioTests : ScenarioFixture {
 
     [UnityTest]
     public IEnumerator ARollWithTheIntentAlongItHandsOverEarlierAtTheRollsSpeedAndRuns() {
-        RollSettings roll = Stage.Character.Parts.Roll;
         Stage.Press(Key.D);
         yield return Hold(1.5f);
         (int frames, float handed, float standGap, float worstRise) walked = (0, 0f, 0f, 0f);
@@ -187,10 +188,10 @@ public class RunIntentScenarioTests : ScenarioFixture {
         (int frames, float handed, float standGap, float worstRise) ran = (0, 0f, 0f, 0f);
         yield return Roll(r => ran = r);
         Report($"roll without Shift: {walked.frames} frames, handed {walked.handed:F2} u/s, pelvis {walked.standGap:F3} below standing, worst one-frame rise {walked.worstRise:F3}");
-        Report($"roll with Shift + D: {ran.frames} frames, handed {ran.handed:F2} u/s, pelvis {ran.standGap:F3} below standing, worst one-frame rise {ran.worstRise:F3} (roll speed {roll.rollSpeed:F2}, recovery {roll.recoverSpeed:F2})");
+        Report($"roll with Shift + D: {ran.frames} frames, handed {ran.handed:F2} u/s, pelvis {ran.standGap:F3} below standing, worst one-frame rise {ran.worstRise:F3} (the roll's final speed {RollFinalSpeed:F2})");
         Assert.That(ran.worstRise, Is.LessThanOrEqualTo(Mathf.Max(0.2f, walked.worstRise + 0.02f)), "the walk does not jerk the pelvis up after the early hand-over");
         Assert.That(ran.frames, Is.LessThan(walked.frames), "hands over earlier");
-        Assert.That(ran.handed, Is.GreaterThanOrEqualTo(roll.rollSpeed * 0.9f), "at the roll's travel speed");
+        Assert.That(ran.handed, Is.EqualTo(RollFinalSpeed).Within(0.05f), "at the roll's own final speed");
         Assert.That(ran.handed, Is.GreaterThan(walked.handed), "more than the recovery hands over");
         Assert.That(Telemetry.PreviousStateName, Is.EqualTo("Roll"));
 

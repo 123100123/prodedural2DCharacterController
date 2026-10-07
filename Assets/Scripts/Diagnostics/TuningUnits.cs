@@ -6,6 +6,8 @@ public static class TuningUnits {
     public const string Units = "u";
     public const string UnitsPerSecond = "u/s";
     public const string UnitsPerSecondSquared = "u/s²";
+    // A drag: the share of a speed lost per second.
+    public const string PerSecond = "1/s";
     public const string Seconds = "s";
     public const string Hertz = "Hz";
     public const string Degrees = "°";

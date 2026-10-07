@@ -17,6 +17,7 @@ public sealed class LiveTelemetryView {
         AddFlags();
         AddSection(("Gait", GaitReadouts()));
         AddSection(("Run intent", RunIntentReadouts()));
+        AddSection(("Roll", RollReadouts()));
         AddSection(("Crouch", CrouchReadouts()));
         AddSection(("Airborne", AirborneReadouts()));
         AddSection(("Landing", LandingReadouts()));
@@ -56,6 +57,18 @@ public sealed class LiveTelemetryView {
         yield return ("Can transition to run", t => t.Readiness.CanRun ? "yes" : $"no ({t.Readiness.Reason})");
         yield return ("Last transition", t => $"{t.PreviousStateName} → {t.StateName}, {t.SecondsSinceStateChange:0.00} s ago (#{t.StateChanges})");
         yield return ("Velocity carried into walk/run", t => $"{t.CarriedSpeed:0.00} u/s");
+    }
+
+    // The current roll's momentum, or the last roll's after it ended: how it was launched, how it decays, what it handed on.
+    private static IEnumerable<(string label, Func<LocomotionTelemetry, string> format)> RollReadouts() {
+        yield return ("Phase", t => t.Roll.IsRolling ? t.Roll.Phase.ToString().ToUpperInvariant() : "not rolling (last roll shown)");
+        yield return ("Entry speed u_in / run share", t => $"{t.Roll.Launch.Incoming:0.00} u/s / {t.Roll.Launch.RunShare:0.00}");
+        yield return ("Inherited part", t => $"{t.Roll.Launch.Inherited:0.00} u/s");
+        yield return ("Throw impulse → entry speed", t => $"{t.Roll.Launch.Throw:0.00} u/s → {t.Roll.Launch.Target:0.00} u/s");
+        yield return ("Current speed", t => $"{t.Roll.Speed:0.00} u/s");
+        yield return ("Current deceleration", t => t.Roll.IsRolling ? $"{t.Roll.Deceleration:0.00} u/s²{(t.Roll.Deceleration < 0f ? "  (throw)" : "")}" : "-");
+        yield return ("Speed at recovery start", t => $"{t.Roll.RecoverySpeed:0.00} u/s");
+        yield return ("Handed back / carried into walk", t => $"{t.Roll.HandedBack:0.00} / {t.CarriedSpeed:0.00} u/s");
     }
 
     private static IEnumerable<(string label, Func<LocomotionTelemetry, string> format)> CrouchReadouts() {

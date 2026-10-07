@@ -3,7 +3,7 @@ using UnityEngine;
 // The collaborators a composed character hands to tools that tune and inspect it. Plain references, so the
 // character knows nothing about who uses them: the tools depend on the character, never the other way round.
 public readonly struct CharacterParts {
-    public CharacterParts((StrideController stride, LocomotionPosture posture, TorsoMotion torso, HeadLook head, ArmSwing arms) movement, (CrouchController crouch, Transform postureRoot) body, (JumpSettings jump, AirborneSettings airborne, AirborneState airborneState, (AirPoseSettings pose, FallSecondarySettings fall) air, LandingSettings landing) moves, (ShootingSettings shooting, Pistol pistol, (WeaponSettings settings, WeaponController controller) shot) weapon, (CameraFeelSettings settings, FollowCamera camera) cameraRig, EffectsSettings effects, CharacterAudioSettings audio, (WallSettings settings, WallSlideState state) wall, (SlideSettings settings, SlideState state) slide, (LedgeHangSettings hang, OneWaySettings oneWay, ClimbState climb) ledges, (PushSettings settings, CratePusher pusher, PushPose pose) push, (RollSettings roll, ClimbSettings climb, SlopeSettings slope) moveTuning, (CharacterStateMachine machine, WalkState walk) fullBody) {
+    public CharacterParts((StrideController stride, LocomotionPosture posture, TorsoMotion torso, HeadLook head, ArmSwing arms) movement, (CrouchController crouch, Transform postureRoot) body, (JumpSettings jump, AirborneSettings airborne, AirborneState airborneState, (AirPoseSettings pose, FallSecondarySettings fall) air, LandingSettings landing) moves, (ShootingSettings shooting, Pistol pistol, (WeaponSettings settings, WeaponController controller) shot) weapon, (CameraFeelSettings settings, FollowCamera camera) cameraRig, EffectsSettings effects, CharacterAudioSettings audio, (WallSettings settings, WallSlideState state) wall, (SlideSettings settings, SlideState state) slide, (LedgeHangSettings hang, OneWaySettings oneWay, ClimbState climb) ledges, (PushSettings settings, CratePusher pusher, PushPose pose) push, ((RollSettings settings, RollMomentumSettings momentum, RollRunExitSettings runExit, RollState state) roll, ClimbSettings climb, SlopeSettings slope) moveTuning, (CharacterStateMachine machine, WalkState walk) fullBody) {
         Stride = movement.stride;
         Posture = movement.posture;
         Torso = movement.torso;
@@ -35,7 +35,10 @@ public readonly struct CharacterParts {
         Push = push.settings;
         Pusher = push.pusher;
         PushPose = push.pose;
-        Roll = moveTuning.roll;
+        Roll = moveTuning.roll.settings;
+        RollMomentum = moveTuning.roll.momentum;
+        RollRunExit = moveTuning.roll.runExit;
+        RollState = moveTuning.roll.state;
         ClimbSettings = moveTuning.climb;
         Slope = moveTuning.slope;
         Machine = fullBody.machine;
@@ -81,6 +84,10 @@ public readonly struct CharacterParts {
     // The push pose, for how far it is blended in; null until the character is composed.
     public PushPose PushPose { get; }
     public RollSettings Roll { get; }
+    public RollMomentumSettings RollMomentum { get; }
+    public RollRunExitSettings RollRunExit { get; }
+    // The roll, for its momentum readout (launch, speed, deceleration, hand-back); null until the character is composed.
+    public RollState RollState { get; }
     public ClimbSettings ClimbSettings { get; }
     public SlopeSettings Slope { get; }
     // The full-body state machine, for the current state, its run readiness and the last switch; null until the

@@ -24,6 +24,8 @@ public sealed class MovementTuning {
     private readonly OneWaySettings oneWay;
     private readonly PushSettings push;
     private readonly RollSettings roll;
+    private readonly RollMomentumSettings rollMomentum;
+    private readonly RollRunExitSettings rollRunExit;
     private readonly ClimbSettings climb;
     private readonly SlopeSettings slope;
 
@@ -51,6 +53,8 @@ public sealed class MovementTuning {
         oneWay = parts.OneWay;
         push = parts.Push;
         roll = parts.Roll;
+        rollMomentum = parts.RollMomentum;
+        rollRunExit = parts.RollRunExit;
         climb = parts.ClimbSettings;
         slope = parts.Slope;
     }
@@ -79,6 +83,8 @@ public sealed class MovementTuning {
             oneWay = oneWay.Clone(),
             push = push.Clone(),
             roll = roll.Clone(),
+            rollMomentum = rollMomentum.Clone(),
+            rollRunExit = rollRunExit.Clone(),
             climb = climb.Clone(),
             slope = slope.Clone(),
             transitions = stride.Transitions,
@@ -117,6 +123,8 @@ public sealed class MovementTuning {
         oneWay.CopyFrom(preset.oneWay);
         push.CopyFrom(preset.push);
         roll.CopyFrom(preset.roll);
+        rollMomentum.CopyFrom(preset.rollMomentum);
+        rollRunExit.CopyFrom(preset.rollRunExit);
         climb.CopyFrom(preset.climb);
         slope.CopyFrom(preset.slope);
         stride.Transitions = preset.transitions;

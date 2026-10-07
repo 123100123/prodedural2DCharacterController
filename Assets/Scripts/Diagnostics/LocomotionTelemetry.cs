@@ -38,9 +38,9 @@ public sealed class LocomotionTelemetry {
     private readonly (LocomotionPosture posture, TorsoMotion torso, HeadLook head, Transform postureRoot) upperBody;
     private readonly CrouchController crouch;
     private readonly AirborneState airborne;
-    private readonly (CharacterStateMachine machine, WalkState walk) fullBody;
+    private readonly (CharacterStateMachine machine, WalkState walk, RollState roll) fullBody;
 
-    public LocomotionTelemetry(StrideController stride, (LocomotionPosture posture, TorsoMotion torso, HeadLook head, Transform postureRoot) upperBody, (CrouchController crouch, AirborneState airborne) states, (CharacterStateMachine machine, WalkState walk) fullBody = default) {
+    public LocomotionTelemetry(StrideController stride, (LocomotionPosture posture, TorsoMotion torso, HeadLook head, Transform postureRoot) upperBody, (CrouchController crouch, AirborneState airborne) states, (CharacterStateMachine machine, WalkState walk, RollState roll) fullBody = default) {
         this.stride = stride;
         this.upperBody = upperBody;
         crouch = states.crouch;
@@ -85,6 +85,8 @@ public sealed class LocomotionTelemetry {
     public int StateChanges { get; private set; }
     // The ground speed the walk was handed when it last began: the momentum carried into the walk or run.
     public float CarriedSpeed { get; private set; }
+    // The current roll's momentum, or the last roll's (default before any roll).
+    public RollReadout Roll { get; private set; }
     public bool IsDrivingGait { get; private set; }
 
     public float GroundSpeed { get; private set; }
@@ -167,6 +169,7 @@ public sealed class LocomotionTelemetry {
         SecondsSinceStateChange = frame.time - machine.LastChangeTime;
         StateChanges = machine.ChangeCount;
         CarriedSpeed = fullBody.walk?.CarriedSpeed ?? 0f;
+        Roll = fullBody.roll?.Readout ?? default;
     }
 
     private void ReadGait() {

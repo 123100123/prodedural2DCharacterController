@@ -119,7 +119,7 @@ public class RunIntentTests {
         Dictionary<ICharacterState, RunBlock> expected = new Dictionary<ICharacterState, RunBlock> {
             { new JumpWindupState(context, (new JumpSettings(), new AirborneSettings())), RunBlock.JumpWindup },
             { new AirborneState(context, (new AirborneSettings(), new JumpSettings(), new AirPoseSettings(), new FallSecondarySettings(), new LandingSettings())), RunBlock.Airborne },
-            { new RollState(context, (new RollSettings(), new RollRunExitSettings())), RunBlock.RollCommitted },
+            { new RollState(context, (new RollSettings(), new RollMomentumSettings(), new RollRunExitSettings())), RunBlock.RollCommitted },
             { new ClimbState(context, (new ClimbSettings(), new LedgeHangSettings())), RunBlock.Climbing },
             { new WallSlideState(context, new WallSettings()), RunBlock.WallSliding },
             { new SlideState(context, (new SlideSettings(), new JumpSettings())), RunBlock.Sliding },

@@ -314,6 +314,61 @@ public class MovementPresetTests {
     }
 
     [Test]
+    public void TheRollMomentumAndRunExitSettingsSurviveAJsonRoundTrip() {
+        MovementPreset original = MovementPreset.CodeDefaults();
+        original.rollMomentum.inheritShare = 0.75f;
+        original.rollMomentum.runningThrow = 5.25f;
+        original.rollMomentum.settleBrake = 6.5f;
+        original.rollRunExit.enabled = false;
+        original.rollRunExit.runExitShare = 0.5f;
+
+        MovementPreset loaded = MovementPreset.FromJson(original.ToJson());
+        Assert.That(loaded.rollMomentum.inheritShare, Is.EqualTo(0.75f));
+        Assert.That(loaded.rollMomentum.runningThrow, Is.EqualTo(5.25f));
+        Assert.That(loaded.rollMomentum.settleBrake, Is.EqualTo(6.5f));
+        Assert.That(loaded.rollRunExit.enabled, Is.False);
+        Assert.That(loaded.rollRunExit.runExitShare, Is.EqualTo(0.5f));
+        Assert.That(loaded.ToJson(), Is.EqualTo(original.ToJson()));
+    }
+
+    // A preset saved at version 12, before the roll carried momentum and before the run exit was saved, loads both at
+    // their code defaults.
+    [Test]
+    public void AVersionTwelvePresetLoadsTheRollMomentumAndRunExitDefaults() {
+        MovementPreset saved = MovementPreset.CodeDefaults();
+        saved.run.lean = 14.5f;
+        saved.roll.cooldown = 0.45f;
+        saved.version = 12;
+        string versionTwelve = WithoutObject(WithoutObject(saved.ToJson(), "rollMomentum"), "rollRunExit");
+        Assert.That(versionTwelve, Does.Not.Contain("\"rollMomentum\""));
+        Assert.That(versionTwelve, Does.Not.Contain("\"rollRunExit\""));
+        Assert.That(versionTwelve, Does.Contain("\"roll\""), "only the new settings are taken out");
+
+        MovementPreset loaded = MovementPreset.FromJson(versionTwelve);
+        RollMomentumSettings momentumDefaults = new RollMomentumSettings();
+        RollRunExitSettings runExitDefaults = new RollRunExitSettings();
+        Assert.That(MovementPreset.CurrentVersion, Is.GreaterThan(12));
+        Assert.That(loaded.version, Is.EqualTo(12), "what the file says");
+        Assert.That(loaded.run.lean, Is.EqualTo(14.5f));
+        Assert.That(loaded.roll.cooldown, Is.EqualTo(0.45f));
+        Assert.That(loaded.rollMomentum, Is.Not.Null);
+        Assert.That(loaded.rollMomentum.inheritShare, Is.EqualTo(momentumDefaults.inheritShare));
+        Assert.That(loaded.rollMomentum.standingThrow, Is.EqualTo(momentumDefaults.standingThrow));
+        Assert.That(loaded.rollMomentum.maxEntrySpeed, Is.EqualTo(momentumDefaults.maxEntrySpeed));
+        Assert.That(loaded.rollMomentum.minRollSpeed, Is.EqualTo(momentumDefaults.minRollSpeed));
+        Assert.That(loaded.rollRunExit, Is.Not.Null);
+        Assert.That(loaded.rollRunExit.enabled, Is.True);
+        Assert.That(loaded.rollRunExit.runExitShare, Is.EqualTo(runExitDefaults.runExitShare));
+        Assert.That(loaded.rollRunExit.maxStandGap, Is.EqualTo(runExitDefaults.maxStandGap));
+    }
+
+    [Test]
+    public void CopyFromCoversEveryRollMomentumAndRunExitField() {
+        AssertCopyFromCoversEveryField(new RollMomentumSettings(), (target, source) => target.CopyFrom(source), new string[0]);
+        AssertCopyFromCoversEveryField(new RollRunExitSettings(), (target, source) => target.CopyFrom(source), new string[0]);
+    }
+
+    [Test]
     public void CopyFromCoversEverySlopeField() {
         AssertCopyFromCoversEveryField(new SlopeSettings(), (target, source) => target.CopyFrom(source), new string[0]);
     }
@@ -372,6 +427,8 @@ public class MovementPresetTests {
         copy.oneWay.dropThroughTime = 99f;
         copy.push.pushSpeed = 99f;
         copy.roll.diveSpeed = 99f;
+        copy.rollMomentum.inheritShare = 99f;
+        copy.rollRunExit.runExitShare = 99f;
         copy.climb.pullDuration = 99f;
         copy.slope.maxSlopeAngle = 99f;
         Assert.That(original.walk.speed, Is.EqualTo(GaitProfile.Walk.speed));
@@ -379,6 +436,8 @@ public class MovementPresetTests {
         Assert.That(original.oneWay.dropThroughTime, Is.EqualTo(new OneWaySettings().dropThroughTime));
         Assert.That(original.push.pushSpeed, Is.EqualTo(new PushSettings().pushSpeed));
         Assert.That(original.roll.diveSpeed, Is.EqualTo(new RollSettings().diveSpeed));
+        Assert.That(original.rollMomentum.inheritShare, Is.EqualTo(new RollMomentumSettings().inheritShare));
+        Assert.That(original.rollRunExit.runExitShare, Is.EqualTo(new RollRunExitSettings().runExitShare));
         Assert.That(original.climb.pullDuration, Is.EqualTo(new ClimbSettings().pullDuration));
         Assert.That(original.slope.maxSlopeAngle, Is.EqualTo(new SlopeSettings().maxSlopeAngle));
         Assert.That(original.posture.maxTotalLean, Is.EqualTo(PostureSettings.Default.maxTotalLean));

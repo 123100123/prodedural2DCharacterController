@@ -78,6 +78,8 @@ tab has a "Run intent" section.
 
 **Phase 16, Aim-side running, climb run-intent re-sample:** while aiming, Shift runs when the move axis points the way the character faces (the way it aims); backpedalling while aiming stays a walk (`RunIntent.AimingBackward`, the readiness reason `RunBlock.AimingBackward`; `RunIntent.GaitRuns` and `SlidePolicy.IsRunIntent` take the facing sign). The climb already re-reads the intent every tick until it stands on top, so Shift pressed mid-climb is honoured; a test pins it.
 
+**Phase 17, Roll momentum and forward throw:** the roll carries the speed it starts with (`RollMomentum`, `RollMomentumSettings` on the character). It reads the incoming velocity along the roll before clearing the motor, starts at that speed (u_in), and over `throwTime` rises to `inheritShare`·u_in plus a forward throw that blends from `standingThrow` to `runningThrow` with the run share, capped at `maxEntrySpeed`. Then per-phase drag and brakes decay it with no step at any phase change (`diveDrag`, `contactBrake`, `rollDrag`, `recoverDrag`), floored at `minRollSpeed` until the recovery. The recovery only drags with the run intent along the roll, brakes to a stop with no input (`settleBrake`), and pulls toward the walk speed with walk input. The speed it ends at is handed to the walk through the motor, so Shift runs on from it. A running dive lifts the pelvis higher (`standingLift`/`runningLift`) and pitches forward sooner; phase durations stay time-based. The roll also carries the body on the frame the walk hands over, so there is no stalled frame. The legacy per-phase speeds (`RollSettings.diveSpeed`/`contactSpeed`/`rollSpeed`/`recoverSpeed`/`speedEase`) are unused and hidden. F1: the ROLL tab has momentum and run-exit rows in place of the phase speeds, presets save `rollMomentum` and `rollRunExit` (version 13), and the LIVE tab has a "Roll" section.
+
 ## Status
 
 | Phase | Status | Commit |
@@ -98,5 +100,6 @@ tab has a "Run intent" section.
 | 14 Helicopter hover targets with points popups | done | |
 | 15 Shift as a run intent | done | |
 | 16 Aim-side running, climb run-intent re-sample | done | |
+| 17 Roll momentum and forward throw | done | |
 
 Also on the branch: `e54982c` (test seam: scenario tests aim at world points, independent of the Game view) and `f463c6d` (fixes from the verifier pass: disposal of recomposed collaborators, casing, audio and aim edge cases).

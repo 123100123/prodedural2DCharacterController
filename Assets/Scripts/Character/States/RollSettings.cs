@@ -8,8 +8,8 @@ public class RollSettings {
     [Tooltip("Whether the roll input (Left Alt, or the gamepad's East button) starts a roll.")]
     public bool enabled = true;
     public float cooldown = 0.3f;
-    [Tooltip("Fraction of the remaining speed, height and pitch change covered per 60 Hz frame.")]
-    public float speedEase = 0.15f;
+    // Legacy (unused since the roll carries momentum, RollMomentumSettings): kept so older presets still load.
+    [HideInInspector] public float speedEase = 0.15f;
     public float groundFollowEase = 0.35f;
     [Tooltip("How tightly the rolling body follows its ground contact as the hips come back down.")]
     public float rollContactEase = 0.7f;
@@ -21,7 +21,7 @@ public class RollSettings {
 
     [Header("1. Dive")]
     public float diveDuration = 0.22f;
-    public float diveSpeed = 6.5f;
+    [HideInInspector] public float diveSpeed = 6.5f; // legacy, unused: see RollMomentumSettings
     public float diveLean = 55f;
     public float diveBodyHeight = 1.8f;
     [Tooltip("Arms reach ahead this many degrees below horizontal.")]
@@ -35,7 +35,7 @@ public class RollSettings {
     public float handReachAhead = 0.7f;
     public float contactLean = 100f;
     public float contactBodyHeight = 1.5f;
-    public float contactSpeed = 5f;
+    [HideInInspector] public float contactSpeed = 5f; // legacy, unused: see RollMomentumSettings
     [Tooltip("A hand this close above the ground counts as touching it.")]
     public float contactTolerance = 0.15f;
     [Tooltip("Longest wait for hand contact before rolling anyway.")]
@@ -48,7 +48,7 @@ public class RollSettings {
 
     [Header("3. Roll")]
     public float rollDuration = 0.42f;
-    public float rollSpeed = 4.5f;
+    [HideInInspector] public float rollSpeed = 4.5f; // legacy, unused: see RollMomentumSettings
     public float chestCurlAngle = 45f;
     [Tooltip("Body pitch range (degrees) in which the chest curls and the chin tucks. Only while inverted do they swing the head up, away from the ground.")]
     public Vector2 invertedPitchWindow = new Vector2(90f, 300f);
@@ -64,7 +64,7 @@ public class RollSettings {
 
     [Header("4. Recovery")]
     public float recoverDuration = 0.3f;
-    public float recoverSpeed = 1.5f;
+    [HideInInspector] public float recoverSpeed = 1.5f; // legacy, unused: see RollMomentumSettings
     [Tooltip("Crouch left when the roll hands over to walking; the gait rises out of it.")]
     public float recoverCrouch = 0.35f;
 

@@ -2,9 +2,11 @@ using UnityEngine;
 
 // Dive roll: dive forward with both arms reaching ahead, plant the hands on the ground, roll forward over the shoulders,
 // then bring the feet back to the ground and hand over to walking. Each phase eases from where the previous one left off.
-// With the run intent along the roll, the recovery keeps the roll's travel speed and hands over to the run part way
-// through (RollRunExitSettings), so the run starts from the roll's speed rather than from the slow recovery. On a slope
-// the roll travels along the surface and keeps the body clear of the slope line, not just of the ground under the pivot.
+// The travel is momentum (RollMomentum): the roll starts at the speed the previous state handed over, a forward throw
+// lifts it (harder and with a higher pelvis arc from a run), and drag and brakes let it decay through the phases; the
+// speed it ends at is handed to the walk. With the run intent along the roll, the recovery only drags and hands over to
+// the run part way through (RollRunExitSettings). On a slope the roll travels along the surface and keeps the body clear
+// of the slope line, not just of the ground under the pivot.
 public sealed class RollState : ICharacterState {
     private enum RollPhase { Dive, HandContact, Roll, Recover }
 
@@ -14,6 +16,7 @@ public sealed class RollState : ICharacterState {
 
     private readonly StateContext context;
     private readonly RollSettings settings;
+    private readonly RollMomentumSettings momentum;
     private readonly RollRunExitSettings runExit;
 
     private RollPhase phase;
@@ -21,6 +24,12 @@ public sealed class RollState : ICharacterState {
     private float readyTime;
     private int direction;
     private float speed;
+    // The roll's launch, the time since it started, what the readout shows of its speed, and what the move input asks
+    // of the recovery this frame.
+    private RollLaunch launch;
+    private float sinceEntry;
+    private (float deceleration, float recoverySpeed, float handedBack) speedLog;
+    private RollRecoverIntent recoverIntent;
     private float groundY;
     // The slope of the ground under the body (rise per unit of x; 0 on flat ground).
     private float gradient;
@@ -35,9 +44,10 @@ public sealed class RollState : ICharacterState {
     // The run intent points along the roll this frame (only acted on in the recovery).
     private bool runsAlong;
 
-    public RollState(StateContext context, (RollSettings roll, RollRunExitSettings runExit) settings) {
+    public RollState(StateContext context, (RollSettings roll, RollMomentumSettings momentum, RollRunExitSettings runExit) settings) {
         this.context = context;
         this.settings = settings.roll;
+        momentum = settings.momentum;
         runExit = settings.runExit;
     }
 
@@ -52,6 +62,9 @@ public sealed class RollState : ICharacterState {
 
     public bool CanStart => settings.enabled && Time.time >= readyTime;
 
+    // The current roll's momentum, or the last one's once it is over (for the debug tools).
+    public RollReadout Readout => new RollReadout((context.Machine.Current == this, MotionPhase), launch, (speed, speedLog.deceleration, speedLog.recoverySpeed, speedLog.handedBack));
+
     public void Begin() => context.Machine.ChangeTo(this);
 
     public void Enter() {
@@ -61,15 +74,20 @@ public sealed class RollState : ICharacterState {
         legs = context.Rig.Stride.LegsOrderedByFacing(direction);
         groundY = context.Rig.Stride.GroundUnderBody;
         gradient = context.Rig.Stride.SlopeGradient;
-        (pitch, chestCurl, speed) = (0f, 0f, settings.diveSpeed);
+        (pitch, chestCurl) = (0f, 0f);
+        Launch();
         context.Rig.Motor.Velocity = Vector2.zero;
         StartPhase(RollPhase.Dive);
+        // The walk hands over before it moves the body this frame: the roll carries it this frame instead, so the body
+        // never stalls for a frame between them. The pose starts on the roll's first tick.
+        TravelForward(Time.deltaTime);
     }
 
     public void Tick(float deltaTime, PlayerCommands commands) {
         phaseElapsed += deltaTime;
         float progress = Mathf.Clamp01(phaseElapsed / PhaseDuration());
         runsAlong = RunIntent.Along((commands.RunIntent, commands.MoveAxis), direction);
+        recoverIntent = RecoverIntentFor(commands.MoveAxis);
 
         TravelForward(deltaTime);
         if (!TryFindGroundUnderBody()) {
@@ -115,6 +133,7 @@ public sealed class RollState : ICharacterState {
                 break;
             case RollPhase.Roll:
                 recoveryFootholds = FindRecoveryFootholds();
+                speedLog.recoverySpeed = speed;
                 StartPhase(RollPhase.Recover);
                 break;
             default:
@@ -136,13 +155,25 @@ public sealed class RollState : ICharacterState {
         }
     }
 
-    private float PhaseSpeed() {
-        switch (phase) {
-            case RollPhase.Dive: return settings.diveSpeed;
-            case RollPhase.HandContact: return settings.contactSpeed;
-            case RollPhase.Roll: return settings.rollSpeed;
-            default: return runExit.KeepsTravelSpeed(runsAlong) ? settings.rollSpeed : settings.recoverSpeed;
+    // The momentum's view of the phase: which drag and brake apply.
+    private RollMotionPhase MotionPhase {
+        get {
+            switch (phase) {
+                case RollPhase.Dive: return RollMotionPhase.Dive;
+                case RollPhase.HandContact: return RollMotionPhase.HandContact;
+                case RollPhase.Roll: return RollMotionPhase.Roll;
+                default: return RollMotionPhase.Recover;
+            }
         }
+    }
+
+    // The run intent along the roll (with the run exit on) only drags; walk input along it walks on; no input, or input
+    // against the roll, settles to a stop.
+    private RollRecoverIntent RecoverIntentFor(float moveAxis) {
+        if (runExit.KeepsTravelSpeed(runsAlong)) {
+            return RollRecoverIntent.Along;
+        }
+        return moveAxis * direction > 0f ? RollRecoverIntent.Walk : RollRecoverIntent.Settle;
     }
 
     private float PhasePitch() {
@@ -166,10 +197,24 @@ public sealed class RollState : ICharacterState {
 
     // ---- Body motion -----------------------------------------------------------------------------------------
 
-    // Momentum carries over between phases; only the target speed changes.
+    // The incoming velocity along the roll (read before Enter clears the motor) sets the launch; the speed starts there.
+    private void Launch() {
+        float incoming = RollMomentum.IncomingSpeed(context.Rig.Motor.Velocity, SlopeMath.AlongSurface(gradient, direction));
+        launch = RollMomentum.Launch((incoming, context.Rig.Stride.Run.speed), momentum);
+        speed = RollMomentum.StartSpeed(launch, momentum);
+        sinceEntry = 0f;
+        speedLog = (0f, 0f, 0f);
+        recoverIntent = RollRecoverIntent.Settle;
+    }
+
+    // Momentum carries over between phases; a phase changes only the drag and brake acting on it.
     private void TravelForward(float deltaTime) {
+        float before = speed;
+        speed = RollMomentum.Advance(speed, (launch, sinceEntry, MotionPhase, recoverIntent, context.Rig.Stride.Walk.speed), deltaTime, momentum);
+        sinceEntry += deltaTime;
+        speedLog.deceleration = deltaTime > 0f ? (before - speed) / deltaTime : 0f;
+
         KinematicBodyMotor motor = context.Rig.Motor;
-        speed = Mathf.Lerp(speed, PhaseSpeed(), FrameRateEase.FractionForFrame(settings.speedEase, deltaTime));
         motor.Velocity = speed * SlopeMath.AlongSurface(gradient, direction);
         motor.MoveWithCollisions(deltaTime, context.Rig.Stride.Slope.maxSlopeAngle);
     }
@@ -193,10 +238,14 @@ public sealed class RollState : ICharacterState {
 
     // Pitch and height move from where the phase started toward the phase's targets, so phases blend without snapping.
     // Rotations are in the rig's authored space; mirroring the root makes them a forward roll for either facing.
+    // In the dive the pitch leads sooner the faster the roll started, and the throw lifts the pelvis in a short arc.
     private void PitchAndLowerBody((float progress, float deltaTime) frame) {
         float blend = Mathf.SmoothStep(0f, 1f, frame.progress);
-        pitch = Mathf.Lerp(phaseStart.pitch, PhasePitch(), blend);
-        float height = Mathf.Lerp(phaseStart.height, PhaseBodyHeight(), blend);
+        bool isDiving = phase == RollPhase.Dive;
+        float pitchBlend = isDiving ? Mathf.SmoothStep(0f, 1f, frame.progress / RollMomentum.PitchLeadScale(launch.RunShare)) : blend;
+        pitch = Mathf.Lerp(phaseStart.pitch, PhasePitch(), pitchBlend);
+        float lift = isDiving ? RollMomentum.DiveLift(frame.progress, launch.RunShare, momentum) : 0f;
+        float height = Mathf.Lerp(phaseStart.height, PhaseBodyHeight(), blend) + lift;
 
         Transform body = context.Rig.Body;
         body.localRotation = Quaternion.Euler(0f, 0f, pitch * ForwardTurnSign) * uprightPose.body;
@@ -374,19 +423,27 @@ public sealed class RollState : ICharacterState {
     // How far the pelvis is below where it stands.
     private float StandGap => groundY + context.Rig.Stride.BodyHeight - context.Rig.Body.position.y;
 
-    // Part way through the recovery, toward a run: the feet settle where the body is and the walk takes the roll's
-    // velocity from the motor (written by the travel this frame), so the run ramps up from the roll's speed. False if the
-    // feet find no ground: the recovery carries on and stands up (or falls) at its end as usual.
+    // Part way through the recovery, toward a run: the feet settle where the body is and the walk is handed the roll's
+    // speed, so the run ramps up from it. False if the feet find no ground: the recovery carries on and stands up (or
+    // falls) at its end as usual.
     private bool TryRunOut() {
         if (!context.Rig.Stride.TrySettleStance((context.Rig.Body.position.x, direction, groundY))) {
             return false;
         }
+        HandBackSpeed();
         context.States.Walk.Begin();
         return true;
     }
 
-    // The body is left in a slight crouch; the walking gait rises out of it.
+    // The next state reads the momentum from the motor: the roll's speed along the surface, with no reset.
+    private void HandBackSpeed() {
+        context.Rig.Motor.Velocity = RollMomentum.HandBack(speed, SlopeMath.AlongSurface(gradient, direction));
+        speedLog.handedBack = speed;
+    }
+
+    // The body is left in a slight crouch; the walking gait rises out of it from the roll's remaining speed.
     private void StandUp() {
+        HandBackSpeed();
         if (context.Rig.Stride.TrySettleStance((context.Rig.Body.position.x, direction, groundY))) {
             context.States.Walk.Begin();
             return;

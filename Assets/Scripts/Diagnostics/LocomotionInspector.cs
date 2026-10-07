@@ -13,7 +13,7 @@ public sealed class LocomotionInspector {
         stride = parts.Stride;
         latestCommands = () => character.LatestCommands;
         Tuning = new MovementTuning(parts);
-        Telemetry = new LocomotionTelemetry(stride, (parts.Posture, parts.Torso, parts.Head, parts.PostureRoot), (parts.Crouch, parts.AirborneState), (parts.Machine, parts.Walk));
+        Telemetry = new LocomotionTelemetry(stride, (parts.Posture, parts.Torso, parts.Head, parts.PostureRoot), (parts.Crouch, parts.AirborneState), (parts.Machine, parts.Walk, parts.RollState));
         Movement = MovementTuningSchema.CreateDomain(Tuning);
         if (lighting != null) {
             Lighting = LightingTuningSchema.CreateDomain(lighting);

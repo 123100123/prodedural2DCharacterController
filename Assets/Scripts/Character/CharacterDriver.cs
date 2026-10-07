@@ -32,6 +32,8 @@ public class CharacterDriver : MonoBehaviour {
     [SerializeField] private FallSecondarySettings fallSecondary = new FallSecondarySettings();
     [SerializeField] private LandingSettings landing = new LandingSettings();
     [SerializeField] private RollSettings roll = new RollSettings();
+    [Tooltip("How the roll carries the speed it starts with: the kept share, the forward throw and the decay.")]
+    [SerializeField] private RollMomentumSettings rollMomentum = new RollMomentumSettings();
     [Tooltip("Leaving a roll into a run when the run intent points along it.")]
     [SerializeField] private RollRunExitSettings rollRunExit = new RollRunExitSettings();
     [SerializeField] private ClimbSettings climb = new ClimbSettings();
@@ -82,7 +84,7 @@ public class CharacterDriver : MonoBehaviour {
 
     public CharacterEvents Events { get; private set; }
     // What debug and tuning tools need; the character never reads anything back from them.
-    public CharacterParts Parts => new CharacterParts((stride, posture, torsoMotion, head, armSwing), (crouch, postureRoot), (jump, airborne, states?.Airborne, (airPose, fallSecondary), landing), (shooting, pistol, (weapon, weaponController)), (cameraFeel, followCamera), effects, audioSettings, (wall, states?.WallSlide), (slide, states?.Slide), (ledgeHang, oneWay, states?.Climb), (push, cratePusher, pushPose), (roll, climb, slope), (machine, states?.Walk));
+    public CharacterParts Parts => new CharacterParts((stride, posture, torsoMotion, head, armSwing), (crouch, postureRoot), (jump, airborne, states?.Airborne, (airPose, fallSecondary), landing), (shooting, pistol, (weapon, weaponController)), (cameraFeel, followCamera), effects, audioSettings, (wall, states?.WallSlide), (slide, states?.Slide), (ledgeHang, oneWay, states?.Climb), (push, cratePusher, pushPose), ((roll, rollMomentum, rollRunExit, states?.Roll), climb, slope), (machine, states?.Walk));
     public PlayerCommands LatestCommands => latestCommands;
     // The full-body state the character is in; null until the character is composed.
     public ICharacterState CurrentState => machine?.Current;
@@ -239,7 +241,7 @@ public class CharacterDriver : MonoBehaviour {
             new WalkState(context, (cratePusher, crouch)),
             new JumpWindupState(context, (jump, airborne)),
             new AirborneState(context, (airborne, jump, airPose, fallSecondary, landing)),
-            new RollState(context, (roll, rollRunExit)),
+            new RollState(context, (roll, rollMomentum, rollRunExit)),
             new ClimbState(context, (climb, ledgeHang)),
             new WallSlideState(context, wall),
             new SlideState(context, (slide, jump))));
