@@ -124,14 +124,8 @@ public class PistolScenarioTests : ScenarioFixture {
     [UnityTest]
     public IEnumerator ChangingParentNeverMovesThePistolInItsNewParentsSpaceThatFrame() {
         yield return Hold(0.6f);
-        PistolView view = View;
-        Transform lastParent = view.Parent;
-        Vector3 lastPosition = view.Pistol.position;
-        Matrix4x4 lastHolster = view.Holster.localToWorldMatrix;
-        Matrix4x4 lastPivot = view.WeaponPivot.localToWorldMatrix;
-        float worstSwap = 0f;
-        float fastest = 0f;
-        int swaps = 0;
+        // Measured at the end of each frame, after the arms, the leg IK and the pistol's pose.
+        PistolTrack track = PistolTrack.Follow(View);
         for (int frame = 0; frame < 140; frame++) {
             bool aiming = frame >= 10 && frame < 70;
             if (aiming) {
@@ -140,21 +134,11 @@ public class PistolScenarioTests : ScenarioFixture {
                 Stage.StopAiming();
             }
             yield return null;
-            if (view.Parent != lastParent) {
-                Matrix4x4 before = view.Parent == view.Holster ? lastHolster : lastPivot;
-                Vector3 expected = before.inverse.MultiplyPoint3x4(lastPosition);
-                worstSwap = Mathf.Max(worstSwap, Vector2.Distance(expected, view.Pistol.localPosition));
-                swaps++;
-            }
-            fastest = Mathf.Max(fastest, Vector3.Distance(lastPosition, view.Pistol.position));
-            lastParent = view.Parent;
-            lastPosition = view.Pistol.position;
-            lastHolster = view.Holster.localToWorldMatrix;
-            lastPivot = view.WeaponPivot.localToWorldMatrix;
         }
-        Report($"{swaps} parent changes, the biggest jump on the swap frame {worstSwap:F4}, the fastest frame of the move {fastest:F3}");
-        Assert.That(swaps, Is.EqualTo(2), "drawn once and holstered once");
-        Assert.That(worstSwap, Is.LessThan(0.03f), "no jump at a parent change");
+        Report($"{track}; the fastest frame in the holster, carried by the thigh, {track.FastestInHolster:F3}");
+        Assert.That(track.Swaps, Is.EqualTo(2), "drawn once and holstered once");
+        Assert.That(track.WorstSwap, Is.LessThan(0.03f), "no jump at a parent change");
+        Assert.That(track.WorstInHolster, Is.LessThan(0.03f), "no jump within the holster");
     }
 
     [UnityTest]
@@ -189,7 +173,7 @@ public class PistolScenarioTests : ScenarioFixture {
         Assert.That(CountNamed("WeaponPivot"), Is.EqualTo(1));
         int marked = OwnedRoot.CountOwnedBy(Driver.transform);
         Assert.That(marked, Is.GreaterThanOrEqualTo(6), "the roots and the three objects under the bones are marked");
-        Assert.That(View.Holster.parent, Is.SameAs(Driver.Parts.PostureRoot), "the holster hangs from the pelvis bone");
+        Assert.That(View.Holster.parent, Is.SameAs(Stage.Stride.FrontLeg.Hip), "the holster hangs from the front thigh bone");
 
         Driver.enabled = false;
         yield return null;
@@ -243,13 +227,13 @@ public class PistolScenarioTests : ScenarioFixture {
         Assert.That(File.Exists(Path.Combine(folder, "pistol-aim-left.png")), Is.True);
     }
 
-    private static void Write(string folder, string name, Vector2 center, float size) {
+    internal static void Write(string folder, string name, Vector2 center, float size) {
         Texture2D picture = Capture(center, size);
         File.WriteAllBytes(Path.Combine(folder, name), picture.EncodeToPNG());
         Object.Destroy(picture);
     }
 
-    private static Texture2D Capture(Vector2 center, float orthographicSize) {
+    internal static Texture2D Capture(Vector2 center, float orthographicSize) {
         GameObject host = new GameObject("pictureCamera");
         Camera camera = host.AddComponent<Camera>();
         camera.CopyFrom(Camera.main);

@@ -122,16 +122,24 @@ public static class MovementTuningSchema {
         return parameters;
     }
 
-    // The holster on the hip, the pistol in the hand and its recoil twist.
+    // The holster on the front thigh, the pistol in the hand, its recoil twist, and the draw and holster.
     private static IEnumerable<Parameter> Sidearm() {
         return new List<Parameter> {
-            new Parameter(("Holster", "Offset x (along the spine)", Units), (-1f, 1f), (p => p.pistolHandling.holsterOffset.x, (p, v) => p.pistolHandling.holsterOffset.x = v)),
-            new Parameter(("Holster", "Offset y (toward the back)", Units), (-1f, 1f), (p => p.pistolHandling.holsterOffset.y, (p, v) => p.pistolHandling.holsterOffset.y = v)),
+            new Parameter(("Holster", "Offset x (down the thigh)", Units), (-1f, 1f), (p => p.pistolHandling.holsterOffset.x, (p, v) => p.pistolHandling.holsterOffset.x = v)),
+            new Parameter(("Holster", "Offset y (across the thigh, to the front)", Units), (-1f, 1f), (p => p.pistolHandling.holsterOffset.y, (p, v) => p.pistolHandling.holsterOffset.y = v)),
             new Parameter(("Holster", "Angle", Degrees), (-360f, 360f), (p => p.pistolHandling.holsterAngle, (p, v) => p.pistolHandling.holsterAngle = v)),
             new Parameter(("Pistol grip", "Offset x (along the forearm)", Units), (-0.5f, 0.5f), (p => p.pistolHandling.gripOffset.x, (p, v) => p.pistolHandling.gripOffset.x = v)),
             new Parameter(("Pistol grip", "Offset y (across the forearm)", Units), (-0.5f, 0.5f), (p => p.pistolHandling.gripOffset.y, (p, v) => p.pistolHandling.gripOffset.y = v)),
             new Parameter(("Pistol grip", "Recoil twist", Degrees), (0f, 300f), (p => p.pistolHandling.recoilTwist, (p, v) => p.pistolHandling.recoilTwist = v)),
             new Parameter(("Pistol grip", "Pistol scale", Multiple), (0.4f, 2.5f), (p => p.pistolHandling.pistolScale, (p, v) => p.pistolHandling.pistolScale = v)),
+            new Parameter(("Pistol grip", "Settle into a new parent", Seconds), (0f, 0.5f), (p => p.pistolHandling.attachEaseTime, (p, v) => p.pistolHandling.attachEaseTime = v)),
+            new Parameter(("Draw and holster", "Draw time", Seconds), (0.05f, 1.5f), (p => p.pistolHandling.drawDuration, (p, v) => p.pistolHandling.drawDuration = v)),
+            new Parameter(("Draw and holster", "Holster time", Seconds), (0.05f, 1.5f), (p => p.pistolHandling.holsterDuration, (p, v) => p.pistolHandling.holsterDuration = v)),
+            new Parameter(("Draw and holster", "Quick holster time (roll, climb, wall)", Seconds), (0.05f, 1f), (p => p.pistolHandling.quickHolsterDuration, (p, v) => p.pistolHandling.quickHolsterDuration = v)),
+            new Parameter(("Draw and holster", "Grip at this share of the draw", Share), (0.05f, 0.9f), (p => p.pistolHandling.gripShare, (p, v) => p.pistolHandling.gripShare = v)),
+            new Parameter(("Draw and holster", "Support hand joins from", Share), (0f, 0.99f), (p => p.pistolHandling.supportJoinShare, (p, v) => p.pistolHandling.supportJoinShare = v)),
+            new Parameter(("Draw and holster", "Insert at this share of the holster", Share), (0.1f, 0.95f), (p => p.pistolHandling.insertShare, (p, v) => p.pistolHandling.insertShare = v)),
+            new Parameter(("Draw and holster", "Hand path arc", Share), (0f, 1f), (p => p.pistolHandling.handArcLift, (p, v) => p.pistolHandling.handArcLift = v)),
         };
     }
 

@@ -22,8 +22,8 @@ Controls are listed below. To try the moves, climb onto the raised block at the 
 | Run intent: hold with a direction to run as soon as the character can (after a landing, a roll, a climb or a crouch, and pressed mid-climb it runs on from the top); while aiming it runs toward the side the character aims at and faces, and backpedalling stays a walk; alone, with no direction, it does nothing | Hold Left Shift | Press left stick |
 | Crouch (hold, or tap to latch on and off); pressed while running it slides. Shift with a direction cancels a tapped crouch and runs, and a quick tap while running with Shift does not crouch; Ctrl held past the tap time wins (crouch walk); a low ceiling keeps the crouch until there is room | Left Ctrl | Press right stick |
 | Roll toward the facing direction (on by default; toggle it in F1) | Left Alt | East button |
-| Aim: face and aim at the pointer (hold, or tap to latch on and off) | Right mouse button | Left trigger |
-| Fire (while aiming) | Left mouse button | Right trigger |
+| Aim: draw the pistol, face and aim at the pointer (hold, or tap to latch on and off); letting go holsters it | Right mouse button | Left trigger |
+| Fire (while aiming; a click during the draw fires when the pistol arrives) | Left mouse button | Right trigger |
 | Reload (also automatic on an empty pull) | R | West button |
 | Drop through a one-way platform | Down + Space | Stick down + South button |
 | Wall slide: in the air, hold toward a wall | A / D into the wall | Left stick into the wall |
@@ -169,9 +169,9 @@ The full-body states switch through `CharacterStateMachine`. Each state receives
     - **Sequence:** the character reaches the corner, hangs, pulls up while the feet scramble on the wall face, mounts a foot on top and stands.
     - **Detection:** a ledge needs standing room above it and at least `minTopDepth` of top.
   - **Shooting mode:**
-    - Holding aim turns the character toward the pointer (it can backpedal), extends the front arm toward it and tilts the head to follow.
-    - Fire calls `Pistol.TryFire`. For now that logs a debug message and draws a debug ray from the muzzle.
-    - Shooting is suppressed while rolling and climbing.
+    - Holding aim turns the character toward the pointer (it can backpedal) and tilts the head to follow, and draws the pistol from the drop-leg holster on the front thigh: the hand reaches the holster, grips, and carries the pistol up to the aim, where the support hand joins it (about 0.35 s). Letting go of aim holsters it the same way backwards.
+    - Fire shoots from the pistol's barrel tip once it is drawn. A click during the draw is kept and fires the moment the pistol arrives (only one, and not if aim is let go first).
+    - A roll, a climb, a wall slide or a crate push quick-holsters a drawn pistol; with aim still held it is drawn again afterwards. Shooting is suppressed meanwhile.
 
   All tunables are serialized on `CharacterDriver`, grouped by move. Ease values are fractions per 60 Hz frame and are converted to the actual frame time by `FrameRateEase`.
 
@@ -211,6 +211,7 @@ The full-body states switch through `CharacterStateMachine`. Each state receives
     - **Height:** pelvis Y and target, the gait baseline and bob, and the reach ceiling (marked when it limits the pelvis).
     - **Legs:** the measured leg length, and each leg's state, hip-to-foot distance and extension.
     - **Posture:** the gait lean and acceleration lean, the total lean target and actual, chest pitch and head stabilization.
+    - **Weapon:** the draw cycle's state (quick when a roll, climb, wall slide or push took the arms) and progress, what carries the pistol (Holster or WeaponPivot), the front hand's grip error, the support hand's error and weight, the muzzle's world position and whether a shot is buffered for the draw.
 
     Flags light up for 1.5 s after a **BALANCE STEP**, a **PHASE RESYNC** or a **FOOTHOLD FAILED**. The preview at the top (Auto, Idle, Walk, Run, with an optional speed) drives the gait without input. Auto is the normal game, and a badge in the header shows while a preview is active.
     - **Crouch, Airborne, Landing, Lighting:** the crouch share and pelvis sink, the flight (velocity, launch momentum, time airborne and falling, rising/hanging/falling weights, flail strength), the reach for the ground, the predicted ground and the last impact, and the player and muzzle light brightness.
@@ -219,7 +220,7 @@ The full-body states switch through `CharacterStateMachine`. Each state receives
   - **CROUCH:** the depth, stance width, posture and transition spring, then the crouch gait profile.
   - **JUMP:** the windup, the launch height and hop, the momentum carried, the air control, the push-off, and the rising and hanging poses.
   - **FALL:** the falling poses, the prolonged-fall flail and the landing (reach, impact, squash, momentum).
-  - **AIM:** arm extension, support hand, recoil and the pistol.
+  - **AIM:** arm extension, support hand, recoil, the pistol and holster placement, and the draw and holster (draw, holster and quick-holster times, the grip, support-join and insert shares, the hand's arc).
   - **CAMERA:** aim framing, the screen shake (an amount of 0 turns it off) and what adds trauma to it.
   - **EFFECTS:** the dust (amount, lifetime, the impact speeds that raise it, jump and roll puffs), the gun's sparks and smoke, and the shell casings (an amount or lifetime of 0 turns that kind off).
   - **LIGHTING:** the ambient light, the player light and the muzzle flash (colours as red, green and blue sliders). Appears when the scene has a lighting rig; it has its own presets.

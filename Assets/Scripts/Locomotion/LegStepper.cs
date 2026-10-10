@@ -32,6 +32,9 @@ public class LegStepper : MonoBehaviour {
     // The world-space target transforms the IK chases (for rig validation): the planted foothold and the solver target.
     public (Transform foothold, Transform solver) WorldSpaceTargets => (footTarget, transform);
     public Vector2 HipPosition => hip.position;
+    // The thigh bone: the root of the leg's IK chain (things worn on the thigh hang from it). Found from the chain's
+    // effector when asked before OnEnable, since the character is composed first.
+    public Transform Hip => hip != null ? hip : ChainRoot();
     public float LegLength { get; private set; }
     // The normal of the ground the foot stands on or is stepping onto (up on flat ground), set by the gait.
     public Vector2 GroundNormal { get; set; } = Vector2.up;
@@ -58,6 +61,16 @@ public class LegStepper : MonoBehaviour {
         effector = ikChain.effector;
         LegLength = Vector2.Distance(chain[0].position, chain[1].position) + Vector2.Distance(chain[1].position, chain[2].position);
         previousSolverPosition = transform.position;
+    }
+
+    // The chain's root: transformCount - 1 parents up from its effector (the foot bone).
+    private Transform ChainRoot() {
+        IKChain2D chain = GetComponent<LimbSolver2D>().GetChain(0);
+        Transform bone = chain.effector;
+        for (int link = 1; link < chain.transformCount && bone != null; link++) {
+            bone = bone.parent;
+        }
+        return bone;
     }
 
     // Share of a step's progress after which the foot starts turning toward the ground it lands on.

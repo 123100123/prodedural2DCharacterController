@@ -168,10 +168,23 @@ public sealed class ScenarioStage {
     // so the Editor's Game view size and layout cannot move the aim.
     public void AimAt(Vector2 worldPoint) => AimAndFire(worldPoint, false);
 
-    // Aims at a world point and presses (or releases) the fire button, so alternating calls fire a shot each press.
+    // Aims at a world point and presses (or releases) the fire button, so alternating calls fire a shot each press. Aim
+    // draws the pistol first (about drawDuration): one press made during the draw is buffered and fires when the pistol
+    // reaches the aim, the rest are lost, so a test that counts shots or needs a shot on a given frame draws first
+    // (DrawAt).
     public void AimAndFire(Vector2 worldPoint, bool fire) {
         Character.ScenarioPointerSource = () => Camera.main.WorldToScreenPoint(worldPoint);
         QueueMouse(Aiming(fire));
+    }
+
+    // Holds aim at a world point (given relative to the body each frame, so a moving character keeps its aim) until the
+    // pistol is drawn to the aim.
+    public IEnumerator DrawAt(System.Func<Vector2> worldPoint, int maxFrames = 120) {
+        PistolHolder holder = Character.Parts.PistolHolder;
+        for (int frame = 0; frame < maxFrames && !holder.IsEquipped; frame++) {
+            AimAndFire(worldPoint(), false);
+            yield return null;
+        }
     }
 
     // Holds aim with the pointer at a fixed screen position, so a camera that moves does not drag the pointer along.

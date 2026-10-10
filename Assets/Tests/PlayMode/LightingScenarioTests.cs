@@ -61,8 +61,7 @@ public class LightingScenarioTests : ScenarioFixture {
     [UnityTest]
     public IEnumerator TheFlashDiesAwaySmoothly() {
         yield return RequireLighting();
-        Stage.AimAndFire((Vector2)Stage.Stride.transform.position + new Vector2(6f, 3f), false);
-        yield return Hold(0.3f);
+        yield return Stage.DrawAt(() => (Vector2)Stage.Stride.transform.position + new Vector2(6f, 3f));
         Stage.AimAndFire((Vector2)Stage.Stride.transform.position + new Vector2(6f, 3f), true);
         yield return null;
         Stage.StopAiming();

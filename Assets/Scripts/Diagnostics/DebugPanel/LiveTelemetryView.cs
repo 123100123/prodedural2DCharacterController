@@ -61,11 +61,15 @@ public sealed class LiveTelemetryView {
         yield return ("Velocity carried into walk/run", t => $"{t.CarriedSpeed:0.00} u/s");
     }
 
-    // Where the pistol is: in the holster or the hand, and its muzzle in the world.
+    // The draw cycle and where the pistol is: its state and progress, the holster or the hand, how close the hands are to
+    // their places on it, its muzzle in the world and a shot waiting for the draw.
     private static IEnumerable<(string label, Func<LocomotionTelemetry, string> format)> WeaponReadouts() {
-        yield return ("Parent", t => t.Sidearm == null ? "no pistol" : t.Weapon.InHand ? PistolView.PivotName : PistolView.HolsterName);
-        yield return ("In hand / holstered", t => t.Sidearm == null ? "-" : t.Weapon.InHand ? "in hand" : "holstered");
+        yield return ("State / progress", t => t.Sidearm == null ? "no pistol" : $"{t.Weapon.State}{(t.Weapon.IsQuick ? " (quick)" : "")} / {t.Weapon.Progress:0.00}");
+        yield return ("Parent", t => t.Sidearm == null ? "-" : t.Weapon.Parent);
+        yield return ("Front hand to grip", t => t.Sidearm == null ? "-" : $"{t.Weapon.GripError:0.000} u");
+        yield return ("Support hand error / weight", t => t.Sidearm == null ? "-" : $"{t.Weapon.SupportError:0.000} u / {t.Weapon.SupportWeight:0.00}");
         yield return ("Muzzle world position", t => t.Sidearm == null ? "-" : $"({t.Weapon.Muzzle.x:0.00}, {t.Weapon.Muzzle.y:0.00})");
+        yield return ("Fire buffered", t => t.Sidearm == null ? "-" : t.Weapon.FireBuffered ? "yes" : "no");
     }
 
     // The current roll's momentum, or the last roll's after it ended: how it was launched, how it decays, what it handed on.

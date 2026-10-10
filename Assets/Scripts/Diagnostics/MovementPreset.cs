@@ -5,7 +5,7 @@ using UnityEngine;
 // and what is copied out to commit a tuned configuration back into the project. Lighting has its own preset.
 [Serializable]
 public class MovementPreset : ITuningPreset<MovementPreset> {
-    public const int CurrentVersion = 15;
+    public const int CurrentVersion = 16;
 
     // Written to every saved file; lets a later change to the format recognise the files written before it.
     public int version = CurrentVersion;
@@ -23,7 +23,9 @@ public class MovementPreset : ITuningPreset<MovementPreset> {
     // Legacy since version 15: the muzzle is the pistol picture's barrel tip. Kept so older files load.
     public float pistolMuzzleOffset;
     public WeaponSettings weapon;
-    // Since version 15: where the holster hangs and how the pistol is held (missing before then).
+    // Since version 15: where the holster hangs and how the pistol is held (missing before then). Since version 16 the
+    // holster hangs from the front thigh, and its offset and angle are in that bone's space; a version 15 file's are in the
+    // pelvis' space, so they load at their defaults (FromJson). The draw and holster timings are used since version 16.
     public PistolHandlingSettings pistolHandling;
     public CameraFeelSettings cameraFeel;
     public EffectsSettings effects;
@@ -129,6 +131,14 @@ public class MovementPreset : ITuningPreset<MovementPreset> {
     public static MovementPreset FromJson(string json) {
         MovementPreset preset = CodeDefaults();
         JsonUtility.FromJsonOverwrite(json, preset);
+        if (preset.version < ThighHolsterVersion) {
+            PistolHandlingSettings defaults = new PistolHandlingSettings();
+            preset.pistolHandling.holsterOffset = defaults.holsterOffset;
+            preset.pistolHandling.holsterAngle = defaults.holsterAngle;
+        }
         return preset;
     }
+
+    // The first version whose holster offset and angle are in the front thigh's space (before it, the pelvis').
+    private const int ThighHolsterVersion = 16;
 }

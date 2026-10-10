@@ -1,8 +1,10 @@
 using UnityEngine;
 
-// Shooting mode while aiming (aim held or tap-latched): faces the pointer, points the pistol with both hands,
-// follows it with the head, fires on click. While the weapon reloads, the support hand fetches the magazine and the
-// pistol tilts up; the reload itself runs in the weapon whether or not the character is aiming.
+// Shooting mode while aiming (aim held or tap-latched): faces the pointer, follows it with the head and, once the pistol
+// holder has drawn the pistol to the aim, points it with both hands and fires on click (a click during the draw is
+// buffered by the holder and fires when the pistol arrives). Until then it only works out the aim grip, which the holder
+// carries the hand toward. While the weapon reloads, the support hand fetches the magazine and the pistol tilts up; the
+// reload itself runs in the weapon whether or not the character is aiming, and is shown only when the holder says so.
 public sealed class ShootingStance {
     // How far ahead of the body the aim point is held when there is no camera to read the pointer through.
     private const float NoCameraAimDistance = 5f;
@@ -12,15 +14,21 @@ public sealed class ShootingStance {
     private readonly ShootingSettings settings;
     private readonly WeaponSettings weaponSettings;
     private readonly PistolView sidearm;
+    private readonly PistolHolder holder;
     private readonly SecondOrderDynamics recoil = new SecondOrderDynamics(0f);
     private float recoilKick;
 
     // Where the pointer was in the world at the last aiming tick; the camera frames the aim with it.
     public Vector2 AimPoint { get; private set; }
 
-    public ShootingStance(CharacterRig rig, (WeaponController weapon, ShootingSettings settings, WeaponSettings weaponSettings) parts, PistolView sidearm = null) {
+    // Where the front hand holds the pistol at the aim this tick and the way the barrel points (reload tilt included).
+    public (Vector2 grip, Vector2 direction) AimGrip { get; private set; }
+
+    // Without a holder (a bare stance) the pistol counts as always drawn and fires on every click.
+    public ShootingStance(CharacterRig rig, (WeaponController weapon, ShootingSettings settings, WeaponSettings weaponSettings) parts, (PistolView view, PistolHolder holder) sidearm = default) {
         this.rig = rig;
-        this.sidearm = sidearm;
+        this.sidearm = sidearm.view;
+        holder = sidearm.holder;
         weapon = parts.weapon;
         settings = parts.settings;
         weaponSettings = parts.weaponSettings;
@@ -35,16 +43,21 @@ public sealed class ShootingStance {
         }
 
         Vector2 aimDirection = ClampElevation(AimDirectionFromShoulder(aimPoint));
-        float reloadProgress = weapon.ReloadProgress(now);
+        float reloadProgress = holder == null || holder.ShowsReload ? weapon.ReloadProgress(now) : 0f;
         Vector2 gripDirection = ReloadMotion.TiltedUp(aimDirection, (rig.Facing.Sign, weaponSettings.reloadTilt * ReloadMotion.Tilt(reloadProgress)));
         Vector2 gripPoint = rig.FrontArm.ShoulderPosition + gripDirection * (rig.FrontArm.Reach * settings.armExtension)
             + RecoilOffset((aimDirection, Time.deltaTime));
-        rig.FrontArm.ReachToward(gripPoint);
-        sidearm?.SetBarrelDirection(gripDirection, recoilKick);
-        rig.BackArm.ReachToward(SupportHandTarget((gripPoint - gripDirection * settings.supportHandOffset, reloadProgress)));
+        AimGrip = (gripPoint, gripDirection);
         rig.Head.LookToward(aimDirection);
+        // Below full aim share the holder has the hands (it is drawing the pistol toward this grip).
+        if (holder == null || holder.AimShare >= 1f) {
+            rig.FrontArm.ReachToward(gripPoint);
+            sidearm?.SetBarrelDirection(gripDirection, recoilKick);
+            rig.BackArm.ReachToward(SupportHandTarget((gripPoint - gripDirection * settings.supportHandOffset, reloadProgress)));
+        }
 
-        if (commands.FirePressed) {
+        bool fires = holder != null ? holder.FiresNow : commands.FirePressed;
+        if (fires) {
             FirePistol((aimDirection, now));
         }
     }

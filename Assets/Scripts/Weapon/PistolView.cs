@@ -1,33 +1,26 @@
 using UnityEngine;
 
-// What the sidearm shows right now, for the debug tools.
-public readonly struct SidearmReadout {
-    public SidearmReadout(bool inHand, Vector2 muzzle) {
-        InHand = inHand;
-        Muzzle = muzzle;
-    }
-
-    public bool InHand { get; }
-    public Vector2 Muzzle { get; }
-}
-
 // The pistol and its holster as objects in the rig, built at runtime (nothing is authored in the scene):
-//   bone_abs (pelvis)  -> Holster -> HolsterSprite
-//   bone_forearmF      -> WeaponPivot            (at the end of the forearm, where the hand is)
-//   Pistol             -> Muzzle, EjectionPort   (a child of Holster or of WeaponPivot, whichever carries it)
+//   bone_thighF (front thigh) -> Holster -> HolsterSprite   (a drop-leg holster on the outside of the front thigh)
+//   bone_forearmF             -> WeaponPivot            (at the end of the forearm, where the hand is)
+//   Pistol                    -> Muzzle, EjectionPort   (a child of Holster or of WeaponPivot, whichever carries it)
+// The holster swings with the front leg; the hand reaches for it where it is each frame.
 // The rig is mirrored by flipping the root's x scale, so everything under the bones mirrors with it; the pistol is
 // aimed and re-parented in world space with that in mind. Posed in Pose, which runs after the arms are posed.
 public sealed class PistolView {
     public const string HolsterName = "Holster";
     public const string PivotName = "WeaponPivot";
     public const string PistolName = "Pistol";
-    // Sorting orders on the Default layer: holstered it ties with the chest and is told apart by depth (it is nearer the
-    // camera than the chest and behind the front thigh, order 6); drawn it is over the front forearm (9) and head (10).
-    public const int HolsteredOrder = 5;
+    // Sorting orders on the Default layer: holstered it is over the front thigh (6) and ties with the front calf (ankleF,
+    // 7), in front of it by depth (nearer the camera), and under the front arm (8, 9); drawn it is over the front forearm
+    // (9) and head (10).
+    public const int HolsteredOrder = 7;
     public const int DrawnOrder = 11;
-    // How much nearer the camera (z) the holster and the holstered pistol are than the pelvis; the pouch is in front.
+    // How much nearer the camera (z) the holster and the holstered pistol are than the thigh; the pouch is in front.
     private const float HolsterDepth = 0.02f;
     private const float PistolDepth = 0.01f;
+    // The seat share below which the held pistol has left the holster's mouth and is drawn over the arm.
+    private const float OutOfThePouch = 0.5f;
     private const string LitShader = "Universal Render Pipeline/2D/Sprite-Lit-Default";
     private const string FallbackShader = "Sprites/Default";
 
@@ -53,7 +46,7 @@ public sealed class PistolView {
         Shader shader = Shader.Find(LitShader) ?? Shader.Find(FallbackShader);
         material = new Material(shader) { name = "PistolMaterial" };
 
-        holster = NewChild(HolsterName, rig.PostureRoot);
+        holster = NewChild(HolsterName, rig.Stride.FrontLeg.Hip);
         holsterSprite = NewChild("HolsterSprite", holster);
         AddSprite(holsterSprite, PistolTextures.HolsterSprite(), HolsteredOrder);
         weaponPivot = NewChild(PivotName, rig.FrontArm.Forearm);
@@ -78,7 +71,15 @@ public sealed class PistolView {
     // What carries the pistol now: the Holster or the WeaponPivot.
     public Transform Parent => pistol.parent;
     public bool IsInHand => inHand;
-    public SidearmReadout Readout => new SidearmReadout(inHand, Muzzle.position);
+
+    // Where the holstered pistol's grip sits in the world, and the way its barrel points there: what the hand reaches
+    // for on the draw and brings the pistol back to on the holster.
+    public Vector2 HolsterGrip => holster.TransformPoint(new Vector3(0f, 0f, PistolDepth));
+    public Vector2 HolsteredDirection => ((Vector2)holster.TransformVector(Vector3.right)).normalized;
+
+    // How far the pistol held in the hand is pulled onto the holstered grip (1 at the grip and the insert, 0 clear of the
+    // holster); set every frame by the holder.
+    public float SeatShare { get; set; }
 
     // The direction last given to SetBarrelDirection: where the pistol is aimed, before the recoil twist.
     public Vector2 AimDirection => aimDirection;
@@ -86,7 +87,8 @@ public sealed class PistolView {
     // Where the barrel points in the world, mirror included.
     public Vector2 BarrelDirection => ((Vector2)Muzzle.TransformVector(Vector3.right)).normalized;
 
-    // The direction the pistol is held in while in hand (the aim), and how far the last shot has twisted it up.
+    // The direction the pistol is held in while in hand (the aim, or the turn toward it on the draw), and how far the last
+    // shot has twisted it up. Set every frame it is in hand.
     public void SetBarrelDirection(Vector2 worldDirection, float recoil = 0f) {
         if (worldDirection.sqrMagnitude <= 0f) {
             return;
@@ -116,7 +118,6 @@ public sealed class PistolView {
         swapAge = 0f;
         inHand = hand;
         hasAim = false;
-        pistolRenderer.sortingOrder = hand ? DrawnOrder : HolsteredOrder;
     }
 
     // Lays out the fixed parts from the settings and then places the pistol: eased from where it was when it changed
@@ -130,6 +131,13 @@ public sealed class PistolView {
         float targetAngle = inHand ? LocalAngleOf(pistol.parent, HeldDirection()) : 0f;
         pistol.localPosition = Vector3.Lerp(swapFrom.position, target, blend);
         pistol.localRotation = Quaternion.Euler(0f, 0f, Mathf.LerpAngle(swapFrom.angle, targetAngle, blend));
+        // Held at the holster's mouth, the pistol is seated on its grip there (the hand may still be arriving), so the
+        // insert and the grip happen where the pistol already is.
+        if (inHand && SeatShare > 0f) {
+            pistol.position = Vector3.Lerp(pistol.position, holster.TransformPoint(new Vector3(0f, 0f, PistolDepth)), Mathf.Clamp01(SeatShare));
+        }
+        // Still in the pouch it stays behind the leather's order (and under the gripping hand); clear of it, over the arm.
+        pistolRenderer.sortingOrder = inHand && SeatShare < OutOfThePouch ? DrawnOrder : HolsteredOrder;
     }
 
     public void Dispose() {

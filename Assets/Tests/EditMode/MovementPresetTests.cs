@@ -398,6 +398,53 @@ public class MovementPresetTests {
         Assert.That(loaded.slope.slopeLean, Is.EqualTo(defaults.slopeLean));
     }
 
+    // A preset saved at version 15 placed the holster in the pelvis bone's space; the holster hangs from the front thigh
+    // since version 16, so the old offset and angle load at their code defaults, while the rest of the pistol handling it
+    // saved (the grip, the draw timings) loads as saved.
+    [Test]
+    public void AVersionFifteenPresetLoadsTheThighHolsterDefaultsAndKeepsTheRestOfThePistolHandling() {
+        MovementPreset saved = MovementPreset.CodeDefaults();
+        saved.pistolHandling.holsterOffset = new UnityEngine.Vector2(-0.12f, -0.4f);
+        saved.pistolHandling.holsterAngle = -184f;
+        saved.pistolHandling.gripOffset = new UnityEngine.Vector2(0.0625f, 0.125f);
+        saved.pistolHandling.drawDuration = 0.5f;
+        saved.version = 15;
+
+        MovementPreset loaded = MovementPreset.FromJson(saved.ToJson());
+        PistolHandlingSettings defaults = new PistolHandlingSettings();
+        Assert.That(MovementPreset.CurrentVersion, Is.GreaterThan(15));
+        Assert.That(loaded.version, Is.EqualTo(15), "what the file says");
+        Assert.That(loaded.pistolHandling.holsterOffset, Is.EqualTo(defaults.holsterOffset), "the pelvis-space offset is dropped");
+        Assert.That(loaded.pistolHandling.holsterAngle, Is.EqualTo(defaults.holsterAngle));
+        Assert.That(loaded.pistolHandling.gripOffset, Is.EqualTo(new UnityEngine.Vector2(0.0625f, 0.125f)));
+        Assert.That(loaded.pistolHandling.drawDuration, Is.EqualTo(0.5f));
+
+        // At the current version a tuned holster loads as saved.
+        saved.version = MovementPreset.CurrentVersion;
+        Assert.That(MovementPreset.FromJson(saved.ToJson()).pistolHandling.holsterAngle, Is.EqualTo(-184f));
+    }
+
+    // A preset saved at version 14 has no pistol handling at all: it loads at the code defaults.
+    [Test]
+    public void AVersionFourteenPresetLoadsThePistolHandlingDefaults() {
+        MovementPreset saved = MovementPreset.CodeDefaults();
+        saved.version = 14;
+        string versionFourteen = WithoutObject(saved.ToJson(), "pistolHandling");
+        Assert.That(versionFourteen, Does.Not.Contain("\"pistolHandling\""));
+
+        MovementPreset loaded = MovementPreset.FromJson(versionFourteen);
+        PistolHandlingSettings defaults = new PistolHandlingSettings();
+        Assert.That(MovementPreset.CurrentVersion, Is.GreaterThan(14));
+        Assert.That(loaded.pistolHandling.holsterOffset, Is.EqualTo(defaults.holsterOffset));
+        Assert.That(loaded.pistolHandling.drawDuration, Is.EqualTo(defaults.drawDuration));
+        Assert.That(loaded.pistolHandling.insertShare, Is.EqualTo(defaults.insertShare));
+    }
+
+    [Test]
+    public void CopyFromCoversEveryPistolHandlingField() {
+        AssertCopyFromCoversEveryField(new PistolHandlingSettings(), (target, source) => target.CopyFrom(source), new string[0]);
+    }
+
     // The JSON with one "name": value line taken out (ToJson writes one field per line).
     private static string WithoutField(string json, string name) {
         string[] lines = json.Split('\n');

@@ -47,7 +47,8 @@ If the server really is unreachable, fall back to a `dotnet build` of generated 
 
 - `Assets/Scripts` — assembly `ProceduralCharacter.Runtime` (gameplay). `Character/` states and driver, `Locomotion/`
   gait, `UpperBody/` arms/torso/head/aim, `Climbing/` (grab and holdable hang), `Input/`, `Weapon/` (pistol, magazine,
-  `ShootingTarget`, the flying `HoverTarget` and its `IScoreSource` points), `Effects/` (pooled procedural particles), `Audio/` (clips synthesized in code, pooled voices),
+  `PistolView`: runtime-built pistol, a drop-leg `Holster` under `bone_thighF` and a `WeaponPivot` under `bone_forearmF`;
+  `PistolHolder` + the pure `DrawCycle`: the draw/holster cycle and its interruption rules; `ShootingTarget`, the flying `HoverTarget` and its `IScoreSource` points), `Effects/` (pooled procedural particles), `Audio/` (clips synthesized in code, pooled voices),
   `Platforms/` (`OneWayPlatform`), `Props/` (`PushableCrate`).
 - `Assets/Editor` — assembly `ProceduralCharacter.Editor`: `EnvironmentSetup` and `Tools/Procedural Character/Build
   Playground` (`PlaygroundSetup`: idempotent, refuses a dirty scene; a "Playground" root right of the furthest level
@@ -59,6 +60,11 @@ If the server really is unreachable, fall back to a `dotnet build` of generated 
 - `Assets/Tests/EditMode` (pure logic) and `Assets/Tests/PlayMode` (scenario tests on `SampleScene`). `ScenarioStage`
   swaps the level for a flat track (it deactivates every active `BoxCollider2D`, the playground included; `Load(true)`
   keeps the level) and aims the character's pointer at a world point with `ScenarioStage.AimAt` / `AimAndFire`
-  (scenario pointer seam: no Game view needed).
+  (scenario pointer seam: no Game view needed). Aim draws the pistol first (`drawDuration`, about 21 frames): one
+  press during the draw is buffered, the rest are lost, so a test that counts shots or needs a shot on a given frame
+  waits with `yield return Stage.DrawAt(...)` (until `PistolHolder.IsEquipped`). `python Tools/unity_mcp.py test
+  PlayMode PistolDrawScenarioTests.SavesSheetsOfTheDrawAndTheHolsterBothWays` writes
+  `Temp/LocomotionScenarios/pistol-draw-*.png` (frame sheets of the draw and holster). `test` takes full or class
+  names; a bare method name matches nothing.
 - `Docs/ExpansionPlan.md` is the approved plan and source of truth for crouch, momentum jumps, airborne pose, fall motion, landing, lighting
   and the F1 reorganisation.

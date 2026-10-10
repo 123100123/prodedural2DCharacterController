@@ -87,9 +87,10 @@ public sealed class LocomotionTelemetry {
     public float CarriedSpeed { get; private set; }
     // The current roll's momentum, or the last roll's (default before any roll).
     public RollReadout Roll { get; private set; }
-    // The sidearm (which parent carries it, where its muzzle is); set by the inspector, null without one.
-    public PistolView Sidearm { get; set; }
-    public SidearmReadout Weapon { get; private set; }
+    // The sidearm's draw cycle (state, progress, which parent carries it, the hands on it, its muzzle); set by the
+    // inspector, null without one.
+    public PistolHolder Sidearm { get; set; }
+    public WeaponReadout Weapon { get; private set; }
     public bool IsDrivingGait { get; private set; }
 
     public float GroundSpeed { get; private set; }

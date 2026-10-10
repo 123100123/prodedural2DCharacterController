@@ -43,6 +43,10 @@ public class ArmLimb {
     // Where something asked the hand to go this frame so far (null: nothing has), so a later layer can blend over it.
     public Vector2? RequestedTarget => requestedTarget;
 
+    // The share of the gap to its request the hand closes in a frame of this length: a caller moving the request along a
+    // path can lead it by this to keep the hand on the path.
+    public float EaseFraction(float deltaTime) => FrameRateEase.FractionForFrame(poseEase, deltaTime);
+
     public void ApplyPose(float deltaTime) {
         float ease = FrameRateEase.FractionForFrame(poseEase, deltaTime);
         EaseTowardRequest(ease);

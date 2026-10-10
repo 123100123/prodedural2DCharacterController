@@ -73,6 +73,7 @@ public class CharacterDriver : MonoBehaviour {
     private CharacterRig rig;
     private ShootingStance shootingStance;
     private PistolView pistolView;
+    private PistolHolder pistolHolder;
     private CratePusher cratePusher;
     private PushPose pushPose;
     private WeaponController weaponController;
@@ -87,7 +88,7 @@ public class CharacterDriver : MonoBehaviour {
 
     public CharacterEvents Events { get; private set; }
     // What debug and tuning tools need; the character never reads anything back from them.
-    public CharacterParts Parts => new CharacterParts((stride, posture, torsoMotion, head, armSwing), (crouch, postureRoot), (jump, airborne, states?.Airborne, (airPose, fallSecondary), landing), (shooting, pistol, (weapon, weaponController)), (pistolHandling, pistolView), (cameraFeel, followCamera), effects, audioSettings, (wall, states?.WallSlide), (slide, states?.Slide), (ledgeHang, oneWay, states?.Climb), (push, cratePusher, pushPose), ((roll, rollMomentum, rollRunExit, states?.Roll), climb, slope), (machine, states?.Walk));
+    public CharacterParts Parts => new CharacterParts((stride, posture, torsoMotion, head, armSwing), (crouch, postureRoot), (jump, airborne, states?.Airborne, (airPose, fallSecondary), landing), (shooting, pistol, (weapon, weaponController)), (pistolHandling, pistolView, pistolHolder), (cameraFeel, followCamera), effects, audioSettings, (wall, states?.WallSlide), (slide, states?.Slide), (ledgeHang, oneWay, states?.Climb), (push, cratePusher, pushPose), ((roll, rollMomentum, rollRunExit, states?.Roll), climb, slope), (machine, states?.Walk));
     public PlayerCommands LatestCommands => latestCommands;
     // The full-body state the character is in; null until the character is composed.
     public ICharacterState CurrentState => machine?.Current;
@@ -162,7 +163,8 @@ public class CharacterDriver : MonoBehaviour {
         weaponController = new WeaponController(pistol, weapon, (Events, transform));
         pistolView = new PistolView(rig, pistolHandling);
         pistol.View = pistolView;
-        shootingStance = new ShootingStance(rig, (weaponController, shooting, weapon), pistolView);
+        pistolHolder = new PistolHolder(rig, (pistolView, pistolHandling, shooting));
+        shootingStance = new ShootingStance(rig, (weaponController, shooting, weapon), (pistolView, pistolHolder));
         ComposeSecondaryMotion();
         characterEffects = new CharacterEffects(rig, effects, pistolView);
         characterAudio = new CharacterAudio(rig, audioSettings, characterEffects.Casings);
@@ -188,22 +190,16 @@ public class CharacterDriver : MonoBehaviour {
         machine.Tick(Time.deltaTime, commands);
         pushPose.Tick(Time.deltaTime);
         posture.Tick(Time.deltaTime);
-        CarrySidearm(commands);
+        // The draw cycle: aim draws the pistol, letting go holsters it, and a state that takes the arms (roll, climb, wall
+        // slide) or a crate push quick-holsters it.
+        pistolHolder.Tick(commands, (WeaponAllowed(), weaponController.IsReloading), Time.deltaTime);
 
         if (machine.Current.AllowsUpperBodyActions) {
             PoseUpperBody(commands);
             torsoMotion.Tick(Time.deltaTime);
-        }
-    }
-
-    // For now the pistol is in the hand exactly while the character aims and its state allows upper-body actions, and in
-    // the holster otherwise; the parent changes without moving it and its pose eases to the new place. The draw and
-    // holster cycle replaces this one rule.
-    private void CarrySidearm(PlayerCommands commands) {
-        if (commands.IsAiming && machine.Current.AllowsUpperBodyActions) {
-            pistolView.AttachToHand();
         } else {
-            pistolView.AttachToHolster();
+            // The weapon pass: a drawn pistol is quick-holstered by the front hand, over the state's own arm pose.
+            pistolHolder.PoseHands(null, false, Time.deltaTime);
         }
     }
 
@@ -225,19 +221,31 @@ public class CharacterDriver : MonoBehaviour {
     // The push drives the crate at the physics rate (the walk decided this frame whether it pushes).
     private void FixedUpdate() => cratePusher?.FixedTick(Time.fixedDeltaTime);
 
-    // Aiming drives the arms and head; otherwise the head stays level and the arms swing with the legs, and a push
-    // blends the hands onto the crate and the head toward them.
+    // Aiming drives the head and facing, and the arms once the pistol is drawn; otherwise the head stays level and the
+    // arms swing with the legs, and a push blends the hands onto the crate and the head toward them. While the pistol is
+    // being drawn or holstered the holder takes the hands over whatever posed them (the swing, the slide, the push).
     private void PoseUpperBody(PlayerCommands commands) {
         if (commands.IsAiming) {
             shootingStance.Tick(commands, Time.time);
             cameraAim = (true, shootingStance.AimPoint);
-            armSwing.Track(Time.deltaTime);
+            // Mid-draw the swing is what the hand leaves from (unless the state already posed the arms, as a slide does).
+            if (pistolHolder.PosesHands && !rig.FrontArm.RequestedTarget.HasValue) {
+                armSwing.Tick(Time.deltaTime);
+            } else {
+                armSwing.Track(Time.deltaTime);
+            }
+            pistolHolder.PoseHands(shootingStance.AimGrip, true, Time.deltaTime);
             return;
         }
         rig.Head.HoldLevel();
         armSwing.Tick(Time.deltaTime);
         pushPose.PoseArmsAndHead();
+        // A push has the hands on the crate: a pistol still being holstered takes only the front arm, over the push pose.
+        pistolHolder.PoseHands(null, !cratePusher.IsPushing, Time.deltaTime);
     }
+
+    // Whether the pistol may be out: the state lets the upper body act and the hands are not on a crate.
+    private bool WeaponAllowed() => machine.Current.AllowsUpperBodyActions && !cratePusher.IsPushing;
 
     private void LateUpdate() {
         rig.ApplyUpperBodyPose(Time.deltaTime);
