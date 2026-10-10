@@ -91,9 +91,12 @@ if __name__ == "__main__":
         job = (started.get("data") or {}).get("job_id") or started.get("job_id")
         if not job:
             print(json.dumps(started)[:2000]); sys.exit(1)
+        # Polled here, not with the server's wait_timeout: while it waits, the server brings the Unity window to the front
+        # whenever a test runs over 3 s with Unity in the background (its "focus nudge"), which steals the user's focus.
         while True:
-            state = parse(call("get_test_job", {"job_id": job, "include_failed_tests": True, "wait_timeout": 60}, sid))
+            state = parse(call("get_test_job", {"job_id": job, "include_failed_tests": True}, sid))
             data = state.get("data") or state
             if str(data.get("status", "")).lower() not in ("running", "pending", "queued", "initializing"):
                 print(json.dumps(data, indent=1)[:6000])
                 break
+            time.sleep(3)

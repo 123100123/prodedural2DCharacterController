@@ -15,8 +15,11 @@ conclude it is down from one failed call: try it first.
 - `refresh_unity` (`compile: request`) to compile, then poll until `EditorApplication.isCompiling` is false;
   `read_console` for errors.
 - `execute_code` runs a C# 6 method body in the Editor (no tuples; use `UnityEngine.Object.FindAnyObjectByType`).
-- `run_tests` (`mode`: EditMode/PlayMode, optional `test_names`) then `get_test_job` with `wait_timeout`. A job can fail
-  to initialise right after a scene save or domain reload; retry.
+- `run_tests` (`mode`: EditMode/PlayMode, optional `test_names`) then poll `get_test_job` **without** `wait_timeout`
+  (sleep between polls). While the server waits it brings the Unity window to the front whenever a test runs over 3 s
+  in the background (its "focus nudge"), stealing the user's focus; Unity runs unthrottled in the background here, so
+  the nudge is not needed. `python Tools/unity_mcp.py test` already polls this way. A job can fail to initialise right
+  after a scene save or domain reload; retry.
 - Batch-mode Unity cannot run while the Editor has the project open.
 
 If the server really is unreachable, fall back to a `dotnet build` of generated globbing copies of the
