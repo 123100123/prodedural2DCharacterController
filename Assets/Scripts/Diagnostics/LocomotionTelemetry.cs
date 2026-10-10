@@ -87,6 +87,9 @@ public sealed class LocomotionTelemetry {
     public float CarriedSpeed { get; private set; }
     // The current roll's momentum, or the last roll's (default before any roll).
     public RollReadout Roll { get; private set; }
+    // The sidearm (which parent carries it, where its muzzle is); set by the inspector, null without one.
+    public PistolView Sidearm { get; set; }
+    public SidearmReadout Weapon { get; private set; }
     public bool IsDrivingGait { get; private set; }
 
     public float GroundSpeed { get; private set; }
@@ -144,6 +147,7 @@ public sealed class LocomotionTelemetry {
     public void Refresh((PlayerCommands commands, float time) frame) {
         ReadInput(frame.commands);
         ReadRunIntent((frame.commands, frame.time));
+        Weapon = Sidearm != null ? Sidearm.Readout : default;
         ReadGait();
         ReadCrouch();
         Air = airborne.Snapshot;

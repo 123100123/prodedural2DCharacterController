@@ -183,8 +183,9 @@ public sealed class ScenarioStage {
     // The screen position of a world point under the camera as it is now.
     public static Vector2 ScreenPointOf(Vector2 worldPoint) => Camera.main.WorldToScreenPoint(worldPoint);
 
+    // The pointer source stays: the button release reaches the game a frame later, and for that frame it still reads the
+    // pointer, which must not jump to the real mouse (and turn the character toward it). Nothing reads it once aim is released.
     public void StopAiming() {
-        Character.ScenarioPointerSource = null;
         QueueMouse(new MouseState());
     }
 

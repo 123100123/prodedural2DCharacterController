@@ -15,6 +15,7 @@ public sealed class MovementTuning {
     private readonly ShootingSettings shooting;
     private readonly Pistol pistol;
     private readonly WeaponSettings weapon;
+    private readonly PistolHandlingSettings pistolHandling;
     private readonly CameraFeelSettings cameraFeel;
     private readonly EffectsSettings effects;
     private readonly CharacterAudioSettings audio;
@@ -44,6 +45,7 @@ public sealed class MovementTuning {
         shooting = parts.Shooting;
         pistol = parts.Pistol;
         weapon = parts.Weapon;
+        pistolHandling = parts.PistolHandling;
         cameraFeel = parts.CameraFeel;
         effects = parts.Effects;
         audio = parts.Audio;
@@ -74,6 +76,7 @@ public sealed class MovementTuning {
             pistolCooldown = pistol.Cooldown,
             pistolMuzzleOffset = pistol.MuzzleOffset,
             weapon = weapon.Clone(),
+            pistolHandling = pistolHandling.Clone(),
             cameraFeel = cameraFeel.Clone(),
             effects = effects.Clone(),
             audio = audio.Clone(),
@@ -114,6 +117,7 @@ public sealed class MovementTuning {
         pistol.Cooldown = preset.pistolCooldown;
         pistol.MuzzleOffset = preset.pistolMuzzleOffset;
         weapon.CopyFrom(preset.weapon);
+        pistolHandling.CopyFrom(preset.pistolHandling);
         cameraFeel.CopyFrom(preset.cameraFeel);
         effects.CopyFrom(preset.effects);
         audio.CopyFrom(preset.audio);

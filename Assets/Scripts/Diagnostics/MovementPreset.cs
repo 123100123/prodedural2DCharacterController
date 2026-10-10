@@ -5,7 +5,7 @@ using UnityEngine;
 // and what is copied out to commit a tuned configuration back into the project. Lighting has its own preset.
 [Serializable]
 public class MovementPreset : ITuningPreset<MovementPreset> {
-    public const int CurrentVersion = 14;
+    public const int CurrentVersion = 15;
 
     // Written to every saved file; lets a later change to the format recognise the files written before it.
     public int version = CurrentVersion;
@@ -20,8 +20,11 @@ public class MovementPreset : ITuningPreset<MovementPreset> {
     public LandingSettings landing;
     public ShootingSettings shooting;
     public float pistolCooldown;
+    // Legacy since version 15: the muzzle is the pistol picture's barrel tip. Kept so older files load.
     public float pistolMuzzleOffset;
     public WeaponSettings weapon;
+    // Since version 15: where the holster hangs and how the pistol is held (missing before then).
+    public PistolHandlingSettings pistolHandling;
     public CameraFeelSettings cameraFeel;
     public EffectsSettings effects;
     public CharacterAudioSettings audio;
@@ -65,6 +68,7 @@ public class MovementPreset : ITuningPreset<MovementPreset> {
             pistolCooldown = 0.18f,
             pistolMuzzleOffset = 0.15f,
             weapon = new WeaponSettings(),
+            pistolHandling = new PistolHandlingSettings(),
             cameraFeel = new CameraFeelSettings(),
             effects = new EffectsSettings(),
             audio = new CharacterAudioSettings(),
@@ -101,6 +105,7 @@ public class MovementPreset : ITuningPreset<MovementPreset> {
         copy.landing = landing.Clone();
         copy.shooting = shooting.Clone();
         copy.weapon = weapon.Clone();
+        copy.pistolHandling = pistolHandling.Clone();
         copy.cameraFeel = cameraFeel.Clone();
         copy.effects = effects.Clone();
         copy.audio = audio.Clone();

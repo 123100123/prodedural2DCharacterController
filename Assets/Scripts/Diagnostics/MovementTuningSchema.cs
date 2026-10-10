@@ -117,9 +117,22 @@ public static class MovementTuningSchema {
         };
         parameters.AddRange(Spring(("Recoil spring", (p => p.shooting.recoilSpring, (p, s) => p.shooting.recoilSpring = s))));
         parameters.Add(new Parameter(("Pistol", "Seconds between shots", Seconds), (0.02f, 1.5f), (p => p.pistolCooldown, (p, v) => p.pistolCooldown = v)));
-        parameters.Add(new Parameter(("Pistol", "Muzzle in front of the hand", Units), (0f, 1f), (p => p.pistolMuzzleOffset, (p, v) => p.pistolMuzzleOffset = v)));
+        parameters.AddRange(Sidearm());
         parameters.AddRange(Weapon());
         return parameters;
+    }
+
+    // The holster on the hip, the pistol in the hand and its recoil twist.
+    private static IEnumerable<Parameter> Sidearm() {
+        return new List<Parameter> {
+            new Parameter(("Holster", "Offset x (along the spine)", Units), (-1f, 1f), (p => p.pistolHandling.holsterOffset.x, (p, v) => p.pistolHandling.holsterOffset.x = v)),
+            new Parameter(("Holster", "Offset y (toward the back)", Units), (-1f, 1f), (p => p.pistolHandling.holsterOffset.y, (p, v) => p.pistolHandling.holsterOffset.y = v)),
+            new Parameter(("Holster", "Angle", Degrees), (-360f, 360f), (p => p.pistolHandling.holsterAngle, (p, v) => p.pistolHandling.holsterAngle = v)),
+            new Parameter(("Pistol grip", "Offset x (along the forearm)", Units), (-0.5f, 0.5f), (p => p.pistolHandling.gripOffset.x, (p, v) => p.pistolHandling.gripOffset.x = v)),
+            new Parameter(("Pistol grip", "Offset y (across the forearm)", Units), (-0.5f, 0.5f), (p => p.pistolHandling.gripOffset.y, (p, v) => p.pistolHandling.gripOffset.y = v)),
+            new Parameter(("Pistol grip", "Recoil twist", Degrees), (0f, 300f), (p => p.pistolHandling.recoilTwist, (p, v) => p.pistolHandling.recoilTwist = v)),
+            new Parameter(("Pistol grip", "Pistol scale", Multiple), (0.4f, 2.5f), (p => p.pistolHandling.pistolScale, (p, v) => p.pistolHandling.pistolScale = v)),
+        };
     }
 
     // The shot, the tracer and the reload. The magazine size is a whole number and is set on the character in the scene.

@@ -54,6 +54,8 @@ public class CharacterDriver : MonoBehaviour {
     [SerializeField] private ShootingSettings shooting = new ShootingSettings();
     [SerializeField] private Pistol pistol = new Pistol();
     [SerializeField] private WeaponSettings weapon = new WeaponSettings();
+    [Tooltip("Where the holster hangs and how the pistol is held; the pistol itself is built at runtime.")]
+    [SerializeField] private PistolHandlingSettings pistolHandling = new PistolHandlingSettings();
 
     [Header("Camera")]
     [SerializeField] private FollowCamera followCamera = new FollowCamera();
@@ -70,6 +72,7 @@ public class CharacterDriver : MonoBehaviour {
     private CharacterStates states;
     private CharacterRig rig;
     private ShootingStance shootingStance;
+    private PistolView pistolView;
     private CratePusher cratePusher;
     private PushPose pushPose;
     private WeaponController weaponController;
@@ -84,7 +87,7 @@ public class CharacterDriver : MonoBehaviour {
 
     public CharacterEvents Events { get; private set; }
     // What debug and tuning tools need; the character never reads anything back from them.
-    public CharacterParts Parts => new CharacterParts((stride, posture, torsoMotion, head, armSwing), (crouch, postureRoot), (jump, airborne, states?.Airborne, (airPose, fallSecondary), landing), (shooting, pistol, (weapon, weaponController)), (cameraFeel, followCamera), effects, audioSettings, (wall, states?.WallSlide), (slide, states?.Slide), (ledgeHang, oneWay, states?.Climb), (push, cratePusher, pushPose), ((roll, rollMomentum, rollRunExit, states?.Roll), climb, slope), (machine, states?.Walk));
+    public CharacterParts Parts => new CharacterParts((stride, posture, torsoMotion, head, armSwing), (crouch, postureRoot), (jump, airborne, states?.Airborne, (airPose, fallSecondary), landing), (shooting, pistol, (weapon, weaponController)), (pistolHandling, pistolView), (cameraFeel, followCamera), effects, audioSettings, (wall, states?.WallSlide), (slide, states?.Slide), (ledgeHang, oneWay, states?.Climb), (push, cratePusher, pushPose), ((roll, rollMomentum, rollRunExit, states?.Roll), climb, slope), (machine, states?.Walk));
     public PlayerCommands LatestCommands => latestCommands;
     // The full-body state the character is in; null until the character is composed.
     public ICharacterState CurrentState => machine?.Current;
@@ -128,6 +131,8 @@ public class CharacterDriver : MonoBehaviour {
         weaponController?.Dispose();
         characterAudio?.Dispose();
         characterEffects?.Dispose();
+        pistol.View = null;
+        pistolView?.Dispose();
     }
 
     // Reports a broken rig while editing, as soon as the references change.
@@ -155,13 +160,18 @@ public class CharacterDriver : MonoBehaviour {
         pushPose = new PushPose(rig, (cratePusher, push));
         states = BuildStates();
         weaponController = new WeaponController(pistol, weapon, (Events, transform));
-        shootingStance = new ShootingStance(rig, (weaponController, shooting, weapon));
+        pistolView = new PistolView(rig, pistolHandling);
+        pistol.View = pistolView;
+        shootingStance = new ShootingStance(rig, (weaponController, shooting, weapon), pistolView);
         ComposeSecondaryMotion();
-        characterEffects = new CharacterEffects(rig, effects);
+        characterEffects = new CharacterEffects(rig, effects, pistolView);
         characterAudio = new CharacterAudio(rig, audioSettings, characterEffects.Casings);
         OwnedRoot.Mark(weaponController.Tracers.Root, transform);
         OwnedRoot.Mark(characterEffects.Root, transform);
         OwnedRoot.Mark(characterAudio.Root, transform);
+        OwnedRoot.Mark(pistolView.Holster.gameObject, transform);
+        OwnedRoot.Mark(pistolView.WeaponPivot.gameObject, transform);
+        OwnedRoot.Mark(pistolView.Pistol.gameObject, transform);
         states.Walk.Begin();
     }
 
@@ -178,10 +188,22 @@ public class CharacterDriver : MonoBehaviour {
         machine.Tick(Time.deltaTime, commands);
         pushPose.Tick(Time.deltaTime);
         posture.Tick(Time.deltaTime);
+        CarrySidearm(commands);
 
         if (machine.Current.AllowsUpperBodyActions) {
             PoseUpperBody(commands);
             torsoMotion.Tick(Time.deltaTime);
+        }
+    }
+
+    // For now the pistol is in the hand exactly while the character aims and its state allows upper-body actions, and in
+    // the holster otherwise; the parent changes without moving it and its pose eases to the new place. The draw and
+    // holster cycle replaces this one rule.
+    private void CarrySidearm(PlayerCommands commands) {
+        if (commands.IsAiming && machine.Current.AllowsUpperBodyActions) {
+            pistolView.AttachToHand();
+        } else {
+            pistolView.AttachToHolster();
         }
     }
 
@@ -219,6 +241,7 @@ public class CharacterDriver : MonoBehaviour {
 
     private void LateUpdate() {
         rig.ApplyUpperBodyPose(Time.deltaTime);
+        pistolView.Pose(Time.deltaTime);
         followCamera.Tick(Time.deltaTime, cameraAim);
     }
 

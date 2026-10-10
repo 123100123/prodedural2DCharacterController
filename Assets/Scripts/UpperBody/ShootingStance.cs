@@ -11,13 +11,16 @@ public sealed class ShootingStance {
     private readonly WeaponController weapon;
     private readonly ShootingSettings settings;
     private readonly WeaponSettings weaponSettings;
+    private readonly PistolView sidearm;
     private readonly SecondOrderDynamics recoil = new SecondOrderDynamics(0f);
+    private float recoilKick;
 
     // Where the pointer was in the world at the last aiming tick; the camera frames the aim with it.
     public Vector2 AimPoint { get; private set; }
 
-    public ShootingStance(CharacterRig rig, (WeaponController weapon, ShootingSettings settings, WeaponSettings weaponSettings) parts) {
+    public ShootingStance(CharacterRig rig, (WeaponController weapon, ShootingSettings settings, WeaponSettings weaponSettings) parts, PistolView sidearm = null) {
         this.rig = rig;
+        this.sidearm = sidearm;
         weapon = parts.weapon;
         settings = parts.settings;
         weaponSettings = parts.weaponSettings;
@@ -37,6 +40,7 @@ public sealed class ShootingStance {
         Vector2 gripPoint = rig.FrontArm.ShoulderPosition + gripDirection * (rig.FrontArm.Reach * settings.armExtension)
             + RecoilOffset((aimDirection, Time.deltaTime));
         rig.FrontArm.ReachToward(gripPoint);
+        sidearm?.SetBarrelDirection(gripDirection, recoilKick);
         rig.BackArm.ReachToward(SupportHandTarget((gripPoint - gripDirection * settings.supportHandOffset, reloadProgress)));
         rig.Head.LookToward(aimDirection);
 
@@ -61,6 +65,7 @@ public sealed class ShootingStance {
     // The grip is thrown back along the aim and up, then springs back.
     private Vector2 RecoilOffset((Vector2 aimDirection, float deltaTime) frame) {
         float kick = recoil.Update((0f, frame.deltaTime), settings.recoilSpring);
+        recoilKick = kick;
         return (-frame.aimDirection + Vector2.up * settings.recoilRise) * kick;
     }
 

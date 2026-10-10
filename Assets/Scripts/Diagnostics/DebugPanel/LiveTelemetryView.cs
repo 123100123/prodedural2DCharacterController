@@ -18,6 +18,7 @@ public sealed class LiveTelemetryView {
         AddSection(("Gait", GaitReadouts()));
         AddSection(("Run intent", RunIntentReadouts()));
         AddSection(("Roll", RollReadouts()));
+        AddSection(("Weapon", WeaponReadouts()));
         AddSection(("Slope gait", SlopeGaitReadouts()));
         AddSection(("Crouch", CrouchReadouts()));
         AddSection(("Airborne", AirborneReadouts()));
@@ -58,6 +59,13 @@ public sealed class LiveTelemetryView {
         yield return ("Can transition to run", t => t.Readiness.CanRun ? "yes" : $"no ({t.Readiness.Reason})");
         yield return ("Last transition", t => $"{t.PreviousStateName} → {t.StateName}, {t.SecondsSinceStateChange:0.00} s ago (#{t.StateChanges})");
         yield return ("Velocity carried into walk/run", t => $"{t.CarriedSpeed:0.00} u/s");
+    }
+
+    // Where the pistol is: in the holster or the hand, and its muzzle in the world.
+    private static IEnumerable<(string label, Func<LocomotionTelemetry, string> format)> WeaponReadouts() {
+        yield return ("Parent", t => t.Sidearm == null ? "no pistol" : t.Weapon.InHand ? PistolView.PivotName : PistolView.HolsterName);
+        yield return ("In hand / holstered", t => t.Sidearm == null ? "-" : t.Weapon.InHand ? "in hand" : "holstered");
+        yield return ("Muzzle world position", t => t.Sidearm == null ? "-" : $"({t.Weapon.Muzzle.x:0.00}, {t.Weapon.Muzzle.y:0.00})");
     }
 
     // The current roll's momentum, or the last roll's after it ended: how it was launched, how it decays, what it handed on.

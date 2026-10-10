@@ -25,6 +25,9 @@ public class ArmLimb {
 
     public Vector2 ShoulderPosition => shoulder.position;
     public float Reach => upperLength + forearmLength;
+    // The forearm bone and its length: the hand is a point at the end of it, and held things hang from there.
+    public Transform Forearm => forearm;
+    public float ForearmLength => forearmLength;
     public Vector2 HandPosition => forearm.TransformPoint(new Vector3(forearmLength, 0f, 0f));
 
     public void Initialize(int rigAuthoredFacingSign) {

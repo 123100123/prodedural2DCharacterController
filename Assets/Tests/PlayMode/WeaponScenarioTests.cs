@@ -126,7 +126,9 @@ public class WeaponScenarioTests : ScenarioFixture {
     public IEnumerator ABulletStopsAtWhateverIsInTheWay() {
         yield return Hold(1f);
         yield return AimAheadOfTheCharacter();
-        ShootingTarget near = SpawnTarget(-1.5f);
+        // Both stand beyond the muzzle: the arm and the pistol reach about 2.2 units from the body, and a bullet starts at the
+        // barrel tip, so a target any nearer than that is behind the shot.
+        ShootingTarget near = SpawnTarget(0f);
         ShootingTarget far = SpawnTarget(1.5f);
 
         yield return AimAndClick(FramesBeforeFirstClick + 2 * FramesBetweenShots);

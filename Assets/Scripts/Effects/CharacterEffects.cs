@@ -42,6 +42,7 @@ public sealed class CharacterEffects {
     private readonly EffectsSettings settings;
     private readonly CharacterRig rig;
     private readonly CharacterEvents events;
+    private readonly PistolView sidearm;
     private readonly GameObject root;
     private readonly Texture2D puffTexture;
     private readonly Texture2D sparkTexture;
@@ -67,8 +68,10 @@ public sealed class CharacterEffects {
     private float pushDustDue;
     private bool pushDustLeads;
 
-    public CharacterEffects(CharacterRig rig, EffectsSettings settings) {
+    // sidearm: the pistol casings are ejected from; without one they leave a little behind the muzzle.
+    public CharacterEffects(CharacterRig rig, EffectsSettings settings, PistolView sidearm = null) {
         this.rig = rig;
+        this.sidearm = sidearm;
         this.settings = settings;
         events = rig.Events;
         root = new GameObject("Effects");
@@ -401,7 +404,7 @@ public sealed class CharacterEffects {
         }
     }
 
-    // Thrown up and back from the ejection port, a little behind the muzzle, spinning.
+    // Thrown up and back from the pistol's ejection port (a little behind the muzzle when there is no pistol), spinning.
     private void EjectCasing((Vector2 muzzle, Vector2 direction) shot) {
         if (settings.casingLifetime <= 0f) {
             return;
@@ -409,7 +412,8 @@ public sealed class CharacterEffects {
         Vector2 direction = shot.direction.normalized;
         float speed = settings.casingEjectSpeed * Random.Range(0.75f, 1.15f);
         Vector2 velocity = EffectMath.UpwardPerpendicular(direction) * speed - direction * (speed * 0.4f);
-        Casings.Eject((shot.muzzle - direction * CasingBackOffset, velocity, Random.Range(-CasingSpin, CasingSpin)), (settings.casingLifetime, settings.casingFadeTime));
+        Vector2 port = sidearm != null ? (Vector2)sidearm.EjectionPort.position : shot.muzzle - direction * CasingBackOffset;
+        Casings.Eject((port, velocity, Random.Range(-CasingSpin, CasingSpin)), (settings.casingLifetime, settings.casingFadeTime));
     }
 
     // ---- Helpers --------------------------------------------------------------------------------------------
