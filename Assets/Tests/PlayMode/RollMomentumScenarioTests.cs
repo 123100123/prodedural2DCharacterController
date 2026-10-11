@@ -184,6 +184,67 @@ public class RollMomentumScenarioTests : ScenarioFixture {
         Assert.That(runningOn, Is.GreaterThan(Stage.Stride.Run.speed * 0.9f), "and runs on");
     }
 
+    // A roll that runs off a ledge ends in the fall (RollState hands the speed to Airborne.Fall): the horizontal speed is
+    // carried into the air rather than reset, and the character lands and walks on.
+    [UnityTest]
+    public IEnumerator ARunningRollOffALedgeFallsWithItsSpeedAndLandsOnItsFeet() {
+        const float Edge = 12f;
+        float startX = Body.x;
+        Stage.PlaceOnPlatform((5f, Edge));
+        yield return Hold(0.5f);
+        Stage.Press(Key.D, Key.LeftShift);
+        yield return WaitUntil(() => Body.x > startX + Edge - 1f, 6f);
+        Assert.That(Body.x, Is.GreaterThan(startX + Edge - 1f), "ran up to the ledge");
+        Stage.Press(Key.LeftAlt);
+        yield return null;
+        Stage.Release(Key.LeftAlt);
+        Stage.ReleaseAll();
+
+        List<string> states = new List<string>();
+        float runSpeed = Stage.Stride.Run.speed;
+        float rollSpeed = 0f;
+        float previousX = Body.x;
+        float airborneSpeed = 0f;
+        float landedX = float.NaN;
+        for (int frame = 0; frame < 300 && !(states.Count > 0 && states[states.Count - 1] == "Walk" && states.Contains("Airborne")); frame++) {
+            string state = State.GetType().Name.Replace("State", "");
+            if (state == "Roll") {
+                rollSpeed = Roll.Readout.Speed;
+            }
+            if (states.Count == 0 || states[states.Count - 1] != state) {
+                states.Add(state);
+                if (state == "Airborne") {
+                    airborneSpeed = 0f;
+                }
+            }
+            yield return null;
+            // The body's horizontal speed over the first frames of the fall.
+            float speed = (Body.x - previousX) / ScenarioStage.FrameTime;
+            if (states[states.Count - 1] == "Airborne" && airborneSpeed == 0f) {
+                airborneSpeed = speed;
+            }
+            previousX = Body.x;
+        }
+        landedX = Body.x;
+        Report($"states {string.Join(" > ", states)}; roll speed at the ledge {rollSpeed:F2}, first airborne frame {airborneSpeed:F2} u/s (run {runSpeed:F2}), landed at x {landedX:F2} (edge {startX + Edge:F2})");
+
+        int roll = states.IndexOf("Roll");
+        Assert.That(roll, Is.GreaterThanOrEqualTo(0), "rolled");
+        Assert.That(states.Skip(roll).Take(3), Is.EqualTo(new[] { "Roll", "Airborne", "Walk" }), "roll, fall, walk");
+        Assert.That(rollSpeed, Is.GreaterThan(1f), "the roll was moving at the ledge");
+        Assert.That(airborneSpeed, Is.GreaterThan(Mathf.Min(rollSpeed, runSpeed) * 0.7f), "the speed is carried into the fall, not reset");
+        Assert.That(landedX, Is.GreaterThan(startX + Edge), "it fell beyond the ledge");
+        Assert.That(Body.y, Is.LessThan(ScenarioStage.GroundTop + 3f), "down on the track, not on the 5 u ledge");
+
+        // And walks on from the landing.
+        float walkFrom = Body.x;
+        Stage.Press(Key.D);
+        yield return Hold(1f);
+        Stage.ReleaseAll();
+        Assert.That(State, Is.InstanceOf<WalkState>(), "still walking");
+        Assert.That(Body.x - walkFrom, Is.GreaterThan(1f), "continues along the track");
+    }
+
     private static void Paste(Texture2D sheet, Texture2D picture, int slot) {
         sheet.SetPixels(slot % 3 * PictureWidth, (1 - slot / 3) * PictureHeight, PictureWidth, PictureHeight, picture.GetPixels());
         Object.Destroy(picture);

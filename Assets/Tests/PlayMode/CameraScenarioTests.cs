@@ -89,7 +89,7 @@ public class CameraScenarioTests : ScenarioFixture {
         (float trauma, float offset) peaks = default;
         yield return AimAndClick(screen, result => peaks = result);
         Report($"peak trauma {peaks.trauma:F2}, peak shake offset {peaks.offset:F4}");
-        Assert.That(peaks.trauma, Is.GreaterThanOrEqualTo(Feel.firedTrauma - 0.01f), "a shot adds trauma");
+        Assert.That(peaks.trauma, Is.GreaterThanOrEqualTo(Feel.firedTrauma - 0.03f), "a shot adds trauma (sampled after a frame's decay: the shot is taken in LateUpdate)");
         Assert.That(peaks.offset, Is.GreaterThan(0.002f), "and moves the camera");
 
         yield return Hold(1.5f);

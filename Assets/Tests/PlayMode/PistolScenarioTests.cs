@@ -106,6 +106,48 @@ public class PistolScenarioTests : ScenarioFixture {
         }
     }
 
+    // The pistol is posed in LateUpdate, after the arms; a shot taken in Update would leave from last frame's barrel, off
+    // by the frame's run travel. The shot is taken after the pose, so it leaves from the barrel as rendered that frame.
+    [UnityTest]
+    public IEnumerator WhileRunningTheShotLeavesTheBarrelAsRenderedThatFrame() {
+        yield return Hold(0.6f);
+        Stage.Press(Key.D, Key.LeftShift);
+        yield return Hold(1f);
+        for (int frame = 0; frame < 40; frame++) {
+            Stage.AimAndFire(Body + new Vector2(6f, 1.5f), false);
+            yield return null;
+        }
+        Assert.That(View.IsInHand, Is.True, "drawn while running");
+        Assert.That(Mathf.Abs(Stage.Stride.GroundSpeed), Is.GreaterThan(Stage.Stride.Run.speed * 0.8f), "running");
+
+        Vector2? fired = null;
+        System.Action<(Vector2 muzzle, Vector2 direction)> record = shot => fired = shot.muzzle;
+        Driver.Events.Fired += record;
+        int shots = 0;
+        float worst = 0f;
+        float travel = 0f;
+        float previousX = Body.x;
+        for (int frame = 0; frame < 90; frame++) {
+            Stage.AimAndFire(Body + new Vector2(6f, 1.5f), frame % 2 == 0);
+            fired = null;
+            yield return null;
+            // The end of the frame: after every LateUpdate (the arms, the leg IK, the pistol's pose).
+            yield return new WaitForEndOfFrame();
+            travel = Mathf.Abs(Body.x - previousX);
+            previousX = Body.x;
+            if (fired.HasValue) {
+                shots++;
+                // The pose at the end of the frame the shot was taken in.
+                worst = Mathf.Max(worst, Vector2.Distance(fired.Value, View.Muzzle.position));
+            }
+        }
+        Driver.Events.Fired -= record;
+        Stage.ReleaseAll();
+        Report($"{shots} shots while running ({travel:F3} u per frame): worst Fired muzzle error {worst:F5}");
+        Assert.That(shots, Is.GreaterThanOrEqualTo(3), "fired several times");
+        Assert.That(worst, Is.LessThan(0.002f), "the Fired muzzle is where the barrel is rendered that frame");
+    }
+
     [UnityTest]
     public IEnumerator FlippingTheFacingMirrorsThePistolAndTheHolster() {
         yield return Hold(0.6f);

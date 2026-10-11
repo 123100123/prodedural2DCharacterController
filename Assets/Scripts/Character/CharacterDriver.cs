@@ -250,6 +250,8 @@ public class CharacterDriver : MonoBehaviour {
     private void LateUpdate() {
         rig.ApplyUpperBodyPose(Time.deltaTime);
         pistolView.Pose(Time.deltaTime);
+        // The shot leaves from the barrel as it is rendered this frame.
+        shootingStance.ReleaseShot();
         followCamera.Tick(Time.deltaTime, cameraAim);
     }
 

@@ -64,6 +64,8 @@ public class LightingScenarioTests : ScenarioFixture {
         yield return Stage.DrawAt(() => (Vector2)Stage.Stride.transform.position + new Vector2(6f, 3f));
         Stage.AimAndFire((Vector2)Stage.Stride.transform.position + new Vector2(6f, 3f), true);
         yield return null;
+        // The shot is taken in LateUpdate (after the pistol is posed): look at the end of the frame.
+        yield return new WaitForEndOfFrame();
         Stage.StopAiming();
 
         float previous = lighting.MuzzleIntensity;

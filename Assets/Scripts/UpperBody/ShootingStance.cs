@@ -17,6 +17,8 @@ public sealed class ShootingStance {
     private readonly PistolHolder holder;
     private readonly SecondOrderDynamics recoil = new SecondOrderDynamics(0f);
     private float recoilKick;
+    // A shot decided in Tick, taken in ReleaseShot once the pistol has been posed for the frame it is drawn in.
+    private (Vector2 aimDirection, float now)? pendingShot;
 
     // Where the pointer was in the world at the last aiming tick; the camera frames the aim with it.
     public Vector2 AimPoint { get; private set; }
@@ -58,11 +60,18 @@ public sealed class ShootingStance {
 
         bool fires = holder != null ? holder.FiresNow : commands.FirePressed;
         if (fires) {
-            FirePistol((aimDirection, now));
+            pendingShot = (aimDirection, now);
         }
     }
 
-    private void FirePistol((Vector2 aimDirection, float now) shot) {
+    // Takes the shot Tick decided on, if any. Run after the arms and the pistol are posed for the frame (LateUpdate), so the
+    // shot leaves from the barrel tip as it is drawn this frame, not as it was posed last frame.
+    public void ReleaseShot() {
+        if (!pendingShot.HasValue) {
+            return;
+        }
+        (Vector2 aimDirection, float now) shot = pendingShot.Value;
+        pendingShot = null;
         Vector2 muzzle = weapon.MuzzleFor((rig.FrontArm.HandPosition, shot.aimDirection));
         if (weapon.PullTrigger((muzzle, shot.aimDirection), shot.now) == TriggerResult.Fired) {
             recoil.AddVelocity(settings.recoilKick);

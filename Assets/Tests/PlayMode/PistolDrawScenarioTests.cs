@@ -262,11 +262,14 @@ public class PistolDrawScenarioTests : ScenarioFixture {
         int shots = 0;
         int shotFrame = -1;
         int equippedFrame = -1;
+        int shotGameFrame = -1;
+        int equippedGameFrame = -1;
         float muzzleError = -1f;
         int frame = 0;
         Driver.Events.Fired += fired => {
             shots++;
             shotFrame = frame;
+            shotGameFrame = Time.frameCount;
             muzzleError = Vector2.Distance(fired.muzzle, View.Muzzle.position);
         };
         bool bufferedWhileDrawing = false;
@@ -281,13 +284,15 @@ public class PistolDrawScenarioTests : ScenarioFixture {
             }
             if (equippedFrame < 0 && Holder.IsEquipped) {
                 equippedFrame = frame;
+                equippedGameFrame = Time.frameCount;
             }
         }
         Stage.StopAiming();
         Report($"equipped at frame {equippedFrame}, shot at frame {shotFrame}, {shots} shots, muzzle error {muzzleError:F5}");
         Assert.That(bufferedWhileDrawing, Is.True, "the click waited for the draw");
         Assert.That(shots, Is.EqualTo(1), "one buffered shot, however many clicks");
-        Assert.That(shotFrame, Is.EqualTo(equippedFrame), "fired the frame the pistol reached the aim");
+        // The shot is taken in LateUpdate of the frame the holder reports Equipped in (the loop counter has moved on by then).
+        Assert.That(shotGameFrame, Is.EqualTo(equippedGameFrame), "fired the frame the pistol reached the aim");
         Assert.That(muzzleError, Is.LessThan(0.001f));
     }
 

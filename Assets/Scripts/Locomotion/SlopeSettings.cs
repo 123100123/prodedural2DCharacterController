@@ -16,7 +16,9 @@ public class SlopeSettings {
     [Range(0.2f, 1.5f)] public float downhillSpeedFactor = 1.1f;
     [Tooltip("A planted trailing foot steps (as its next step, not a balance step) once keeping it would stretch the leg " +
              "past this share of its length, with the pelvis as low as its reach reserve lets it sink. 1: the leg would " +
-             "have to be longer than it is. The gait's own push-off never gets there on flat ground or a steady slope.")]
+             "have to be longer than it is. The gait's own push-off never gets there on flat ground or a steady slope. " +
+             "1.0 rather than the plan's 0.985: the flat run peaks at 1.0017, so 0.985 would release on flat ground. " +
+             "The pelvis reserve floor lets the measured extension reach about 1.012 on a 45 degree walk up (about 1 px of foot lift; the bones are rigid).")]
     [Range(0.9f, 1.2f)] public float releaseExtension = 1f;
     [Tooltip("Degrees the torso leans toward the uphill side per degree of slope: forward climbing, back a little descending.")]
     [Range(0f, 0.5f)] public float slopeLean = 0.15f;
